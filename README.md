@@ -26,7 +26,7 @@ Example facts include gross sales by color per day, total clicks per customer an
 building dimensions
 -------------------
 1) add the dimension table, e.g.
-          CREATE TABLE `dim_date` (
+    CREATE TABLE `dim_date` (
             `id` int(11) NOT NULL AUTO_INCREMENT,
             `date` date NOT NULL,
             `day` int(11) NOT NULL,
