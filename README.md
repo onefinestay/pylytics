@@ -35,4 +35,12 @@ building facts
 
 4) write a script to update the dimension, e.g.
 
-note that the facts include a list of dimensions
+**note that the fact script includes a list of dimensions (dim_names) and a query ... that's it
+
+run pylytics
+------------
+Run your scripts using *manage.py* (from the command line or cron)
+    py manage.py
+
+
+
