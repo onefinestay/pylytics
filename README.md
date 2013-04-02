@@ -26,11 +26,13 @@ Example facts include gross sales by color per day, total clicks per customer an
 building dimensions
 -------------------
 1) add the dimension table sql, e.g. blob/master/dim/sql/dim_date.sql
+
 2) write a script to update the dimension, e.g. blob/master/dim/dim_date.py
 
 building facts
 --------------
 3) add the fact table sql, e.g. 
+
 4) write a script to update the dimension, e.g.
 
 note that the facts include a list of dimensions
