@@ -40,7 +40,7 @@ py manage.py
 
 tests
 -----
-The [base fact](blob/master/library/fact.py) and [base dimension](blob/master/library/dim.py) classes contain a test method.  This method must be overriden by each fact and dimension script.
+The [base fact](library/fact.py) and [base dimension](library/dim.py) classes contain a test method.  This method must be overriden by each fact and dimension script.
 
 Run tests as
 ```python
