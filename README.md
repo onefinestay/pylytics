@@ -19,7 +19,7 @@ Facts are the measurements you take.  They are most often calculations or summat
 
 building dimensions
 -------------------
-1) add the dimension table sql, e.g. [blob/master/dim/sql/dim_date.sql](blob/master/dim/sql/dim_date.sql)
+1) add the dimension table sql, e.g. [dim/sql/dim_date.sql](dim/sql/dim_date.sql)
 
 2) write a script to update the dimension, e.g. [blob/master/dim/dim_date.py](blob/master/dim/dim_date.py)
 
