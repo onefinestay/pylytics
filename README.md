@@ -19,15 +19,15 @@ Facts are the measurements you take.  They are most often calculations or summat
 
 building dimensions
 -------------------
-1) add the dimension table sql, e.g. [dim/sql/dim_date.sql](dim/sql/dim_date.sql)
+1) add the dimension table sql, e.g. [dim/sql/dim_example_date.sql](dim/sql/dim_example_date.sql)
 
-2) write a script to update the dimension, e.g. [blob/master/dim/dim_date.py](blob/master/dim/dim_date.py)
+2) write a script to update the dimension, e.g. [dim/dim_example_date.py](dim/dim_example_date.py)
 
 building facts
 --------------
-3) add the fact table sql, e.g. [blob/master/fact/sql/fact_example_sales.sql](blob/master/fact/sql/fact_example_sales.sql)
+3) add the fact table sql, e.g. [fact/sql/fact_example_sales.sql](fact/sql/fact_example_sales.sql)
 
-4) write a script to update the dimension, e.g. [blob/master/dimension/sql/dimension_example_date.sql](blob/master/dimension/sql/dimension_example_date.sql)
+4) write a script to update the dimension, e.g. [dimension/sql/dimension_example_date.sql](dimension/sql/dimension_example_date.sql)
 
 **note that the fact script includes a list of dimensions (dim_names) and a query ... that's it.
 
