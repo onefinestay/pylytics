@@ -1,5 +1,5 @@
 from library.fact import Fact
-class FactCountAllTheSales(Fact):
+class FactCountAllthesales(Fact):
 
     source_db = 'example'
     

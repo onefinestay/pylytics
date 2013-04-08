@@ -2,7 +2,7 @@ CREATE TABLE `fact_count_allthesales` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `dim_date` int(11) NOT NULL,
   `dim_location` int(11) NOT NULL,
-  `fact_count` int(11) NOT NULL DEFAULT '0',
+  `fact_count` decimal(12,2) NOT NULL DEFAULT '0.00',
   `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `dim_date_days_id` (`dim_date`),
