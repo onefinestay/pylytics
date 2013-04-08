@@ -1,5 +1,5 @@
 SELECT
-  d1.day,
+  d1.date,
   d2.location,
   SUM(f.fact_count)
 FROM
