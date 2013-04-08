@@ -27,7 +27,7 @@ building facts
 --------------
 3) add the fact table sql, e.g. [fact/sql/fact_count_allthesales.sql](fact/sql/fact_count_allthesales.sql)
 
-4) write a script to update the dimension, e.g. [dimension/sql/dim_date.sql](dimension/sql/dim_date.sql)
+4) write a script to update the dimension, e.g. [dim/sql/dim_date.sql](dim/sql/dim_date.sql)
 
 **note that the fact script includes a list of dimensions (dim_names) and a query ... that's it.
 
