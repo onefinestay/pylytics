@@ -1,6 +1,6 @@
 CREATE TABLE `sales` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
-  `location_name` int(11) NOT NULL,
+  `location_name` varchar(255) NOT NULL,
   `sale_value` decimal(12,2) NOT NULL,
   `sale_date` datetime NOT NULL,
   `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
