@@ -34,7 +34,6 @@ building facts
 run pylytics
 ------------
 Run your scripts using *manage.py* (from the command line or cron)
-```python
 e.g.
 ``` python
 ./manage.py all update
