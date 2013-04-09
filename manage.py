@@ -63,7 +63,7 @@ if __name__ == "__main__":
         )
     parser.add_argument(
         'command',
-        choices = ['update', 'build'],
+        choices = ['update', 'build','test'],
         help = 'The command you want to run.',
         nargs = 1,
         type = str,
