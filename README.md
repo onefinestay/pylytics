@@ -43,9 +43,9 @@ Which updates all Fact and Dimension tables.
 
 tests
 -----
-The [base fact](library/fact.py) and [base dimension](library/dim.py) classes contain a test method.  This method must be overriden by each fact and dimension script.
+The [base table](library/table.py) class contain a test method.  This method must be overriden by each fact and dimension script to enable tests.
 
 Run tests as
 ```python
-py manage.py tests
+py manage.py all tests
 ```
