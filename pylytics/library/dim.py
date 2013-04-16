@@ -1,4 +1,4 @@
-from library.connection import DB
+from connection import DB
 from table import Table
 
 

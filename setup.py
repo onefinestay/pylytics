@@ -50,6 +50,7 @@ setup(
     long_description=open(make_abs('README.md')).read(),
     name='pylytics',
     packages=find_packages(exclude=['tests', 'tests.*']),
+    scripts = ['pylytics/bin/pylytics-admin.py'],
     url='https://github.com/onefinestay/pylytics',
     version='0.1.0',
     zip_safe=False,
