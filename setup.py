@@ -45,11 +45,6 @@ setup(
       "Environment :: Console",
     ],
     description='Build and manage a star schema.',
-    entry_points={
-      'console_scripts': [
-          'gonzo = pylytics.manage:run_command'
-      ]
-    },
     include_package_data=True,
     install_requires=requirements,
     long_description=open(make_abs('README.md')).read(),
