@@ -1,4 +1,4 @@
-#!/Users/townsend51/Envs/analytics_create_test/bin/python
+#!/usr/bin/env python
 import argparse
 import os
 import shutil
