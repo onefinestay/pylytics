@@ -37,7 +37,7 @@ setup(
     author_email='engineering@onefinestay.com',
     classifiers=[
       "Development Status :: 3 - Alpha",
-      "Programming Language :: Python",
+      "Programming Language :: Python :: 2.7",
       "Intended Audience :: Developers",
       "Natural Language :: English",
       "Topic :: Software Development",
