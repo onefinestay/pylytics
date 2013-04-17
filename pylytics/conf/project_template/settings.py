@@ -1,11 +1,4 @@
-"""
-This is an example environment.py file.
-
-Insert your credentials where indicated, and rename the file to environment.py.
-
-"""
-# specify the full path to your facts directory
-facts_dir = "/path/to/dir/"
+"""This is an example settings.py file."""
 
 # specify which of your DBs will hold the data created by pylytics
 pylytics_db = "example"
