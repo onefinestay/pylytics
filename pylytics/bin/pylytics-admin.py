@@ -1,19 +1,17 @@
-#!/usr/bin/env python
+#!/Users/townsend51/Envs/analytics_create_test/bin/python
 import argparse
+import os
+import shutil
 import sys
 
 import pylytics
 
 
 def create_project(project_name):
-    """
-    Create a new pylytics project.
-    
-    > Get the location of pylytics ... 
-    
-    """
-    # walk ... read ... then write ....
-    pass
+    """Create a new pylytics project."""    
+    pylytics_root = os.path.dirname(pylytics.__file__)
+    template_root = os.path.join(pylytics_root, 'conf', 'project_template')
+    shutil.copytree(template_root, project_name)
 
 
 if __name__ == "__main__":    
