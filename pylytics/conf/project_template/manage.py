@@ -5,8 +5,8 @@
 import argparse
 import sys
 
-from library.connection import DB
-from library.utils import all_facts, underscore_to_camelcase
+from pylytics.library.connection import DB
+from pylytics.library.utils import all_facts, underscore_to_camelcase
 
 
 def get_class(module, dimension=False):
