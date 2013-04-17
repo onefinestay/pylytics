@@ -4,7 +4,7 @@ import os
 
 import MySQLdb
 
-from library.utils import camelcase_to_underscore
+from utils import camelcase_to_underscore
 
 
 class Table(object):
