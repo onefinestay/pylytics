@@ -45,6 +45,7 @@ class Table(object):
         """
         This needs to be overridden for each instance of Table.
         """
+        # TODO replace this with warnings.
         raise NotImplementedError("There is no test for this class!")
 
     def drop(self, force=False):
