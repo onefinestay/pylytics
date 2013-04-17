@@ -8,6 +8,8 @@ import sys
 from pylytics.library.connection import DB
 from pylytics.library.utils import all_facts, underscore_to_camelcase
 
+import settings
+
 
 def get_class(module, dimension=False):
     """
@@ -38,7 +40,7 @@ def run_command(facts, command):
     Run command for each fact in facts.
 
     """
-    with DB('example') as database_connection:
+    with DB(settings.pylytics_db) as database_connection:
         for fact in facts:
             sys.stdout.write("Running %s %s\n" % (fact, command))
             MyFact = get_class(fact)(connection=database_connection)
