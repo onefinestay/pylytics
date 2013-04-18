@@ -4,7 +4,7 @@ Utilities for making database connections easier.
 
 import MySQLdb
 
-from settings import DATABASES
+from main import settings
 
 
 def run_query(database, query):
@@ -37,7 +37,7 @@ class DB(object):
     """
 
     def __init__(self, database):
-        if database not in (DATABASES.keys()):
+        if database not in (settings.DATABASES.keys()):
             raise Exception("The Database isn't recognised! Check your \
                              settings in settings.py")
         else:
@@ -46,7 +46,7 @@ class DB(object):
 
     def connect(self):
         if not self.connection:
-            self.connection = MySQLdb.connect(**DATABASES[self.database])
+            self.connection = MySQLdb.connect(**settings.DATABASES[self.database])
 
     def close(self):
         """You should always call this after opening a connection."""

@@ -1,17 +1,21 @@
-#!/usr/bin/env python
-# encoding: utf-8
-"""This is the main entry point for running analytics scripts."""
+# Add the project settings module to the namespace.
+
+import importlib
+import os
+
+settings = importlib.import_module('settings',
+                                   package=os.environ.get('PROJECT_PATH'))
+
+###############################################################################
 
 import argparse
 import sys
 
-from pylytics.library.connection import DB
-from pylytics.library.utils import all_facts, underscore_to_camelcase
-
-import settings
+from connection import DB
+from utils import all_facts, underscore_to_camelcase
 
 
-def get_class(module, dimension=False):
+def get_class(module_name, dimension=False):
     """
     Effectively does this:
     from fact/fact_count_allthesales import FactCountAllTheSales
@@ -27,11 +31,13 @@ def get_class(module, dimension=False):
         dim_or_fact = 'dim'
     else:
         dim_or_fact = 'fact'
-
-    df_module = __import__('%s.%s' % (dim_or_fact, module), globals(),
-                           locals(), [dim_or_fact])
-    class_name = underscore_to_camelcase(module)
-    my_class = getattr(df_module, class_name)
+    
+    module = importlib.import_module(
+        '{0}.{1}'.format(dim_or_fact, module_name),
+        os.path.dirname(settings.__file__)
+        )
+    class_name = underscore_to_camelcase(module_name)
+    my_class = getattr(module, class_name)
     return my_class
 
 
@@ -47,19 +53,19 @@ def run_command(facts, command):
             getattr(MyFact, command)()
 
 
-if __name__ == "__main__":
-
+def main():
+    """This is called by the manage.py created in the project directory."""
     parser = argparse.ArgumentParser(
         description = """
             Run fact scripts.
             e.g.
-            > ./manage.py fact_count_allthesales update
+            > ./manage.py fact_example update
             > ./manage.py all update
             """)
     parser.add_argument(
         'fact',
         choices = ['all'] + all_facts(),
-        help = 'The name(s) of the fact(s) to run e.g. fact_count_allthesales',
+        help = 'The name(s) of the fact(s) to run e.g. fact_example.',
         nargs = '+',
         type = str,
         )
