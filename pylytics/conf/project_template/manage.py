@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# encoding: utf-8
 """This is the main entry point for running analytics scripts."""
 
 import os
