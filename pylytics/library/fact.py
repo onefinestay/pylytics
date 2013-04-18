@@ -2,7 +2,7 @@ import datetime
 
 from connection import DB
 from table import Table
-from manage import get_class
+from main import get_class
 
 
 class Fact(Table):
