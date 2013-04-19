@@ -12,7 +12,17 @@ import argparse
 import sys
 
 from connection import DB
-from utils import all_facts, underscore_to_camelcase
+from utils import underscore_to_camelcase
+
+
+def all_facts():
+    """Return the names of all facts in the facts folder."""
+    fact_filenames = os.listdir('fact')
+    facts = []
+    for filename in fact_filenames:
+        if filename.startswith('fact_') and filename.endswith('.py'):
+            facts.append(filename.split('.')[0])
+    return facts
 
 
 def get_class(module_name, dimension=False):

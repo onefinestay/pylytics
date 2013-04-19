@@ -1,6 +1,7 @@
 import datetime
-import sys
 import os
+import sys
+import warnings
 
 import MySQLdb
 
@@ -45,8 +46,8 @@ class Table(object):
         """
         This needs to be overridden for each instance of Table.
         """
-        # TODO replace this with warnings.
-        raise NotImplementedError("There is no test for this class!")
+        warnings.simplefilter('always')
+        warnings.warn("There is no test for this class!", Warning)
 
     def drop(self, force=False):
         """

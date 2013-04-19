@@ -1,6 +1,5 @@
 """Miscellaneous functions."""
 
-import os
 import re
 
 
@@ -21,13 +20,3 @@ def camelcase_to_underscore(value):
     """HelloWorld => hello_world"""
     s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', value)
     return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
-
-
-def all_facts():
-    """Return the names of all facts in the facts folder."""
-    fact_filenames = os.listdir('fact')
-    facts = []
-    for filename in fact_filenames:
-        if filename.startswith('fact_') and filename.endswith('.py'):
-            facts.append(filename.split('.')[0])
-    return facts
