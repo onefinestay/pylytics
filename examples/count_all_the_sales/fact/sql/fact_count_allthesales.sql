@@ -1,4 +1,4 @@
-CREATE TABLE `fact_count_homes_live` (
+CREATE TABLE `fact_count_allthesales` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `dim_date` int(11) NOT NULL,
   `dim_location` int(11) NOT NULL,
