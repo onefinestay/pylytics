@@ -26,5 +26,5 @@ if __name__ == "__main__":
 
     args = parser.parse_args().__dict__
     project = args['project'][0]
-    sys.stdout.write('Creating new project - {} ...\n'.format(project))
+    sys.stdout.write('Creating new project - {0} ...\n'.format(project))
     create_project(project)
