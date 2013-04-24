@@ -47,7 +47,7 @@ setup(
     description='Build and manage a star schema.',
     include_package_data=True,
     install_requires=requirements,
-    long_description=open(make_abs('README.md')).read(),
+    long_description=open(make_abs('README.rst')).read(),
     name='pylytics',
     packages=find_packages(),
     package_dir={'pylytics': 'pylytics'},
