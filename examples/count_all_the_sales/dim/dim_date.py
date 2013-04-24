@@ -1,7 +1,7 @@
 import datetime
 from datetime import date
 
-from library.dim import Dim
+from pylytics.library.dim import Dim
 
 
 class DimDate(Dim):

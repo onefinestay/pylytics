@@ -1,9 +1,10 @@
-from library.fact import Fact
-import environment as SETTINGS
+from pylytics.library.fact import Fact
+import settings
+
 
 class FactCountAllthesales(Fact):
 
-    source_db = SETTINGS.pylytics_db
+    source_db = settings.pylytics_db
     
     dim_names = ['dim_date', 'dim_location', None]
     dim_fields = ['date', 'location', None]
