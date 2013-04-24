@@ -15,6 +15,7 @@ class Fact(Table):
     dim_modules = []
     dim_classes = []
     dim_map = {}
+    historical_iterations = 100
     
     def __init__(self, *args, **kwargs):
         self.dim_or_fact = 'fact'
@@ -139,7 +140,7 @@ class Fact(Table):
                 dimension.update()
         super(Fact, self).build()
     
-    def update(self):
+    def update(self, historical=False, index=0):
         """
         Updates the fact table with the newest rows (modified since last
         update).
@@ -153,11 +154,21 @@ class Fact(Table):
 
         error_count = 0
         success_count = 0
-
+        
+        # Get the query.
+        if not historical:
+            query = self.source_query
+        else:
+            if not hasattr(self, 'historical_source_query'):
+                warnings.warn('There is no historical_source_query defined!')
+                return 0
+            else:
+                query = self.historical_source_query.format(index)
+        
         # Get the full source list.
         data = []
         with DB(self.source_db) as database:
-            data = database.execute(self.source_query)
+            data = database.execute(query)
 
         # Update the fact table with all the rows.
         for row in data:
@@ -191,3 +202,13 @@ class Fact(Table):
         msg = "--> %s rows inserted, %s errors (i.e. rows not inserted)" % (
                                                     success_count, error_count)
         self._print_status(msg)
+    
+    def historical(self):
+        """
+        Run the historical_query - useful for rebuilding the tables from
+        scratch.
+
+        """
+        for i in xrange(self.historical_iterations):
+            if self.update(historical=True, index=i) == 0:
+                break
