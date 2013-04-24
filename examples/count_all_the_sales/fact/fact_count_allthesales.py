@@ -4,7 +4,7 @@ import settings
 
 class FactCountAllthesales(Fact):
     
-    source_db = 'sales'
+    source_db = 'test'
     
     dim_names = ['dim_date', 'dim_location', None]
     dim_fields = ['date', 'location', None]
