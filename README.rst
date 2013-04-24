@@ -17,3 +17,8 @@ The pylitics project creates a set of *facts* based on *dimensions*.
 Dimensions are the finite data sets you wish to measure your facts against.  Common dimensions include dates, lists of customers and sizes/colours.
 
 Facts are the measurements you take.  They are most often calculations or summations.  Example facts include gross sales by colour per day, total clicks per customer and customers added per week.
+
+
+Documentation
+*************
+The full documentation is available at `readthedocs.org <https://pylytics.readthedocs.org/en/latest/index.html>`_
