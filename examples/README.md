@@ -1,10 +1,10 @@
-To run these examples, follow the docs for creating a new pylytics project, and copy in settings.py and the dim and fact folders from the example folder.
+To run these examples, make sure pylytics is installed, and on your path.
 
 Make sure that MySQL is running locally, and there's a pylytics_test database created.
 
 Import the ``setup.sql`` file into your pylytics_test database, which creates the relevant schema and sample data.
 
-Then run:
+Then run the following from inside one of the example folders.
 
 ```./manage.py all update```
 
