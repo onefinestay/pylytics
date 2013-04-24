@@ -7,11 +7,7 @@ from pylytics.library.dim import Dim
 class DimDate(Dim):
 
     def update(self):
-        """
-        Updates the dim_date table with all the dates since 01/01/2011
-        (or updates it if it is already partly filled in).
-
-        """
+        """Updates the dim_date table with all the dates since 01/01/2011."""
         # Status.
         msg = "Populating %s" % self.table_name
         self._print_status(msg)
