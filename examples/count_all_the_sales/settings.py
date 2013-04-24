@@ -9,12 +9,12 @@ DATABASES = {
         'host': 'localhost',
         'user': 'root',
         'passwd': '',
-        'db': 'pylytics_fact',
+        'db': 'pylytics_sales',
     },
-    'sales': {
+    'test': {
         'host': 'localhost',
         'user': 'root',
         'passwd': '',
-        'db': 'pylytics_sales',
+        'db': 'pylytics_test',
     },
 }
