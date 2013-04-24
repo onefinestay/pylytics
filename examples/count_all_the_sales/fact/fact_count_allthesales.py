@@ -1,9 +1,10 @@
-from library.fact import Fact
-import environment as SETTINGS
+from pylytics.library.fact import Fact
+import settings
+
 
 class FactCountAllthesales(Fact):
-
-    source_db = SETTINGS.pylytics_db
+    
+    source_db = 'test'
     
     dim_names = ['dim_date', 'dim_location', None]
     dim_fields = ['date', 'location', None]
@@ -15,7 +16,7 @@ class FactCountAllthesales(Fact):
             SUM(sale_value) AS total_sales
         FROM
             sales
-        GROUP BY 
+        GROUP BY
             location, `date`;
         """
 
