@@ -5,7 +5,7 @@ Creating a new pylytics project
 *******************************
 Create a virtual environment and activate it. Then install pylytics::
 
-    pip install git+ssh://git@github.com/onefinestay/pylytics.git
+    pip install pylytics
 
 This installation adds pylytics-admin.py to the path. Use this to create a new pylytics project::
 

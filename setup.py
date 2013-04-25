@@ -47,7 +47,7 @@ setup(
     description='Build and manage a star schema.',
     include_package_data=True,
     install_requires=requirements,
-    long_description=open(make_abs('README.md')).read(),
+    long_description=open(make_abs('README.rst')).read(),
     name='pylytics',
     packages=find_packages(),
     package_dir={'pylytics': 'pylytics'},
@@ -55,6 +55,6 @@ setup(
                   'pylytics.conf.project_template.fact': ['sql/*']},
     scripts = ['pylytics/bin/pylytics-admin.py'],
     url='https://github.com/onefinestay/pylytics',
-    version='0.1.0',
+    version='0.1.1',
     zip_safe=False,
     )
