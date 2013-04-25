@@ -23,8 +23,8 @@ At the moment, only MySQL databases are supported.
 
 
 
-Writing fact and dimensions
-***************************
+Writing facts and dimensions
+****************************
 See the examples folder in this repository for examples.
 
 The naming convention is strict - all dim files must start with `dim_`, likewise all fact files much start with `fact_`.
@@ -47,20 +47,36 @@ building facts
 
 Running scripts
 ***************
-The manage.py file in the project directory is used for building fact and dimension tables, and also for updating them.
+The manage.py file in the project directory is used for building and updating the star schema.
 
-A CRON job should run the following command periodically to keep your tables up to date::
+You can specify the facts to run. For example::
 
-    ./manage.py all update
+    ./manage.py fact_count_foo_1 [fact_count_foo_2] {update,build,test,historical}
+
+Or run the command for all facts::
+
+    ./manage.py all {update,build,test,historical}
 
 
+build
+-----
+This will make sure that the relevant tables have been created for the facts specified.
 
-Tests
-*****
-The base table class contain a test method. This method must be overriden by each fact and dimension script to enable tests.
 
-Run tests by:
+update
+------
+This command automatically calls `build` before executing. It updates your fact and dimension tables.
 
-    ./manage.py all tests
+A CRON job should run the command periodically to keep your tables up to date.
+
+
+historical
+----------
+Facts are usually built each day by running `update`. However, in some cases it's useful to be able to rebuild the tables for the last X days (for example, if the project is just starting off, or data loss has occurred).
+
+
+test
+----
+The base table class contain a test method. This method must be overridden by each fact and dimension script to enable tests.
 
 Note - test functionality is still under active development.
