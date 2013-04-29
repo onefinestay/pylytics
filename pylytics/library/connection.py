@@ -63,7 +63,10 @@ class DB(object):
             if values == None:
                 cursor.execute(query)
             else:
-                cursor.execute(query, values)
+                try:
+                    cursor.execute(query, values)
+                except Exception, e:
+                    print e.args[1]
             data = cursor.fetchall()
             cursor.close()
             return data
