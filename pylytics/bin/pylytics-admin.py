@@ -1,20 +1,20 @@
 #!/usr/bin/env python
 import argparse
 import os
-import shutil
+from shutil import copytree, ignore_patterns
 import sys
 
 import pylytics
 
 
 def create_project(project_name):
-    """Create a new pylytics project."""    
+    """Create a new pylytics project."""
     pylytics_root = os.path.dirname(pylytics.__file__)
     template_root = os.path.join(pylytics_root, 'conf', 'project_template')
-    shutil.copytree(template_root, project_name)
+    copytree(template_root, project_name, ignore=ignore_patterns('*.pyc'))
 
 
-if __name__ == "__main__":    
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description = "Create new pylytics projects.")
     parser.add_argument(
