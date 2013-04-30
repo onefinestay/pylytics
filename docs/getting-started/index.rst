@@ -25,23 +25,25 @@ At the moment, only MySQL databases are supported.
 
 Writing facts and dimensions
 ****************************
-See the examples folder in this repository for examples.
+The project folder contains *dim* and *fact* folders, which contain your dimension and fact scripts.
+
+See the examples folder in the git repository for examples.
 
 The naming convention is strict - all dim files must start with `dim_`, likewise all fact files much start with `fact_`.
 
 
 building dimensions
 -------------------
-1) add the sql for creating the dimension table, e.g. [dim/sql/dim_date.sql]
+1) add the sql for creating the dimension table, e.g. [dim/sql/dim_example.sql]
 
-2) write a script to update the dimension, e.g. [dim/dim_date.py]
+2) write a script to update the dimension, e.g. [dim/dim_example.py]
 
 
 building facts
 --------------
-1) add the sql for creating the fact table, e.g. [fact/sql/fact_count_allthesales.sql]
+1) add the sql for creating the fact table, e.g. [fact/sql/fact_count_example.sql]
 
-2) write a script to update the dimension, e.g. [fact/fact_count_allthesales.py]
+2) write a script to update the dimension, e.g. [fact/fact_count_example.py]
 
 
 
@@ -51,7 +53,7 @@ The manage.py file in the project directory is used for building and updating th
 
 You can specify the facts to run. For example::
 
-    ./manage.py fact_count_foo_1 [fact_count_foo_2] {update,build,test,historical}
+    ./manage.py fact_count_example_1 [fact_count_example_2] {update,build,test,historical}
 
 Or run the command for all facts::
 
@@ -72,7 +74,7 @@ A CRON job should run the command periodically to keep your tables up to date.
 
 historical
 ----------
-Facts are usually built each day by running `update`. However, in some cases it's useful to be able to rebuild the tables for the last X days (for example, if the project is just starting off, or data loss has occurred).
+Facts are usually built each day by running *update*. However, in some cases it's useful to be able to rebuild the tables for the last X days (for example, if the project is just starting off, or data loss has occurred).
 
 
 test
