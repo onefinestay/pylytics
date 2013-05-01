@@ -45,7 +45,7 @@ Script
 ------
 Add the SQL for creating the dimension table, e.g. `dim/sql/dim_location.sql`
 
-.. include:: ../../examples/count_all_the_sales/dim/dim_location.py
+.. include:: ../../examples/count_all_the_sales/dim/sql/dim_location.sql
     :code:
 
 
