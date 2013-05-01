@@ -1,7 +1,7 @@
 from pylytics.library.fact import Fact
 
 
-class FactCountAllthesales(Fact):
+class FactCountAllTheSales(Fact):
     
     source_db = 'test'  # A database defined in settings.py
     
