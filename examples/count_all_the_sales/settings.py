@@ -3,7 +3,7 @@
 # specify which of your DBs will hold the data created by pylytics
 pylytics_db = "test"
 
-# define all databases, sources of data and target repo for created data
+# define all databases
 DATABASES = {
     'test': {
         'host': 'localhost',
