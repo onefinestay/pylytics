@@ -1,10 +1,9 @@
 from pylytics.library.fact import Fact
-import settings
 
 
 class FactCountAllthesales(Fact):
     
-    source_db = 'test'
+    source_db = 'test'  # A database defined in settings.py
     
     dim_names = ['dim_date', 'dim_location', None]
     dim_fields = ['date', 'location', None]
