@@ -27,6 +27,16 @@ Write a script to update the fact, and add it to the `fact` folder e.g. `fact/fa
     
 When the fact is updated, `source_query` is run on `source_db`.
 
+The query returns a tuple of tuples like this::
+
+    (('2013-01-01', 'London', 300), ...)
+
+`dim_names` maps each value to a corresponding dimension. If the value doesn't correspond to a dimension, then put None instead.
+
+When the values are inserted into the star schema they're replaced with foreign keys pointing to the relevant dimension.
+
+`dim_fields` is the dimension column used to match the fact.
+
 Historical
 ~~~~~~~~~~
 TODO
