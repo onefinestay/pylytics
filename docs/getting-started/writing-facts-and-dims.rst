@@ -35,11 +35,13 @@ The query returns a tuple of tuples like this::
 
 When the values are inserted into the star schema they're replaced with foreign keys pointing to the relevant dimension.
 
-`dim_fields` is the dimension column used to match the fact.
+`dim_fields` is the dimension column used when trying to match the fact to the corresponding dimension.
 
 Historical
 ~~~~~~~~~~
-TODO
+`source_query` is intended to be run every day, and just update the values for the current day.
+
+You can also specify a `historical_source_query` which is iterated over.
 
 
 Dimensions
