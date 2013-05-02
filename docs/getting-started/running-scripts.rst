@@ -27,7 +27,7 @@ historical
 **********
 Facts are usually built each day by running *update*. However, in some cases it's useful to be able to rebuild the tables (for example, if the project is just starting off, or data loss has occurred).
 
-If no `historical_source_query` is defined for the fact, then it works just like update.
+If no `historical_source_query` is defined for the fact, then it raises a warning.
 
 
 test
