@@ -9,3 +9,4 @@ Getting Started
    project-settings
    writing-facts-and-dims
    running-scripts
+   querying

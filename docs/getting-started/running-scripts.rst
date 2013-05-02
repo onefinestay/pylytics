@@ -13,7 +13,7 @@ Or run the command for all facts::
 
 build
 *****
-This will make sure that the relevant tables have been created for the facts specified.
+This will make sure that the relevant tables have been created for the facts specified, by executing the corresponding .sql files.
 
 
 update
@@ -25,7 +25,9 @@ A CRON job should run the command periodically to keep your tables up to date.
 
 historical
 **********
-Facts are usually built each day by running *update*. However, in some cases it's useful to be able to rebuild the tables for the last X days (for example, if the project is just starting off, or data loss has occurred).
+Facts are usually built each day by running *update*. However, in some cases it's useful to be able to rebuild the tables (for example, if the project is just starting off, or data loss has occurred).
+
+If no `historical_source_query` is defined for the fact, then it works just like update.
 
 
 test
