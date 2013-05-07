@@ -6,6 +6,7 @@ import MySQLdb
 
 from main import settings
 
+# random comment
 
 def run_query(database, query):
     """
