@@ -35,6 +35,6 @@ nosetests.xml
 .pydevproject
 
 # Local config files
-environment.py*
-
+!settings.py
+!*.sql
 	

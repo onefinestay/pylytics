@@ -1,5 +1,5 @@
 CREATE TABLE `dim_date` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id` int(11) NOT NULL AUTO_INCREMENT,  # Required
   `date` date NOT NULL,
   `day` int(11) NOT NULL,
   `day_name` enum('Mon','Tue','Wed','Thu','Fri','Sat','Sun') NOT NULL,
@@ -13,7 +13,7 @@ CREATE TABLE `dim_date` (
   `quarter_name` enum('Q1','Q2','Q3','Q4') NOT NULL,
   `full_quarter` varchar(15) NOT NULL,
   `year` int(11) NOT NULL,
-  `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,  # Required
   PRIMARY KEY (`id`),
   CONSTRAINT UQ_location UNIQUE (`date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8

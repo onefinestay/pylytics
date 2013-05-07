@@ -28,11 +28,11 @@ def all_facts():
 def get_class(module_name, dimension=False):
     """
     Effectively does this:
-    from fact/fact_count_allthesales import FactCountAllTheSales
+    from fact/fact_count_all_the_sales import FactCountAllTheSales
     return FactCountAllTheSales
 
     Example usage:
-    get_class('fact_count_allthesales')
+    get_class('fact_count_all_the_sales')
 
     If dimension is True then it searches for a dimension instead.
 
