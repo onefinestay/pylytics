@@ -1,17 +1,12 @@
 # Add the project settings module to the namespace.
 
+import argparse
 import importlib
 import os
-
-settings = importlib.import_module('settings',
-                                   package=os.environ.get('PROJECT_PATH'))
-
-###############################################################################
-
-import argparse
 import sys
 
 from connection import DB
+import settings
 from utils import underscore_to_camelcase
 
 
