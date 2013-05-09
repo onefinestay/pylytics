@@ -13,8 +13,7 @@ SQL
 ---
 Add the SQL for creating the fact table into the `fact/sql` folder, e.g. `fact/sql/fact_count_all_the_sales.sql`.
 
-.. include:: ../../examples/count_all_the_sales/fact/sql/fact_count_all_the_sales.sql
-    :code:
+.. literalinclude:: ../../examples/count_all_the_sales/fact/sql/fact_count_all_the_sales.sql
 
 Some things to note:
 
@@ -29,8 +28,7 @@ Script
 ------
 Write a script to update the fact, and add it to the `fact` folder e.g. `fact/fact_count_all_the_sales.py`
     
-.. include:: ../../examples/count_all_the_sales/fact/fact_count_all_the_sales.py
-    :code:
+.. literalinclude:: ../../examples/count_all_the_sales/fact/fact_count_all_the_sales.py
     
 When the fact is updated, `source_query` is run on `source_db`.
 
@@ -65,13 +63,11 @@ SQL
 ---
 Add the SQL for creating the dimension table, e.g. `dim/sql/dim_location.sql`
 
-.. include:: ../../examples/count_all_the_sales/dim/sql/dim_location.sql
-    :code:
+.. literalinclude:: ../../examples/count_all_the_sales/dim/sql/dim_location.sql
 
 
 Script
 ------
 Write a script to update the dimension, e.g. `dim/dim_location.py`
 
-.. include:: ../../examples/count_all_the_sales/dim/dim_location.py
-    :code:
+.. literalinclude:: ../../examples/count_all_the_sales/dim/dim_location.py
