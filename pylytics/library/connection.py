@@ -4,7 +4,7 @@ Utilities for making database connections easier.
 
 import MySQLdb
 
-from main import settings
+import settings
 
 
 def run_query(database, query):
@@ -46,7 +46,8 @@ class DB(object):
 
     def connect(self):
         if not self.connection:
-            self.connection = MySQLdb.connect(**settings.DATABASES[self.database])
+            self.connection = MySQLdb.connect(
+                    **settings.DATABASES[self.database])
 
     def close(self):
         """You should always call this after opening a connection."""
