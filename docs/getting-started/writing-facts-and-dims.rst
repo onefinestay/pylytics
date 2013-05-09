@@ -2,7 +2,7 @@ Writing facts and dimensions
 ============================
 The project folder contains *dim* and *fact* folders, which contain your dimension and fact scripts.
 
-See the `examples folder <https://github.com/onefinestay/pylytics/tree/master/examples>`_ in the git repository for examples.
+See the `docs/examples` in the git repository for examples.
 
 The naming convention is strict - all dim files must start with `dim_`, likewise all fact files much start with `fact_`.
 
@@ -13,7 +13,7 @@ SQL
 ---
 Add the SQL for creating the fact table into the `fact/sql` folder, e.g. `fact/sql/fact_count_all_the_sales.sql`.
 
-.. literalinclude:: ../../examples/count_all_the_sales/fact/sql/fact_count_all_the_sales.sql
+.. literalinclude:: ../examples/count_all_the_sales/fact/sql/fact_count_all_the_sales.sql
 
 Some things to note:
 
@@ -28,7 +28,7 @@ Script
 ------
 Write a script to update the fact, and add it to the `fact` folder e.g. `fact/fact_count_all_the_sales.py`
     
-.. literalinclude:: ../../examples/count_all_the_sales/fact/fact_count_all_the_sales.py
+.. literalinclude:: ../examples/count_all_the_sales/fact/fact_count_all_the_sales.py
     
 When the fact is updated, `source_query` is run on `source_db`.
 
@@ -63,11 +63,11 @@ SQL
 ---
 Add the SQL for creating the dimension table, e.g. `dim/sql/dim_location.sql`
 
-.. literalinclude:: ../../examples/count_all_the_sales/dim/sql/dim_location.sql
+.. literalinclude:: ../examples/count_all_the_sales/dim/sql/dim_location.sql
 
 
 Script
 ------
 Write a script to update the dimension, e.g. `dim/dim_location.py`
 
-.. literalinclude:: ../../examples/count_all_the_sales/dim/dim_location.py
+.. literalinclude:: ../examples/count_all_the_sales/dim/dim_location.py
