@@ -2,7 +2,7 @@ Writing facts and dimensions
 ============================
 The project folder contains *dim* and *fact* folders, which contain your dimension and fact scripts.
 
-See the `docs/examples` in the git repository for examples.
+See `docs/examples` in the git repository for examples.
 
 The naming convention is strict - all dim files must start with `dim_`, likewise all fact files much start with `fact_`.
 
