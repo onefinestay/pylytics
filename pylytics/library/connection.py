@@ -4,7 +4,7 @@ Utilities for making database connections easier.
 
 import MySQLdb
 
-from main import settings
+import settings
 
 
 def run_query(database, query):
@@ -46,7 +46,8 @@ class DB(object):
 
     def connect(self):
         if not self.connection:
-            self.connection = MySQLdb.connect(**settings.DATABASES[self.database])
+            self.connection = MySQLdb.connect(
+                    **settings.DATABASES[self.database])
 
     def close(self):
         """You should always call this after opening a connection."""
@@ -58,30 +59,34 @@ class DB(object):
         cursor = None
         data = None
         count_cols = None
-        
-        if self.connection:
+
+        if not self.connection:
+            raise Exception('You must connect first!')
+        else:
             cursor = self.connection.cursor()
-            
-            # SELECT query
-            if values == None:
+
+            if not values:
+                # SELECT query
                 cursor.execute(query)
                 data = cursor.fetchall()
-                    
-            # INSERT or REPLACE query
+
             else:
+                # INSERT or REPLACE query
                 if many:
                     cursor.executemany(query, values)
                 else:
                     cursor.execute(query, values)
-            
-            count_cols = len(cursor.description)
+
+            if get_count_cols:
+                # Get column count
+                if values:
+                    raise Exception("Only works on a SELECT query.")
+                count_cols = len(cursor.description)
+
             cursor.close()
-            
-        else:
-            raise Exception('You must connect first!')
-        
+
         if get_count_cols:
-            return (data,count_cols)
+            return (data, count_cols)
         else:
             return data
 
