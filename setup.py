@@ -55,6 +55,6 @@ setup(
                   'pylytics.conf.project_template.fact': ['sql/*']},
     scripts = ['pylytics/bin/pylytics-admin.py'],
     url='https://github.com/onefinestay/pylytics',
-    version='0.1.4',
+    version='0.1.5',
     zip_safe=False,
     )
