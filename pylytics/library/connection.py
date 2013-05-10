@@ -55,30 +55,40 @@ class DB(object):
             self.connection.commit()
             self.connection.close()
 
-    def execute(self, query, values=None, many=False):
+    def execute(self, query, values=None, many=False, get_count_cols=False):
         cursor = None
         data = None
-        
-        if self.connection:
+        count_cols = None
+
+        if not self.connection:
+            raise Exception('You must connect first!')
+        else:
             cursor = self.connection.cursor()
-            
-            # SELECT query
-            if values == None:
+
+            if not values:
+                # SELECT query
                 cursor.execute(query)
                 data = cursor.fetchall()
-                    
-            # INSERT or REPLACE query
+
             else:
+                # INSERT or REPLACE query
                 if many:
                     cursor.executemany(query, values)
                 else:
                     cursor.execute(query, values)
-                    
+
+            if get_count_cols:
+                # Get column count
+                if values:
+                    raise Exception("Only works on a SELECT query.")
+                count_cols = len(cursor.description)
+
             cursor.close()
+
+        if get_count_cols:
+            return (data, count_cols)
         else:
-            raise Exception('You must connect first!')
-        
-        return data
+            return data
 
     def __enter__(self):
         self.connect()
