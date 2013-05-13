@@ -6,8 +6,6 @@ import os
 import os.path
 import sys
 
-from connection import DB
-import settings
 from utils import underscore_to_camelcase
 
 
@@ -52,18 +50,21 @@ def run_command(facts, command):
     Run command for each fact in facts.
 
     """
+    from connection import DB
     with DB(settings.pylytics_db) as database_connection:
         for fact in facts:
             sys.stdout.write("Running %s %s\n" % (fact, command))
             MyFact = get_class(fact)(connection=database_connection)
             getattr(MyFact, command)()
 
+
 def get_settings(settings_file_path):
     config_file= os.path.join(settings_file_path, "settings.py")
     if os.path.isfile(config_file):
-        importlib.FindLoader("settings.py", settings_file_path)
+        global settings
+        settings = importlib.import_module("settings", settings_file_path)
     else:
-        print "Please specifiy a config file"
+        raise IOError("Can't find the config file.")
 
 
 def main():
@@ -90,19 +91,21 @@ def main():
         type = str,
         )
     parser.add_argument(
-        'settings',
-        nargs = 1,
+        '--settings',
+        help = 'The path to the settings module e.g /etc/foo/bar',
         type = str,
-        help = 'The name of the settings file',
-        )
+        required = True,
+        nargs = 1,
+      )
+    
     args = parser.parse_args().__dict__
     facts = set(args['fact'])
     command = args['command'][0]
-    settings_file = args['settings'][0]
+    settings_path = args['settings'][0]
 
     if 'all' in facts:
         sys.stdout.write('Running all fact scripts:\n')
         facts = all_facts()
-
-    get_settings(settings_file)
+    
+    get_settings(settings_path)
     run_command(facts, command)
