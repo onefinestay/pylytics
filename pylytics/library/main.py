@@ -66,7 +66,6 @@ def get_settings(settings_file_path):
         print "Please specifiy a config file"
 
 
-
 def main():
     """This is called by the manage.py created in the project directory."""
     parser = argparse.ArgumentParser(
@@ -105,4 +104,5 @@ def main():
         sys.stdout.write('Running all fact scripts:\n')
         facts = all_facts()
 
-    run_command(facts, command, settings_file)
+    get_settings(settings_file)
+    run_command(facts, command)
