@@ -3,6 +3,7 @@
 import argparse
 import importlib
 import os
+import os.path
 import sys
 
 from connection import DB
@@ -57,6 +58,14 @@ def run_command(facts, command):
             MyFact = get_class(fact)(connection=database_connection)
             getattr(MyFact, command)()
 
+def get_settings(settings_file_path):
+    config_file= os.path.join(settings_file_path, "settings.py")
+    if os.path.isfile(config_file):
+        importlib.FindLoader("settings.py", settings_file_path)
+    else:
+        print "Please specifiy a config file"
+
+
 
 def main():
     """This is called by the manage.py created in the project directory."""
@@ -81,13 +90,19 @@ def main():
         nargs = 1,
         type = str,
         )
-
+    parser.add_argument(
+        'settings',
+        nargs = 1,
+        type = str,
+        help = 'The name of the settings file',
+        )
     args = parser.parse_args().__dict__
     facts = set(args['fact'])
     command = args['command'][0]
+    settings_file = args['settings'][0]
 
     if 'all' in facts:
         sys.stdout.write('Running all fact scripts:\n')
         facts = all_facts()
 
-    run_command(facts, command)
+    run_command(facts, command, settings_file)
