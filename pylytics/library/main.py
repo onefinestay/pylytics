@@ -70,12 +70,7 @@ def get_settings(settings_file_path):
 def main():
     """This is called by the manage.py created in the project directory."""
     parser = argparse.ArgumentParser(
-        description = """
-            Run fact scripts.
-            e.g.
-            > ./manage.py fact_example update
-            > ./manage.py all update
-            """)
+        description = "Run fact scripts.")
     parser.add_argument(
         'fact',
         choices = ['all'] + all_facts(),
