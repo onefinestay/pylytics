@@ -4,11 +4,11 @@ The manage.py file in the project directory is used for building and updating th
 
 You can specify the facts to run. For example::
 
-    ./manage.py fact_count_example_1 [fact_count_example_2] {update,build,test,historical}
+    ./manage.py fact_count_example_1 [fact_count_example_2] {update,build,test,historical} --settings=''
 
 Or run the command for all facts::
 
-    ./manage.py all {update,build,test,historical}
+    ./manage.py all {update,build,test,historical} --settings=''
 
 
 build
@@ -35,3 +35,18 @@ test
 The base table class contain a test method. This method must be overridden by each fact and dimension script to enable tests.
 
 Note - test functionality is still under active development.
+
+
+Specifying the settings file location
+*************************************
+When a new pylytics project is created using pylytics-admin.py, a settings.py file is automatically added to the project directory.
+
+In this case, use::
+
+    ./manage.py all {update,build,test,historical} --settings=''
+
+When several pylytics projects are on a single server it sometimes makes sense to have a single settings.py file in a shared location, e.g. in /etc/pylytics/settings.py.
+
+In this case, use::
+
+    ./manage.py all {update,build,test,historical} --settings='/etc/pylytics'

@@ -4,7 +4,7 @@ Utilities for making database connections easier.
 
 import MySQLdb
 
-import settings
+from main import settings
 
 
 def run_query(database, query):

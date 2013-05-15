@@ -3,10 +3,9 @@
 import argparse
 import importlib
 import os
+import os.path
 import sys
 
-from connection import DB
-import settings
 from utils import underscore_to_camelcase
 
 
@@ -51,6 +50,7 @@ def run_command(facts, command):
     Run command for each fact in facts.
 
     """
+    from connection import DB
     with DB(settings.pylytics_db) as database_connection:
         for fact in facts:
             sys.stdout.write("Running %s %s\n" % (fact, command))
@@ -58,15 +58,19 @@ def run_command(facts, command):
             getattr(MyFact, command)()
 
 
+def get_settings(settings_file_path):
+    config_file= os.path.join(settings_file_path, "settings.py")
+    if os.path.isfile(config_file):
+        global settings
+        settings = importlib.import_module("settings", settings_file_path)
+    else:
+        raise IOError("Can't find the config file.")
+
+
 def main():
     """This is called by the manage.py created in the project directory."""
     parser = argparse.ArgumentParser(
-        description = """
-            Run fact scripts.
-            e.g.
-            > ./manage.py fact_example update
-            > ./manage.py all update
-            """)
+        description = "Run fact scripts.")
     parser.add_argument(
         'fact',
         choices = ['all'] + all_facts(),
@@ -81,13 +85,22 @@ def main():
         nargs = 1,
         type = str,
         )
-
+    parser.add_argument(
+        '--settings',
+        help = 'The path to the settings module e.g /etc/foo/bar',
+        type = str,
+        required = True,
+        nargs = 1,
+      )
+    
     args = parser.parse_args().__dict__
     facts = set(args['fact'])
     command = args['command'][0]
+    settings_path = args['settings'][0]
 
     if 'all' in facts:
         sys.stdout.write('Running all fact scripts:\n')
         facts = all_facts()
-
+    
+    get_settings(settings_path)
     run_command(facts, command)
