@@ -3,7 +3,6 @@
 import argparse
 import importlib
 import os
-import os.path
 import sys
 
 from utils import underscore_to_camelcase
@@ -37,8 +36,7 @@ def get_class(module_name, dimension=False):
         dim_or_fact = 'fact'
     
     module = importlib.import_module(
-        '{0}.{1}'.format(dim_or_fact, module_name),
-        os.path.dirname(settings.__file__)
+        '{0}.{1}'.format(dim_or_fact, module_name)
         )
     class_name = underscore_to_camelcase(module_name)
     my_class = getattr(module, class_name)
@@ -58,13 +56,12 @@ def run_command(facts, command):
             getattr(MyFact, command)()
 
 
-def get_settings(settings_file_path):
-    config_file= os.path.join(settings_file_path, "settings.py")
-    if os.path.isfile(config_file):
-        global settings
-        settings = importlib.import_module("settings", settings_file_path)
-    else:
-        raise IOError("Can't find the config file.")
+def load_settings(settings_path):
+    if settings_path:
+        if settings_path[0]:
+            sys.path.insert(0, settings_path)
+    global settings
+    import settings
 
 
 def main():
@@ -89,18 +86,18 @@ def main():
         '--settings',
         help = 'The path to the settings module e.g /etc/foo/bar',
         type = str,
-        required = True,
         nargs = 1,
-      )
+        )
     
     args = parser.parse_args().__dict__
     facts = set(args['fact'])
     command = args['command'][0]
-    settings_path = args['settings'][0]
-
+    
     if 'all' in facts:
         sys.stdout.write('Running all fact scripts:\n')
         facts = all_facts()
     
-    get_settings(settings_path)
+    # Import settings:
+    load_settings(args['settings'])
+
     run_command(facts, command)
