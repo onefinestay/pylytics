@@ -4,7 +4,11 @@ Utilities for making database connections easier.
 
 import MySQLdb
 
-from main import settings
+try:
+    from main import settings
+except ImportError:
+    import main
+    settings = main.get_settings()
 
 
 def run_query(database, query):

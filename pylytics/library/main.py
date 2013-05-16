@@ -58,11 +58,10 @@ def run_command(facts, command):
             getattr(MyFact, command)()
 
 
-def get_settings(settings_file_path):
-    config_file= os.path.join(settings_file_path, "settings.py")
+def get_settings(settings_file_path='/etc'):
+    config_file = os.path.join(settings_file_path, "settings.py")
     if os.path.isfile(config_file):
-        global settings
-        settings = importlib.import_module("settings", settings_file_path)
+        return importlib.import_module("settings", settings_file_path)
     else:
         raise IOError("Can't find the config file.")
 
@@ -102,5 +101,6 @@ def main():
         sys.stdout.write('Running all fact scripts:\n')
         facts = all_facts()
     
-    get_settings(settings_path)
+    global settings
+    settings = get_settings(settings_path)
     run_command(facts, command)
