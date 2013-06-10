@@ -77,7 +77,7 @@ class SourceAlreadyExistsError(Exception):
         self.value = value
     
     def __str__(self):
-        return "Error while adding source '%s' : it already exists" % self.value
+        return "Error while adding source '%s': it already exists" % self.value
 
 
 class WrongColumnCountError(Exception):
@@ -90,17 +90,21 @@ class WrongColumnCountError(Exception):
     
     def __str__(self):
         message = """
-            - The data you are about to insert contains %s columns, whereas the `%s` table contains %s columns.
-            Here is the list of the output table columns (on the left hand side), along with a sample data you are trying to insert (on the right hand side) :
-
-        """ % (self.in_len, self.table_name, self.out_len)
+            - The data you are about to insert contains %s columns, whereas \
+            the `%s` table contains %s columns.
+            Here is the list of the output table columns (on the left hand \
+            side), along with a sample data you are trying to insert (on the \
+            right hand side):""" % (self.in_len, self.table_name, self.out_len)
+        
         for o, i in zip(self.output_table_cols, self.sample_input_cols):
             message += "        %s = '%s'\n" % (o, i)
         
         if self.in_len > self.out_len:
-            message += "".join(["       ? = "+e+"\n" for e in self.sample_input_cols[(self.out_len):]])
+            message += ("".join(["       ? = " + e + "\n" for e in
+                        self.sample_input_cols[(self.out_len):]]))
         else :
-            message += "".join(["       "+e+" = ?\n" for e in self.output_table_cols[(self.in_len):]])
+            message += ("".join(["       " + e + " = ?\n" for e in
+                        self.output_table_cols[(self.in_len):]]))
         
         return message
 
@@ -111,8 +115,8 @@ class NoColumnToJoinError(Exception):
     
     def __str__(self):
         return """The source '%s' contains less than 2 columns. All the \
-        secondary sources should contain at least one column to join on, as \
-        well as one column to add.""" % self.source_name
+            secondary sources should contain at least one column to join on, \
+            as well as one column to add.""" % self.source_name
 
 
 ###############################################################################
@@ -136,9 +140,9 @@ class TableBuilder(object):
         self.start_time = start_time = datetime.now()
         
         self.main_source = {
-            'db':main_db,
-            'query':main_query,
-            'data':[]
+            'db': main_db,
+            'query': main_query,
+            'data': [],
         }
         self.preliminary_query = preliminary_query
         self._get_data(None)
@@ -153,7 +157,7 @@ class TableBuilder(object):
         Drops and rebuilds the output table.
         
         """
-        self._print_status("... (Re)-creating the output table ...")
+        self._print_status("(Re)-creating the output table.")
         
         with DB(self.output_db) as dw:
             query1 = "DROP TABLE IF EXISTS `" + self.output_table + "`"
@@ -177,7 +181,7 @@ class TableBuilder(object):
         """
         if name in self.sources or name == 'main':
             raise SourceAlreadyExistsError(name)
-        else :
+        else:
             self.sources[name] = {
                 'id': len(self.sources),
                 'db': db,
@@ -210,7 +214,7 @@ class TableBuilder(object):
         None to get data from the main source.
         
         """
-        self._print_status("... Getting data from '%s' source ..." % (
+        self._print_status("Getting data from '%s' source." % (
                                                         source_name or 'main'))
         
         if source_name == None:
@@ -227,11 +231,12 @@ class TableBuilder(object):
             if source_name == None:
                 self.main_source['data'] = data[0]
             else :
-                self.sources[source_name]['data'] = self._get_dictionary(data[0])
+                self.sources[source_name]['data'] = self._get_dictionary(
+                                                                    data[0])
                 if data[1] <= 1:
                     raise NoColumnToJoinError(source_name)
                 else:
-                    self.sources[source_name]['count_cols'] = data[1]-1
+                    self.sources[source_name]['count_cols'] = data[1] - 1
     
     def _get_dictionary(self, data):
         """
@@ -246,7 +251,7 @@ class TableBuilder(object):
         """
         dict = {}
         for e in data:
-            dict[e[0]]=e[1:]
+            dict[e[0]] = e[1:]
         return dict
     
     def _append_result_row(self, row, matches):
@@ -288,23 +293,23 @@ class TableBuilder(object):
     
     def join(self):
         """
-        Joins all the secondary sources to the main source
-        (and stores the result in 'self.result').
+        Joins all the secondary sources to the main source (and stores the
+        result in 'self.result').
         
         """
         matches = None
         
-        self._print_status("... Joining sources ...")
+        self._print_status("Joining sources.")
         
         for row in self.main_source['data']:
             matches = {}
             
-            for s_name,s in self.sources.items():
+            for s_name, s in self.sources.items():
                 try:
                     matches[s_name] = s['data'][row[s['join_on']]]
                     s['matches_count'] += 1
                 except Exception, e:
-                    matches[s_name] = (None,)*s['count_cols']
+                    matches[s_name] = (None,) * s['count_cols']
                     s['errors'].append(row[s['join_on']])
                     s['errors_count'] += 1
             
@@ -319,7 +324,7 @@ class TableBuilder(object):
         
         with DB(db_name) as dw:
             cur = dw.connection.cursor()
-            cur.execute("SELECT * FROM `"+table+"` LIMIT 0,0")
+            cur.execute("SELECT * FROM `" + table + "` LIMIT 0,0")
             cols = cur.description
             cur.close()
         
@@ -332,7 +337,6 @@ class TableBuilder(object):
         
         """
         N = 1000
-        # L = ceil(len(self.result)+1)/N
         L = (len(self.result) + 1) / N + ((len(self.result) + 1) % N > 0)
         
         with DB(self.output_db) as dw:
@@ -348,7 +352,7 @@ class TableBuilder(object):
         if rebuild:
             self._rebuild_sql()
         
-        self._print_status("... Writing the data into the datawarehouse ...")
+        self._print_status("Writing the data into the datawarehouse.")
         
         cols = self._get_columns(self.output_db, self.output_table)
         
@@ -357,13 +361,15 @@ class TableBuilder(object):
             # number of columns as the output table:
             if len(cols) == len(self.result[0]):
                 with DB(self.output_db) as dw:
-                    query = "INSERT INTO " + self.output_table + " VALUES (" + ",".join(["%s"] * len(self.result[0])) + ")"
+                    query = "INSERT INTO " + self.output_table + " VALUES (" +
+                            ",".join(["%s"] * len(self.result[0])) + ")"
                     self._write_data_batches(query)
             else:
                 self.reporting()
-                raise WrongColumnCountError(cols, self.result[0], self.output_table)
+                raise WrongColumnCountError(cols, self.result[0],
+                                            self.output_table)
         
-        self._print_status("No data inserted")
+        self._print_status("No data inserted.")
     
     def reporting(self):
         """
@@ -378,19 +384,21 @@ class TableBuilder(object):
                        the main source) that doesn't match.
 
         """
-        print "\n- Main source (from '%s') :    %s rows" % (
+        print "- Main source (from '%s'): %s rows" % (
             self.main_source['db'], len(self.main_source['data']))
         
         for s_name, s in self.sources.items():
-            print ""
-            print "- Source '%s' :      %s rows %s matches  %s errors" % (s_name, len(s['data']), s['matches_count'], s['errors_count'])
+            print "- Source '%s': %s rows %s matches %s errors" % (s_name,
+                len(s['data']), s['matches_count'], s['errors_count'])
             if s['errors_count'] > 0:
                 self._print_status(
-                    " * Keys not found : " + ("   ".join(map(lambda x: '"' + str(x) + '"', s['errors'])))
+                    "* Keys not found: " + ("   ".join(map(
+                        lambda x: '"' + str(x) + '"', s['errors']))
+                        )
                 )
         
-        print "\n(Execution started at : %s)" % self.start_time
-        print "(Execution time : %s)" % (datetime.now() - self.start_time)
+        print "(Execution started at: %s)" % self.start_time
+        print "(Execution time: %s)" % (datetime.now() - self.start_time)
     
     def quick_join(self, *args):
         """
