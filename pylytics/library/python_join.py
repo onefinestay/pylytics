@@ -142,14 +142,18 @@ class TableBuilder(object):
         }
         self.preliminary_query = preliminary_query
         self._get_data(None)
+        
+    def _print_status(self, message):
+        """Use this for all printing all output."""
+        if self.verbose:
+            print message
     
     def _rebuild_sql(self):
         """
         Drops and rebuilds the output table.
         
         """
-        if self.verbose:
-            print "... (Re)-creating the output table ..."
+        self._print_status("... (Re)-creating the output table ...")
         
         with DB(self.output_db) as dw:
             query1 = "DROP TABLE IF EXISTS `" + self.output_table + "`"
@@ -159,7 +163,7 @@ class TableBuilder(object):
     
     def add_source(self, name, db, query, join_on, outer_join=False):
         """
-        Adds a secondary source to the dictionary ('self.sources')
+        Adds a secondary source to the dictionary ('self.sources').
         
         - outer_join: If True, all the rows of the main source will be kept,
                       even if several of them doesn't match any row in this
@@ -171,20 +175,20 @@ class TableBuilder(object):
                       the first (index 0) column of this source.
 
         """
-        if name in self.sources or name=='main':
+        if name in self.sources or name == 'main':
             raise SourceAlreadyExistsError(name)
         else :
             self.sources[name] = {
-                'id':len(self.sources),
-                'db':db,
-                'query':query,
-                'count_cols':None,
-                'join_on':join_on,
-                'outer_join':outer_join,
-                'errors_count':0,
-                'matches_count':0,
-                'errors':[],
-                'data':None
+                'id': len(self.sources),
+                'db': db,
+                'query': query,
+                'count_cols': None,
+                'join_on': join_on,
+                'outer_join': outer_join,
+                'errors_count': 0,
+                'matches_count': 0,
+                'errors': [],
+                'data': None
             }
         
         self._get_data(name)
@@ -206,9 +210,8 @@ class TableBuilder(object):
         None to get data from the main source.
         
         """
-        if self.verbose:
-            print "... Getting data from '%s' source ..." % (source_name or
-                                                             'main')
+        self._print_status("... Getting data from '%s' source ..." % (
+                                                        source_name or 'main'))
         
         if source_name == None:
             source = self.main_source
@@ -291,8 +294,7 @@ class TableBuilder(object):
         """
         matches = None
         
-        if self.verbose:
-            print "... Joining sources ..."
+        self._print_status("... Joining sources ...")
         
         for row in self.main_source['data']:
             matches = {}
@@ -346,8 +348,7 @@ class TableBuilder(object):
         if rebuild:
             self._rebuild_sql()
         
-        if self.verbose:
-            print "... Writing the data into the datawarehouse ..."
+        self._print_status("... Writing the data into the datawarehouse ...")
         
         cols = self._get_columns(self.output_db, self.output_table)
         
@@ -362,8 +363,7 @@ class TableBuilder(object):
                 self.reporting()
                 raise WrongColumnCountError(cols, self.result[0], self.output_table)
         
-        elif self.verbose:
-                print "No data inserted"
+        self._print_status("No data inserted")
     
     def reporting(self):
         """
@@ -384,10 +384,12 @@ class TableBuilder(object):
         for s_name, s in self.sources.items():
             print ""
             print "- Source '%s' :      %s rows %s matches  %s errors" % (s_name, len(s['data']), s['matches_count'], s['errors_count'])
-            if self.verbose and s['errors_count'] > 0:
-                print " * Keys not found : " + ("   ".join(map(lambda x: '"' + str(x) + '"', s['errors'])))
-        print ""
-        print "(Execution started at : %s)" % self.start_time
+            if s['errors_count'] > 0:
+                self._print_status(
+                    " * Keys not found : " + ("   ".join(map(lambda x: '"' + str(x) + '"', s['errors'])))
+                )
+        
+        print "\n(Execution started at : %s)" % self.start_time
         print "(Execution time : %s)" % (datetime.now() - self.start_time)
     
     def quick_join(self, *args):
@@ -398,17 +400,17 @@ class TableBuilder(object):
         Example :
             > self.quick_join(
                 {
-                    'name':'...',
-                    'db':'...',
-                    'query':'...',
-                    'join_on':'...'
+                    'name': '...',
+                    'db': '...',
+                    'query': '...',
+                    'join_on': '...'
                 },
                 {
-                    'name':'...',
-                    'db':'...',
-                    'query':'...',
-                    'join_on':'...',
-                    'outer_join':True
+                    'name': '...',
+                    'db': '...',
+                    'query': '...',
+                    'join_on': '...',
+                    'outer_join': True
                 }
             )
         
