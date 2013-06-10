@@ -110,7 +110,7 @@ class Fact(Table):
         """
         result = []
         error = False
-
+        
         if self.dim_map == {}:
             self._import_dimensions()
         
