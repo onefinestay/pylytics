@@ -3,8 +3,7 @@ This module allows you to get data from various SQL databases, "join" them
 together within your Python script, and write the result into your own
 database.
 
-
-High-level usage :
+High-level usage:
     > from python_join import TableBuilder
     >
     > tb = TableBuilder(
@@ -29,7 +28,7 @@ High-level usage :
     >   }
     > )
 
-Low-level usage :
+Low-level usage:
     > from python_join import TableBuilder
     >
     > tb = TableBuilder(
@@ -41,23 +40,27 @@ Low-level usage :
     > )
     > tb.build()
     > tb.add_source('my_source1', 'ecommerce', "SELECT id, ...", join_on=2
-    > tb.add_source('my_source2', 'platform', "SELECT id, ...", join_on=6, outer_join=True)
+    > tb.add_source('my_source2', 'platform', "SELECT id, ...", join_on=6,
+                    outer_join=True)
     > tb.join()
     > tb.write()
     > tb.reporting()
 
-In this example, we will :
+In this example, we will:
 - download the main data using 'main_query',
 - for each of those rows, join :
     - the first column of 'my_source1' on the 2nd column of 'main_query'
     - the first column of 'my_source2' on the 6nd column of 'main_query'
-- write the result in 'Your_table' in this form :
-    [cols from main data], [cols from 'my_source1', except the 1st one], [cols from 'my_source2', except the 1st one]
+- write the result in 'Your_table' in this form:
+    [cols from main data], [cols from 'my_source1', except the 1st one],
+    [cols from 'my_source2', except the 1st one]
 
-NB1 : The 'transform_row' function is applied to each output row, just before
+NB1: The 'transform_row' function is applied to each output row, just before
 inserting them into the output table
 
-NB2 : The joined data is appended at the end of the main data, in the same order you added the sources.
+NB2: The joined data is appended at the end of the main data, in the same order
+you added the sources.
+
 """
 
 
@@ -107,8 +110,9 @@ class NoColumnToJoinError(Exception):
         self.source_name = source_name
     
     def __str__(self):
-        return "The source '%s' contains less than 2 columns. All the secondary sources should contain at \
-        least one column to join on, as well as one column to add." % self.source_name
+        return """The source '%s' contains less than 2 columns. All the \
+        secondary sources should contain at least one column to join on, as \
+        well as one column to add.""" % self.source_name
 
 
 ###############################################################################
@@ -119,7 +123,9 @@ class TableBuilder(object):
     
     """
     
-    def __init__(self, main_db, main_query, create_query, output_table, verbose=False, output_db='datawarehouse', preliminary_query=None, transform_row=(lambda x: x)):
+    def __init__(self, main_db, main_query, create_query, output_table,
+                 verbose=False, output_db='datawarehouse',
+                 preliminary_query=None, transform_row=(lambda x: x)):
         self.sources = {}
         self.output_table = output_table
         self.create_query = create_query
@@ -139,14 +145,14 @@ class TableBuilder(object):
     
     def _rebuild_sql(self):
         """
-        Drops and rebuilds the output table
+        Drops and rebuilds the output table.
         
         """
         if self.verbose:
             print "... (Re)-creating the output table ..."
         
         with DB(self.output_db) as dw:
-            query1 = "DROP TABLE IF EXISTS `"+self.output_table+"`"
+            query1 = "DROP TABLE IF EXISTS `" + self.output_table + "`"
             query2 = self.create_query
             dw.execute(query1)
             dw.execute(query2)
@@ -165,7 +171,6 @@ class TableBuilder(object):
                       the first (index 0) column of this source.
 
         """
-        
         if name in self.sources or name=='main':
             raise SourceAlreadyExistsError(name)
         else :
