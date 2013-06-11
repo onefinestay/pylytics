@@ -361,8 +361,10 @@ class TableBuilder(object):
             # number of columns as the output table:
             if len(cols) == len(self.result[0]):
                 with DB(self.output_db) as dw:
-                    query = "INSERT INTO " + self.output_table + " VALUES (" +
-                            ",".join(["%s"] * len(self.result[0])) + ")"
+                    query = "INSERT INTO {0} VALUES ({1})".format(
+                        self.output_table,
+                        ",".join(["%s"] * len(self.result[0]))
+                        )                
                     self._write_data_batches(query)
             else:
                 self.reporting()
