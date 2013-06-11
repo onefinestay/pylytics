@@ -4,6 +4,7 @@ import warnings
 from connection import DB
 from table import Table
 from main import get_class
+from python_join import TableBuilder
 
 
 class Fact(Table):
@@ -141,22 +142,7 @@ class Fact(Table):
                 dimension.update()
         super(Fact, self).build()
     
-    def update(self, historical=False, index=0):
-        """
-        Updates the fact table with the newest rows (modified since last
-        update).
-        """
-        # Make sure all the tables have been created:
-        self.build()
-        
-        # Status.
-        msg = "Updating %s" % self.table_name
-        self._print_status(msg)
-
-        error_count = 0
-        success_count = 0
-        
-        # Get the query.
+    def _get_query(self, historical, index):
         if not historical:
             query = self.source_query
         else:
@@ -165,13 +151,11 @@ class Fact(Table):
                 return 0
             else:
                 query = self.historical_source_query.format(index)
-        
-        # Get the full source list.
-        data = []
-        with DB(self.source_db) as database:
-            data = database.execute(query)
-
-        # Update the fact table with all the rows.
+        return query
+    
+    def _insert_rows(self, data):
+        error_count = 0
+        success_count = 0
         for row in data:
             map_result = self._map_tuple(self._transform_tuple(row))
             destination_tuple = map_result[0]
@@ -187,22 +171,64 @@ class Fact(Table):
                     self.connection.execute(query, destination_tuple)
                     success_count += 1
                 except Exception as e:
-                    print "--> MySQL error: %s" % str(destination_tuple)
-                    print "- Row after _transform_tuple(): %s" % str(
-                                                self._transform_tuple(row))
-                    print "- Raw row from DB: %s" % str(row)
-                    print(e)
+                    self._print_status("MySQL error: %s" % str(
+                                                            destination_tuple))
+                    self._print_status("Row after _transform_tuple(): %s" % (
+                                            str(self._transform_tuple(row))))
+                    self._print_status("Raw row from DB: %s" % str(row))
+                    self._print_status(e)
                     error_count += 1
             else:
-                print "--> Error on mapping: %s" % str(destination_tuple)
-                print "- Row after _transform_tuple(): %s" % str(
+                print "Error on mapping: %s" % str(destination_tuple)
+                print "Row after _transform_tuple(): %s" % str(
                                                 self._transform_tuple(row))
-                print "- Raw row from DB: %s" % str(row)
+                print "Raw row from DB: %s" % str(row)
                 error_count += 1
         
-        msg = "--> %s rows inserted, %s errors (i.e. rows not inserted)" % (
+        msg = "%s rows inserted, %s errors (i.e. rows not inserted)" % (
                                                     success_count, error_count)
         self._print_status(msg)
+
+    def join_query(self, historical, index):
+        table_builder = TableBuilder(self.source_db, self.source_query, )
+        
+        
+        
+        
+        main_db, main_query, create_query, output_table, verbose=False, output_db='datawarehouse', preliminary_query=None, transform_row=(lambda x: x))
+        
+        
+        
+        pass
+        
+        
+        
+        
+    
+    def update(self, historical=False, index=0):
+        """
+        Updates the fact table with the newest rows.
+        """
+        # Make sure all the tables have been created.
+        self.build()
+        
+        # Status.
+        self._print_status("Updating %s" % self.table_name)
+        
+        # If python join is required, need to do things differently.
+        if hasattr(self, 'extra_queries'):
+            self.join_query(historical, index)
+        else:
+            # Get the query.
+            query = self._get_query(historical, index)
+        
+            # Execute the select query.
+            data = []
+            with DB(self.source_db) as database:
+                data = database.execute(query)
+
+            # Update the fact table with all the rows.
+            self._insert_rows(data)
     
     def historical(self):
         """
