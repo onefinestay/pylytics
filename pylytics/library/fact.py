@@ -81,8 +81,6 @@ class Fact(Table):
         > self.dim_classes[1].get_dictionnary('short_code')
 
         """
-        # First thing to understand is why dim_names and dim_fields are 
-        # separate...
         for dim_name, dim_field in zip(self.dim_names, self.dim_fields):
             
             if dim_field == None:
@@ -156,6 +154,7 @@ class Fact(Table):
     def _insert_rows(self, data):
         error_count = 0
         success_count = 0
+        
         for row in data:
             map_result = self._map_tuple(self._transform_tuple(row))
             destination_tuple = map_result[0]
@@ -190,20 +189,35 @@ class Fact(Table):
         self._print_status(msg)
 
     def join_query(self, historical, index):
-        table_builder = TableBuilder(self.source_db, self.source_query, )
+        table_builder = TableBuilder(
+            main_db=self.source_db,
+            main_query=self.source_query,
+            create_query=None,
+            output_table=self.table_name,
+            verbose=True
+            )
+        for extra_query in self.extra_queries:
+            query_dict = getattr(self, extra_query)
+            table_builder.add_source(
+                extra_query,
+                query_dict['db'],
+                query_dict['query'],
+                query_dict['join_on']
+                )
+        table_builder.join()
+        self._insert_rows(table_builder.result)
         
-        
-        
-        
-        main_db, main_query, create_query, output_table, verbose=False, output_db='datawarehouse', preliminary_query=None, transform_row=(lambda x: x))
-        
-        
-        
-        pass
-        
-        
-        
-        
+    def single_query(self, historical, index):
+        # Get the query.
+        query = self._get_query(historical, index)
+    
+        # Execute the select query.
+        data = []
+        with DB(self.source_db) as database:
+            data = database.execute(query)
+
+        # Update the fact table with all the rows.
+        self._insert_rows(data)
     
     def update(self, historical=False, index=0):
         """
@@ -215,20 +229,11 @@ class Fact(Table):
         # Status.
         self._print_status("Updating %s" % self.table_name)
         
-        # If python join is required, need to do things differently.
-        if hasattr(self, 'extra_queries'):
+        # If join is required, need to do things differently.
+        if hasattr(self, 'extra_queries') and self.extra_queries:
             self.join_query(historical, index)
         else:
-            # Get the query.
-            query = self._get_query(historical, index)
-        
-            # Execute the select query.
-            data = []
-            with DB(self.source_db) as database:
-                data = database.execute(query)
-
-            # Update the fact table with all the rows.
-            self._insert_rows(data)
+            self.single_query(historical, index)
     
     def historical(self):
         """

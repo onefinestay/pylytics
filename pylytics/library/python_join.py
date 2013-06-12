@@ -63,10 +63,9 @@ you added the sources.
 
 """
 
+import datetime
 
 from connection import DB
-from datetime import datetime
-
 
 ###############################################################################
 
@@ -96,14 +95,15 @@ class WrongColumnCountError(Exception):
             side), along with a sample data you are trying to insert (on the \
             right hand side):""" % (self.in_len, self.table_name, self.out_len)
         
-        for o, i in zip(self.output_table_cols, self.sample_input_cols):
-            message += "        %s = '%s'\n" % (o, i)
+        for output_col, input_col in zip(self.output_table_cols,
+                                         self.sample_input_cols):
+            message += "%s = '%s'\n" % (output_col, input_col)
         
         if self.in_len > self.out_len:
-            message += ("".join(["       ? = " + e + "\n" for e in
+            message += ("".join(["? = " + e + "\n" for e in
                         self.sample_input_cols[(self.out_len):]]))
         else :
-            message += ("".join(["       " + e + " = ?\n" for e in
+            message += ("".join([" " + e + " = ?\n" for e in
                         self.output_table_cols[(self.in_len):]]))
         
         return message
@@ -121,14 +121,30 @@ class NoColumnToJoinError(Exception):
 
 ###############################################################################
 
+def get_dictionary(sequence):
+    """
+    Given a list of tuples, returns a dictionary where:
+    - The key is the first element of each tuple.
+    - The value is the tuple without its first value.
+    
+    Example:
+        > get_dictionary([('a','b','c'),('x','y','z'),('u','v','w')]
+        {'a':('b','c'), 'x':('y','z'), 'u':('v','w')}
+    
+    """
+    dictionary = {}
+    for element in sequence:
+        dictionary[element[0]] = element[1:]
+    return dictionary
+
+
 class TableBuilder(object):
     """
     The main object you have to instantiate to join tables.
     
     """
-    
     def __init__(self, main_db, main_query, create_query, output_table,
-                 verbose=False, output_db='datawarehouse',
+                 verbose=False, output_db=None,
                  preliminary_query=None, transform_row=(lambda x: x)):
         self.sources = {}
         self.output_table = output_table
@@ -137,8 +153,7 @@ class TableBuilder(object):
         self.result = []
         self._transform_row = transform_row
         self.output_db = output_db
-        self.start_time = start_time = datetime.now()
-        
+        self.start_time = datetime.datetime.now()
         self.main_source = {
             'db': main_db,
             'query': main_query,
@@ -159,11 +174,12 @@ class TableBuilder(object):
         """
         self._print_status("(Re)-creating the output table.")
         
-        with DB(self.output_db) as dw:
-            query1 = "DROP TABLE IF EXISTS `" + self.output_table + "`"
-            query2 = self.create_query
-            dw.execute(query1)
-            dw.execute(query2)
+        if self.create_query:
+            with DB(self.output_db) as database:
+                query1 = "DROP TABLE IF EXISTS `" + self.output_table + "`"
+                database.execute(query1)
+                query2 = self.create_query
+                database.execute(query2)
     
     def add_source(self, name, db, query, join_on, outer_join=False):
         """
@@ -202,13 +218,12 @@ class TableBuilder(object):
         Returns a list of all the sources names ordered by their 'id' field.
         
         """
-        ids = {s['id']:s_name for s_name,s in self.sources.items()}
-        
+        ids = {source['id']:source_name for source_name, source in self.sources.items()}
         return [ids[e] for e in sorted(ids)]
     
     def _get_data(self, source_name):
         """
-        Gets the data from a source and stores it
+        Gets the data from a source and stores it.
         
         'source_name' should be either the name provided in 'add_source()' or
         None to get data from the main source.
@@ -231,28 +246,11 @@ class TableBuilder(object):
             if source_name == None:
                 self.main_source['data'] = data[0]
             else :
-                self.sources[source_name]['data'] = self._get_dictionary(
-                                                                    data[0])
+                self.sources[source_name]['data'] = get_dictionary(data[0])
                 if data[1] <= 1:
                     raise NoColumnToJoinError(source_name)
                 else:
                     self.sources[source_name]['count_cols'] = data[1] - 1
-    
-    def _get_dictionary(self, data):
-        """
-        Given a list of tuples, returns a dictionary where :
-        - the key is the first element of each tuple
-        - the value is the tuple without its first value
-        
-        Example :
-            > self._get_dictionary([('a','b','c'),('x','y','z'),('u','v','w')]
-            {'a':('b','c'), 'x':('y','z'), 'u':('v','w')}
-        
-        """
-        dict = {}
-        for e in data:
-            dict[e[0]] = e[1:]
-        return dict
     
     def _append_result_row(self, row, matches):
         """
@@ -371,8 +369,6 @@ class TableBuilder(object):
                 raise WrongColumnCountError(cols, self.result[0],
                                             self.output_table)
         
-        self._print_status("No data inserted.")
-    
     def reporting(self):
         """
         For reporting purposes - shows the results of the script
@@ -400,14 +396,15 @@ class TableBuilder(object):
                 )
         
         print "(Execution started at: %s)" % self.start_time
-        print "(Execution time: %s)" % (datetime.now() - self.start_time)
+        print "(Execution time: %s)" % (datetime.datetime.now() -
+                                        self.start_time)
     
-    def quick_join(self, *args):
+    def quick_join(self, extra_queries=[]):
         """
         High-level function to use the library (takes a list of sources):
         gets the data, performs the join and writes the output.
         
-        Example :
+        Example:
             > self.quick_join(
                 {
                     'name': '...',
@@ -425,8 +422,8 @@ class TableBuilder(object):
             )
         
         """
-        for s in args:
-            self.add_source(**s)
+        for extra_query in extra_queries:
+            self.add_source(**extra_query)
         
         self.join()
         self.write(rebuild=True)
