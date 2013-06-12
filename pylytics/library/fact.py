@@ -2,9 +2,10 @@ import datetime
 import warnings
 
 from connection import DB
+from group_by import GroupBy
+from join import TableBuilder
 from table import Table
 from main import get_class
-from join import TableBuilder
 
 
 class Fact(Table):
@@ -205,7 +206,12 @@ class Fact(Table):
                 query_dict['join_on']
                 )
         table_builder.join()
-        self._insert_rows(table_builder.result)
+        if hasattr(self, 'group_by'):
+            group_by = self.group_by
+            group_by = GroupBy(table_builder.result, **group_by)
+            result= group_by.sum()
+        else:
+            self._insert_rows(table_builder.result)
 
     def single_query(self, historical, index):
         # Get the query.
