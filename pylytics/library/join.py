@@ -4,7 +4,7 @@ together within your Python script, and write the result into your own
 database.
 
 High-level usage:
-    > from python_join import TableBuilder
+    > from join import TableBuilder
     >
     > tb = TableBuilder(
     >   main_db = 'platform',
@@ -29,7 +29,7 @@ High-level usage:
     > )
 
 Low-level usage:
-    > from python_join import TableBuilder
+    > from join import TableBuilder
     >
     > tb = TableBuilder(
     >   main_db = 'platform',

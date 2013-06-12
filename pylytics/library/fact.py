@@ -4,7 +4,7 @@ import warnings
 from connection import DB
 from table import Table
 from main import get_class
-from python_join import TableBuilder
+from join import TableBuilder
 
 
 class Fact(Table):
@@ -187,7 +187,7 @@ class Fact(Table):
         msg = "%s rows inserted, %s errors (i.e. rows not inserted)" % (
                                                     success_count, error_count)
         self._print_status(msg)
-
+    
     def join_query(self, historical, index):
         table_builder = TableBuilder(
             main_db=self.source_db,
@@ -206,11 +206,11 @@ class Fact(Table):
                 )
         table_builder.join()
         self._insert_rows(table_builder.result)
-        
+
     def single_query(self, historical, index):
         # Get the query.
         query = self._get_query(historical, index)
-    
+
         # Execute the select query.
         data = []
         with DB(self.source_db) as database:
@@ -218,7 +218,7 @@ class Fact(Table):
 
         # Update the fact table with all the rows.
         self._insert_rows(data)
-    
+
     def update(self, historical=False, index=0):
         """
         Updates the fact table with the newest rows.
