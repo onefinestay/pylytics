@@ -406,7 +406,7 @@ class TableBuilder(object):
         
         Example:
             > self.quick_join(
-                {
+                [{
                     'name': '...',
                     'db': '...',
                     'query': '...',
@@ -418,7 +418,7 @@ class TableBuilder(object):
                     'query': '...',
                     'join_on': '...',
                     'outer_join': True
-                }
+                }]
             )
         
         """

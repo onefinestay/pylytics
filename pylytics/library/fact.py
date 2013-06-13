@@ -208,8 +208,8 @@ class Fact(Table):
         table_builder.join()
         if hasattr(self, 'group_by'):
             group_by = self.group_by
-            group_by = GroupBy(table_builder.result, **group_by)
-            self._insert_rows(group_by.sum())
+            group_by = GroupBy(table_builder.result, group_by)
+            self._insert_rows(group_by.process())
         else:
             self._insert_rows(table_builder.result)
 
