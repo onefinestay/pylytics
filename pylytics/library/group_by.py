@@ -9,8 +9,9 @@ class GroupBy(object):
         self.sum_columns = sum_columns
         self.data_input = data_input
         self.data_output = []
+        self.subgroups = []
     
-    def find_set(self, indexes):
+    def _find_set(self, indexes):
         """
         Reduce the data input down to unique values.
         """
@@ -18,21 +19,19 @@ class GroupBy(object):
         values = set(hashable_input_data)
         return list(values)
     
+    def _sum_columns(self):
+        for group in self.subgroups:
+            output = [group[0][i] for i in self.indexes]
+            for column_index in self.sum_columns.values():
+                total = 0
+                for row in group:
+                    total += row[column_index]
+                output.append(total)
+            self.data_output.append(output)
+    
     def sum(self):
-        group_keys = self.find_set(self.indexes)
-        subgroups = []
-        
+        group_keys = self._find_set(self.indexes)
         for group_key in group_keys:
-            # Append if the fields match the group_keys - possible to split on certain fields.
-            subgroups.append([i for i in self.data_input if (i[x] for x in self.indexes) == group_key])
-        
-        import pdb; pdb.set_trace()
-        
-        
-        
-        
-        
-        
-        
+            self.subgroups.append([i for i in self.data_input if [i[x] for x in self.indexes] == list(group_key)])
+        self._sum_columns()
         return self.data_output
-        

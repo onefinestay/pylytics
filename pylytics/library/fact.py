@@ -209,7 +209,7 @@ class Fact(Table):
         if hasattr(self, 'group_by'):
             group_by = self.group_by
             group_by = GroupBy(table_builder.result, **group_by)
-            result= group_by.sum()
+            self._insert_rows(group_by.sum())
         else:
             self._insert_rows(table_builder.result)
 
