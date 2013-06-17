@@ -240,7 +240,7 @@ class Fact(Table):
             self.join_query(historical, index)
         else:
             self.single_query(historical, index)
-    
+
     def historical(self):
         """
         Run the historical_query - useful for rebuilding the tables from
