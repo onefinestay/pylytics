@@ -2,6 +2,8 @@
 A class to implement simple group by functionality in Python.
 
 """
+import numpy
+
 
 class GroupBy(object):
     group_by_functions = ['sum', ]
@@ -37,6 +39,9 @@ class GroupBy(object):
     
     def sum(self, values):
         return sum(values)
+    
+    def avg(self, values):
+        return numpy.mean(values)
     
     def _create_output(self):
         for group in self.subgroups:
