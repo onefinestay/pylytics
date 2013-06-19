@@ -5,9 +5,7 @@ A class to implement simple group by functionality in Python.
 import numpy
 
 
-class GroupBy(object):
-    group_by_functions = ['sum', ]
-    
+class GroupBy(object):    
     def __init__(self, data_input, group_by):
         """
         data_input is the result of a SQL select query.
@@ -21,7 +19,7 @@ class GroupBy(object):
         >     },
         > }
         
-        indexes is required, and at least one of group_by_functions.
+        indexes is required, and at least one function.
         
         """
         self.indexes = group_by['indexes']
@@ -34,7 +32,8 @@ class GroupBy(object):
         """
         Reduce the data input down to unique values.
         """
-        hashable_input_data = [tuple([i[j] for j in indexes]) for i in self.data_input]
+        hashable_input_data = [tuple([i[j] for j in indexes]) for (
+                                                        i in self.data_input)]
         self.group_keys = list(set(hashable_input_data))
     
     def sum(self, values):
@@ -57,7 +56,8 @@ class GroupBy(object):
     
     def _group_input_data(self):
         for group_key in self.group_keys:
-            self.subgroups.append([i for i in self.data_input if [i[x] for x in self.indexes] == list(group_key)])
+            self.subgroups.append([i for i in self.data_input if (
+                            [i[x] for x in self.indexes] == list(group_key)]))
     
     def process(self):
         self._find_set(self.indexes)
