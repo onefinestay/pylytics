@@ -32,8 +32,7 @@ class GroupBy(object):
         """
         Reduce the data input down to unique values.
         """
-        hashable_input_data = [tuple([i[j] for j in indexes]) for (
-                                                        i in self.data_input)]
+        hashable_input_data = [tuple([i[j] for j in indexes]) for i in self.data_input]
         self.group_keys = list(set(hashable_input_data))
     
     def sum(self, values):
@@ -56,8 +55,7 @@ class GroupBy(object):
     
     def _group_input_data(self):
         for group_key in self.group_keys:
-            self.subgroups.append([i for i in self.data_input if (
-                            [i[x] for x in self.indexes] == list(group_key)]))
+            self.subgroups.append([i for i in self.data_input if [i[x] for x in self.indexes] == list(group_key)])
     
     def process(self):
         self._find_set(self.indexes)
