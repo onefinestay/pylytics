@@ -276,10 +276,9 @@ class TableBuilder(object):
         """
         result_row = []
         sources_ordered = self._get_sources_order()
+        checks = [matches[match][0] != None or self.sources[match]['outer_join'] for match in matches]
         
-        if all([matches[m][0] != None or self.sources[m]['outer_join'] for
-               m in matches]):
-            
+        if all(checks):
             # Adding all the fields from the main source
             result_row += row
             
@@ -295,21 +294,23 @@ class TableBuilder(object):
         result in 'self.result').
         
         """
-        matches = None
-        
         self._print_status("Joining sources.")
         
         for row in self.main_source['data']:
             matches = {}
             
-            for s_name, s in self.sources.items():
+            for source_name, source_data in self.sources.items():
+                join_on_index = source_data['join_on']
+                join_on_value = row[join_on_index]
                 try:
-                    matches[s_name] = s['data'][row[s['join_on']]]
-                    s['matches_count'] += 1
-                except Exception, e:
-                    matches[s_name] = (None,) * s['count_cols']
-                    s['errors'].append(row[s['join_on']])
-                    s['errors_count'] += 1
+                    matching_row = source_data['data'][join_on_value]
+                    matches[source_name] = matching_row
+                except KeyError:
+                    matches[source_name] = (None,) * source_data['count_cols']
+                    source_data['errors'].append(join_on_value)
+                    source_data['errors_count'] += 1
+                else:
+                    source_data['matches_count'] += 1
             
             self._append_result_row(row, matches)
     

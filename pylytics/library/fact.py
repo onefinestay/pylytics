@@ -203,7 +203,8 @@ class Fact(Table):
                 extra_query,
                 query_dict['db'],
                 query_dict['query'],
-                query_dict['join_on']
+                query_dict['join_on'],
+                query_dict['outer_join'],
                 )
         table_builder.join()
         if hasattr(self, 'group_by'):
@@ -221,7 +222,7 @@ class Fact(Table):
         data = []
         with DB(self.source_db) as database:
             data = database.execute(query)
-
+        
         # Update the fact table with all the rows.
         self._insert_rows(data)
 

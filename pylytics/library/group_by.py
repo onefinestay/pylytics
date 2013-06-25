@@ -5,7 +5,16 @@ A class to implement simple group by functionality in Python.
 import numpy
 
 
-class GroupBy(object):    
+def clean_values(sequence):
+    """Remove all None values from the sequence."""
+    cleaned_sequence = [value for value in sequence if value != None]
+    if not cleaned_sequence:
+        # Some functions might struggle getting an empty list.
+        cleaned_sequence = [0]
+    return cleaned_sequence
+
+
+class GroupBy(object):
     def __init__(self, data_input, group_by):
         """
         data_input is the result of a SQL select query.
@@ -49,8 +58,9 @@ class GroupBy(object):
                     values = []
                     for row in group:
                         values.append(row[index])
+                    cleaned_values = clean_values(values)
                     group_by_function = getattr(self, function_type)
-                    output.append(group_by_function(values))
+                    output.append(group_by_function(cleaned_values))
             self.data_output.append(output)
     
     def _group_input_data(self):
