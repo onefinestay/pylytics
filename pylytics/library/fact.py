@@ -15,14 +15,14 @@ class Fact(Table):
     """
     dim_names = []
     dim_fields = []
-    dim_modules = []
-    dim_classes = []
-    dim_map = {}
     historical_iterations = 100
     
     def __init__(self, *args, **kwargs):
         self.dim_or_fact = 'fact'
         super(Fact, self).__init__(*args, **kwargs)
+        dim_modules = []
+        dim_classes = []
+        dim_map = {}
 
     def _transform_tuple(self, src_tuple):
         """
