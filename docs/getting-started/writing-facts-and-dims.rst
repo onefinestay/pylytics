@@ -56,6 +56,12 @@ It can useful instead of using MYSQL iterators, in this sort of situation::
 
 When the historical method is called on the fact, `historical_source_query` is run X times where X is self.historical_iterations.
 
+Join and group by
+~~~~~~~~~~~~~~~~~
+It can be useful to join queries together in Python - such as when querying multiple databases.
+
+Pylytics supports this - here is an example:
+
 
 Dimensions
 **********
