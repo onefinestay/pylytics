@@ -10,3 +10,4 @@ Getting Started
    writing-facts-and-dims
    running-scripts
    querying
+   connection-library

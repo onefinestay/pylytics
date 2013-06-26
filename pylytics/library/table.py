@@ -1,6 +1,7 @@
 import datetime
 import os
 import sys
+import textwrap
 import warnings
 
 import MySQLdb
@@ -19,8 +20,7 @@ class Table(object):
 
     def _print_status(self, message):
         """Use this for all printing all output."""
-        sys.stdout.write("*** %s, %s ***\n" % (str(datetime.datetime.now()),
-                                              message))
+        sys.stdout.write("%s %s\n" % (str(datetime.datetime.now()), message))
 
     def _values_placeholder(self, length):
         """
@@ -71,7 +71,7 @@ class Table(object):
                 """ % query
         try:
             self.connection.execute(query)
-            print "--> Success"
+            self._print_status('Success')
         except MySQLdb.IntegrityError:
             print """--> Table could not be deleted, due to foreign key \
                 constraints. Try removing the fact tables first."""
@@ -82,7 +82,8 @@ class Table(object):
             try:
                 self.connection.execute(query)
             except MySQLdb.IntegrityError:
-                print "--> Unable to drop view for %s" % self.table_name
+                self._print_status("Unable to drop view for %s" % (
+                                                            self.table_name))
 
     def build(self):
         """Builds the table."""
@@ -105,4 +106,4 @@ class Table(object):
             else:
                 raise db_error
 
-        print "--> Success"
+        self._print_status('Success')
