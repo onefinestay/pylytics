@@ -170,7 +170,7 @@ class Fact(Table):
                                                     len(destination_tuple)))
                     self.connection.execute(query, destination_tuple)
                     success_count += 1
-                except Exception as e:
+                except Exception, e:
                     self._print_status("MySQL error: %s" % str(
                                                             destination_tuple))
                     self._print_status("Row after _transform_tuple(): %s" % (

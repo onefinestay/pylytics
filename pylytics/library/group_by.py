@@ -33,6 +33,7 @@ class GroupBy(object):
         """
         self.indexes = group_by['indexes']
         self.functions = group_by['functions']
+        self.columns_to_keep = group_by['columns_to_keep']
         self.data_input = data_input
         self.data_output = []
         self.subgroups = []
@@ -52,7 +53,7 @@ class GroupBy(object):
     
     def _create_output(self):
         for group in self.subgroups:
-            output = [group[0][i] for i in self.indexes]
+            output = [group[0][i] for i in self.columns_to_keep]
             for function_type, indexes in self.functions.iteritems():
                 for index in indexes:
                     values = []
