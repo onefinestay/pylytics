@@ -48,4 +48,4 @@ class DimDate(Dim):
 
             cur_date = cur_date + datetime.timedelta(days=1)
 
-        self._print_status('--> Success')
+        self._print_status('Success')
