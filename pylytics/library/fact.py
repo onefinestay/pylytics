@@ -13,16 +13,16 @@ class Fact(Table):
     Fact base class.
     
     """
-    dim_names = []
+    dim_classes = []
     dim_fields = []
+    dim_map = {}
+    dim_modules = []
+    dim_names = []
     historical_iterations = 100
     
     def __init__(self, *args, **kwargs):
         self.dim_or_fact = 'fact'
         super(Fact, self).__init__(*args, **kwargs)
-        dim_modules = []
-        dim_classes = []
-        dim_map = {}
 
     def _transform_tuple(self, src_tuple):
         """
@@ -60,18 +60,18 @@ class Fact(Table):
         gives the mapping for all the dimensions linked to the fact.
         Sets self.dim_classes to a list of classes - one for each dimension.
         
-        Example usage :
+        Example usage:
         > _import_dimensions()
         Example of self.dim_map :
         > {
-        >     'location' : {
-        >         'LON':1,
-        >         'NY':2,
+        >     'location': {
+        >         'LON': 1,
+        >         'NY': 2,
         >     },
-        >     'thingtocount' : {
-        >         '123':1,
-        >         'ABC88':2,
-        >         'XXX11':3,
+        >     'thingtocount': {
+        >         '123': 1,
+        >         'ABC88': 2,
+        >         'XXX11': 3,
         >         ...
         >     }
         >     ...
@@ -79,7 +79,7 @@ class Fact(Table):
 
         Example of self.dim_classes:
         > [pointer to location class, pointer to home class]
-        > self.dim_classes[1].get_dictionnary('short_code')
+        > self.dim_classes[1].get_dictionary('short_code')
 
         """
         for dim_name, dim_field in zip(self.dim_names, self.dim_fields):
@@ -110,10 +110,7 @@ class Fact(Table):
         """
         result = []
         error = False
-        
-        if self.dim_map == {}:
-            self._import_dimensions()
-        
+                
         for (value, dim_name) in zip(src_tuple, self.dim_names):
             if self.dim_map[dim_name] == None:
                 result.append(value)
@@ -155,6 +152,8 @@ class Fact(Table):
     def _insert_rows(self, data):
         error_count = 0
         success_count = 0
+        
+        self._import_dimensions()
         
         for row in data:
             map_result = self._map_tuple(self._transform_tuple(row))
