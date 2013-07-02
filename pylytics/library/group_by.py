@@ -49,7 +49,7 @@ class GroupBy(object):
         return sum(values)
     
     def avg(self, values):
-        return numpy.mean(values)
+        return numpy.mean([float(i) for i in values])
     
     def _create_output(self):
         for group in self.subgroups:
