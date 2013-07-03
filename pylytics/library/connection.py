@@ -35,7 +35,7 @@ class DB(object):
     example.close()
 
     """
-
+    
     def __init__(self, database):
         if database not in (settings.DATABASES.keys()):
             raise Exception("The Database isn't recognised! Check your \
@@ -55,10 +55,10 @@ class DB(object):
             self.connection.commit()
             self.connection.close()
 
-    def execute(self, query, values=None, many=False, get_count_cols=False):
+    def execute(self, query, values=None, many=False, get_cols=False):
         cursor = None
         data = None
-        count_cols = None
+        cols = None
 
         if not self.connection:
             raise Exception('You must connect first!')
@@ -77,16 +77,16 @@ class DB(object):
                 else:
                     cursor.execute(query, values)
 
-            if get_count_cols:
-                # Get column count
+            if get_cols:
+                # Get columns list
                 if values:
                     raise Exception("Only works on a SELECT query.")
-                count_cols = len(cursor.description)
+                cols = cursor.description
 
             cursor.close()
 
-        if get_count_cols:
-            return (data, count_cols)
+        if get_cols:
+            return (data, cols)
         else:
             return data
 

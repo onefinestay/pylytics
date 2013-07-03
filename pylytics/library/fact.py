@@ -111,8 +111,8 @@ class Fact(Table):
         result = []
         error = False
                 
-        for (value, dim_name) in zip(src_tuple, self.dim_names):
-            if self.dim_map[dim_name] == None:
+        for (value, dim_name) in map(None, src_tuple, self.dim_names):
+            if self.dim_map[dim_name] is None:
                 result.append(value)
                 error = False
             else:
@@ -131,11 +131,10 @@ class Fact(Table):
         
         """
         for dim_name in self.dim_names:
-            if dim_name:
-                dimension = get_class(dim_name, dimension=True)(
-                                                    connection=self.connection)
-                dimension.build()
-                dimension.update()
+            dimension = get_class(dim_name, dimension=True)(
+                                                connection=self.connection)
+            dimension.build()
+            dimension.update()
         super(Fact, self).build()
     
     def _get_query(self, historical, index):
@@ -189,26 +188,35 @@ class Fact(Table):
         self._print_status(msg)
     
     def join_query(self, historical, index):
+        types = None
+        unique_key = None
+        foreign_keys = None
+        if hasattr(self, 'types'):
+            types = self.types
+        if hasattr(self, 'unique_key'):
+            unique_key = self.unique_key
+        if hasattr(self, 'foreign_keys'):
+            foreign_keys = self.foreign_keys
+            
         table_builder = TableBuilder(
             main_db=self.source_db,
             main_query=self.source_query,
             create_query=None,
             output_table=self.table_name,
+            types=types,
+            unique_key=unique_key,
+            foreign_keys=foreign_keys,
             verbose=True
             )
-        for extra_query in self.extra_queries:
-            query_dict = getattr(self, extra_query)
+        for (extra_query, query_dict) in self.extra_queries.items():
             table_builder.add_source(
-                extra_query,
-                query_dict['db'],
-                query_dict['query'],
-                query_dict['join_on'],
-                query_dict['outer_join'],
+                name=extra_query,
+                **query_dict
                 )
         table_builder.join()
         if hasattr(self, 'group_by'):
             group_by = self.group_by
-            group_by = GroupBy(table_builder.result, group_by)
+            group_by = GroupBy(table_builder.result, group_by, cols=table_builder.result_cols_names, dims=self.dim_names)
             self._insert_rows(group_by.process())
         else:
             self._insert_rows(table_builder.result)
