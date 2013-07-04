@@ -7,23 +7,33 @@ from join import TableBuilder
 from table import Table
 from main import get_class
 
+from build_sql import SQLBuilder
 
 class Fact(Table):
     """
     Fact base class.
     
     """
-    dim_classes = []
-    dim_fields = []
-    dim_map = {}
-    dim_modules = []
-    dim_names = []
+    
     historical_iterations = 100
     
     def __init__(self, *args, **kwargs):
         self.dim_or_fact = 'fact'
-        super(Fact, self).__init__(*args, **kwargs)
+        
+        self.dim_classes = []
+        self.dim_map = {}
+        self.dim_modules = []
+        self.types=self.types if hasattr(self, 'types') else None
 
+        self.output_data = None
+        self.output_cols_names = None
+        self.output_cols_types = None
+        self.dim_dict = None
+        
+        super(Fact, self).__init__(*args, **kwargs)
+        
+        self.input_cols_names = self._get_cols_from_sql()
+        
     def _transform_tuple(self, src_tuple):
         """
         Overwrite if needed while extending the class.
@@ -44,16 +54,16 @@ class Fact(Table):
         > ('name_val_out', 'attrib_val_out')
         
         """
+        """
         result = []
-
         for value in src_tuple:
             if type(value) == datetime.datetime:
                 result.append(value.date())
             else:
                 result.append(value)
-
-        return tuple(result)
-
+        """
+        return src_tuple
+    
     def _import_dimensions(self):
         """
         Sets self.dim_map to a dictionary of dictionaries - each of them
@@ -83,19 +93,14 @@ class Fact(Table):
 
         """
         for dim_name, dim_field in zip(self.dim_names, self.dim_fields):
-            
-            if dim_field == None:
-                self.dim_classes.append(None)
-                self.dim_map[dim_name] = None
-            else:
-                # Import the modules and the class of the corresponding
-                # dimensions.
-                dim_class = get_class(dim_name, dimension=True)(
-                                                    connection=self.connection)
-                self.dim_classes.append(dim_class)
-                    
-                # Get the dictionary for each dimension.
-                self.dim_map[dim_name] = dim_class.get_dictionary(dim_field)
+            # Import the modules and the class of the corresponding
+            # dimensions.
+            dim_class = get_class(dim_name, dimension=True)(
+                                                connection=self.connection)
+            self.dim_classes.append(dim_class)
+                
+            # Get the dictionary for each dimension.
+            self.dim_map[dim_name] = dim_class.get_dictionary(dim_field)
 
     def _map_tuple(self, src_tuple):
         """
@@ -110,24 +115,27 @@ class Fact(Table):
         """
         result = []
         error = False
-                
-        for (value, dim_name) in map(None, src_tuple, self.dim_names):
-            if self.dim_map[dim_name] is None:
-                result.append(value)
-                error = False
-            else:
+        
+        for i,value in enumerate(src_tuple):
+            if i in self.dim_dict:
+                dim_name = self.dim_dict[i]
                 try:
                     result.append(self.dim_map[dim_name][value])
                     error = False
                 except:
                     result.append('NULL')
                     error = True
+            else:
+                result.append(value)
+                error = False
 
         return (tuple(result), error)
-    
-    def build(self):
+
+    def _build(self):
         """
         Build and populate the dimensions required.
+        Build the fact SQL table (from .sql file if exists, from
+        auto-generated structure if not)
         
         """
         for dim_name in self.dim_names:
@@ -135,8 +143,29 @@ class Fact(Table):
                                                 connection=self.connection)
             dimension.build()
             dimension.update()
-        super(Fact, self).build()
-    
+            
+        table_built = super(Fact, self).build()
+        
+        if not table_built:
+            # If the .sql file doesn't exist, auto-generate the structure and build the table
+            self.output_cols_types.update({d:'INT(11)' for d in self.dim_names})
+            
+            sql = SQLBuilder(table_name=self.table_name, cols_names=self.output_cols_names,
+                             cols_types=self.output_cols_types, unique_key=self.dim_names, 
+                             foreign_keys=zip(self.dim_names,self.dim_names)).query
+            self.connection.execute(sql)
+            self._print_status('Table built.\n\n')
+            
+    def _get_cols_from_sql(self):
+        try:
+            cols_names = self.connection.execute("SELECT * FROM `%s` LIMIT 0,0" % self.table_name,
+                                           get_cols=True)[1]
+            return filter(lambda x : x not in ['id','created'], cols_names)
+        except Exception, e:
+            if 1146 not in e.args:
+                # If an error other than "table doesn't exists" happens
+                raise
+
     def _get_query(self, historical, index):
         if not historical:
             query = self.source_query
@@ -148,16 +177,59 @@ class Fact(Table):
                 query = self.historical_source_query.format(index)
         return query
     
-    def _insert_rows(self, data):
+    def _generate_dim_dict(self):
+        self.dim_dict = {i:d for i,d in enumerate(self.output_cols_names) if d in self.dim_names}
+    
+    def _process_data(self, historical=False, index=0):
+        """
+        Gets, joins and groups the data.
+        Outputs the result into 'self.output_cols_names',
+        'self.output_cols_types' and 'self.output_data'
+        
+        """
+        # Status.
+        self._print_status("Updating %s" % self.table_name)
+        
+        # Initializing the table builder
+        tb = TableBuilder(
+            main_db=self.source_db,
+            main_query=self._get_query(historical, index),
+            create_query=None,
+            output_table=self.table_name,
+            cols=self.input_cols_names,
+            types=self.types,
+            verbose=True
+            )
+        
+        # Getting main data
+        tb.add_main_source()
+        
+        # Joining extra data if required
+        if hasattr(self, 'extra_queries') :
+            for (extra_query, query_dict) in self.extra_queries.items():
+                tb.add_source(name=extra_query, **query_dict)
+        tb.join()
+        self.output_cols_types = tb.result_cols_types
+        
+        # Grouping by if required
+        if hasattr(self, 'group_by'):
+            group_by = self.group_by
+            gb = GroupBy(tb.result, group_by, cols=tb.result_cols_names, dims=self.dim_names)
+            self.output_cols_names = gb.output_cols
+            self.output_data = gb.process()
+        else:
+            self.output_cols_names = tb.result_cols_names
+            self.output_data = tb.result
+           
+    def _insert_rows(self):
         error_count = 0
         success_count = 0
         
         self._import_dimensions()
+        self._generate_dim_dict()
         
-        for row in data:
-            map_result = self._map_tuple(self._transform_tuple(row))
-            destination_tuple = map_result[0]
-            error = map_result[1]
+        for row in self.output_data:
+            destination_tuple, error = self._map_tuple(self._transform_tuple(row))
 
             if error == False:
                 try:
@@ -186,68 +258,23 @@ class Fact(Table):
         msg = "%s rows inserted, %s errors (i.e. rows not inserted)" % (
                                                     success_count, error_count)
         self._print_status(msg)
-    
-    def join_query(self, historical, index):
-        types = None
-        unique_key = None
-        foreign_keys = None
-        if hasattr(self, 'types'):
-            types = self.types
-        if hasattr(self, 'unique_key'):
-            unique_key = self.unique_key
-        if hasattr(self, 'foreign_keys'):
-            foreign_keys = self.foreign_keys
-            
-        table_builder = TableBuilder(
-            main_db=self.source_db,
-            main_query=self.source_query,
-            create_query=None,
-            output_table=self.table_name,
-            types=types,
-            unique_key=unique_key,
-            foreign_keys=foreign_keys,
-            verbose=True
-            )
-        for (extra_query, query_dict) in self.extra_queries.items():
-            table_builder.add_source(
-                name=extra_query,
-                **query_dict
-                )
-        table_builder.join()
-        if hasattr(self, 'group_by'):
-            group_by = self.group_by
-            group_by = GroupBy(table_builder.result, group_by, cols=table_builder.result_cols_names, dims=self.dim_names)
-            self._insert_rows(group_by.process())
-        else:
-            self._insert_rows(table_builder.result)
-
-    def single_query(self, historical, index):
-        # Get the query.
-        query = self._get_query(historical, index)
-
-        # Execute the select query.
-        data = []
-        with DB(self.source_db) as database:
-            data = database.execute(query)
         
-        # Update the fact table with all the rows.
-        self._insert_rows(data)
-
+    def build(self):
+        """
+        Build only (without updating)
+        
+        """
+        self._process_data()
+        self._build()
+        
     def update(self, historical=False, index=0):
         """
         Updates the fact table with the newest rows.
+        
         """
-        # Make sure all the tables have been created.
-        self.build()
-        
-        # Status.
-        self._print_status("Updating %s" % self.table_name)
-        
-        # If join is required, need to do things differently.
-        if hasattr(self, 'extra_queries') and self.extra_queries:
-            self.join_query(historical, index)
-        else:
-            self.single_query(historical, index)
+        self._process_data(historical, index)
+        self._build() 
+        self._insert_rows()
 
     def historical(self):
         """

@@ -32,22 +32,28 @@ class GroupBy(object):
         
         """
         self.data_input = data_input
-        self.col_id = {i:i for i in range(len(data_input[0]))} if cols is None else {name:i for i,name in enumerate(cols)}
-        self.indexes = [self.col_id[e] for e in group_by['by']]
+        self.input_cols = cols
+        self.cols_dict = None
+        self.indexes = [self._get_col_id(e) for e in group_by['by']]
         self.functions = self._get_updated_functions(group_by['functions'])
-        self.functions_corresp = {self.col_id[e]:self.functions[k] for k,l in group_by['aggregate'].items() for e in l}
-        self.dims = [self.col_id[e] for e in dims]
+        self.functions_corresp = {self._get_col_id(e):self.functions[k] for k,l in group_by['aggregate'].items() for e in l}
+        self.dims = [self._get_col_id(e) for e in dims]
         self.data_output = []
         self.groups = defaultdict(list)
-        self.cols = cols
+        self.output_cols = self._get_output_cols()
+        
+    def _get_output_cols(self):
+        output_indices = sorted(set(self.indexes + self.dims + self.functions_corresp.keys()))
+        return [self.input_cols[i] for i in output_indices]
     
-    def _group_input_data(self):
-        for row in self.data_input:
-            self.groups[tuple(row[i] for i in self.indexes)].append(row)
-    
-    def count_distinct(self, values):
-        return len(set(values))
-    
+    def _get_col_id(self, col_name):
+        if self.input_cols is None:
+            return col_name
+        else:
+            if self.cols_dict is None:          # Initializing cols_dict if necessary
+                self.cols_dict = {name:i for i,name in enumerate(self.input_cols)}
+            return self.cols_dict[col_name]
+                
     def _get_updated_functions(self, user_def_functions):
         functions_dict = {
             'sum' : sum,
@@ -57,7 +63,11 @@ class GroupBy(object):
         }
         functions_dict.update(user_def_functions)
         return functions_dict
-    
+        
+    def _group_input_data(self):
+        for row in self.data_input:
+            self.groups[tuple(row[i] for i in self.indexes)].append(row)
+            
     def _create_output(self):
         for key,group in self.groups.items():
             output_row = []
@@ -74,5 +84,5 @@ class GroupBy(object):
     def process(self):
         self._group_input_data()
         self._create_output()
-        import pdb; pdb.set_trace()
+
         return self.data_output

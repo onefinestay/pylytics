@@ -66,6 +66,7 @@ you added the sources.
 import datetime
 
 from connection import DB
+from build_sql import SQLBuilder
 
 ###############################################################################
 
@@ -90,29 +91,25 @@ class NoColumnToJoinError(Exception):
 
 
 class WrongColumnsNamesError(Exception):
-    def __init__(self, not_matching_sql, not_matching_user_defined):
-        self.not_matching_sql = not_matching_sql
-        self.not_matching_user_defined = not_matching_user_defined
+    def __init__(self, not_matching, sql_fields):
+        self.not_matching = not_matching
+        self.sql_fields = sql_fields
     
     def __str__(self):
-        return """If you choose to specify the columns order, then the 'cols'
-        list should contain exactly the same field names as the SELECT queries
-        (you can also choose not to specify any 'cols' list : the alphabetical order
-        will be used).
+        return """The column names %s don't match
+        any of the fields %s from your SELECT queries""" % (list(self.not_matching), list(self.sql_fields))
         
-        The columns names %s you specified don't match the fields %s
-        from your SELECT queries.""" % (list(self.not_matching_user_defined), list(self.not_matching_sql))
-
         
-class UnknownColumnTypeError(Exception):
-    def __init__(self, e):
-        self.e = e
+class UnknownJoinOnColumnError(Exception):
+    def __init__(self, col, source):
+        self.col = col
+        self.source = source
     
     def __str__(self):
-        return """The type code %s has been retrieved from
-        the initial SELECT queries but is not recognized by the
-        'field_types' dictionnary.""" % self.e
-
+        return """The column '%s' from source '%s' you are trying to join on is unknown
+        in the SQL field list.""" % (self.col, self.source)
+ 
+ 
 ###############################################################################
 
 def get_dictionary(sequence):
@@ -136,39 +133,7 @@ class TableBuilder(object):
     """
     The main object you have to instantiate to join tables.
     
-    """
-    
-    # List of SQL types
-    field_types = {
-         0: 'DECIMAL',
-         1: 'INT(11)',
-         2: 'INT(11)',
-         3: 'INT(11)',
-         4: 'FLOAT',
-         5: 'DOUBLE',
-         6: 'TEXT',
-         7: 'TIMESTAMP',
-         8: 'LONG',
-         9: 'INT(11)',
-         10: 'DATE',
-         11: 'TIME',
-         12: 'DATETIME',
-         13: 'YEAR',
-         14: 'DATE',
-         15: 'VARCHAR(255)',
-         16: 'BIT',
-         246: 'DECIMAL',
-         247: 'VARCHAR(255)',
-         248: 'SET',
-         249: 'TINYBLOB',
-         250: 'MEDIUMBLOB',
-         251: 'LONGBLOB',
-         252: 'BLOB',
-         253: 'VARCHAR(255)',
-         254: 'VARCHAR(255)',
-         255: 'VARCHAR(255)'
-    }
-    
+    """    
     def __init__(self, main_db, main_query, output_table,
                  create_query=None, verbose=False, output_db=None,
                  cols=None, types=None, preliminary_query=None,
@@ -195,37 +160,14 @@ class TableBuilder(object):
         self.preliminary_query = preliminary_query
         self.unique_key = unique_key
         self.foreign_keys = foreign_keys
-        self._get_data(None)
-        
+
     def _print_status(self, message):
-        """Use this for all printing all output."""
+        """
+        Use this for all printing all output.
+        
+        """
         if self.verbose:
             print message
-    
-    def _get_create_query(self):
-        """
-        Builds the CREATE query, based on the fields names
-        and types.
-        
-        """
-        query = 'CREATE TABLE %s (\n' % self.output_table
-        
-        query += '  `id` INT(11) NOT NULL AUTO_INCREMENT'        
-        for col in self.result_cols_names:
-            query += '  ,`%s` %s DEFAULT NULL' % (col, self.result_cols_types[col])
-        query += '   ,`created` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'
-        query += '  ,PRIMARY KEY (`id`)'
-        
-        if self.unique_key is not None :
-            query += '  ,UNIQUE KEY `%s_uk` (%s)' % (self.output_table, ','.join(['`'+e+'`' for e in self.unique_key]))
-        
-        if self.foreign_keys is not None :
-            for i,(fk,ref) in enumerate(self.foreign_keys):
-                query += '  ,CONSTRAINT `%s_ibfk_%s` FOREIGN KEY (`%s`) REFERENCES `%s` (`id`)' % (self.output_table, i, fk, ref)
-
-        query += ') ENGINE=INNODB DEFAULT CHARSET=utf8'
-        
-        return query
     
     def _rebuild_sql(self):
         """
@@ -233,14 +175,22 @@ class TableBuilder(object):
         
         """
         self._print_status("(Re)-creating the output table.")
+        
+        if self.create_query is None:
+            self.create_query = SQLBuilder(table_name=self.output_table,
+                                           cols_names=self.result_cols_names,
+                                           cols_types=self.result_cols_types,
+                                           unique_key=self.unique_key,
+                                           foreign_keys=self.foreign_keys).query
 
-        if self.create_query:
-            with DB(self.output_db) as database:
-                query1 = "DROP TABLE IF EXISTS `" + self.output_table + "`"
-                database.execute(query1)
-                query2 = self.create_query
-                database.execute(query2)
-    
+        with DB(self.output_db) as database:
+            drop_query = "DROP TABLE IF EXISTS `" + self.output_table + "`"
+            database.execute(drop_query)
+            database.execute(self.create_query)
+                
+    def add_main_source(self):
+        self._get_data(None)
+        
     def add_source(self, name, db, query, join_on, outer_join=False):
         """
         Adds a secondary source to the dictionary ('self.sources').
@@ -251,7 +201,7 @@ class TableBuilder(object):
         
         - join_on:    The index of the column (in the main source) on which you
                       want to join this source (starting at 0). Thus, the
-                      'join_on'-th column of the main source will be joined on
+                      'join_on' column of the main source will be joined on
                       the first (index 0) column of this source.
 
         """
@@ -289,33 +239,30 @@ class TableBuilder(object):
         else :
             source = self.sources[source_name]
             
-        data = None 
         with DB(source['db']) as db:
             if self.preliminary_query != None:
                 db.execute(self.preliminary_query)
             
-            data = db.execute(source['query'], get_cols=True)
+            data, cols_names, cols_types = db.execute(source['query'], get_cols=True)
         
         # For the main source
         if source_name == None:
-            source['data'] = data[0]
-            source['cols_names'] = [e[0] for e in data[1]]
-            try:
-                source['cols_types'] = {e[0]:self.field_types[e[1]] for e in data[1]}
-            except Exception as e:
-                raise UnknownColumnTypeError(e)
+            source['data'] = data
+            source['cols_names'] = cols_names
+            source['cols_types'] = {n:t for n,t in zip(cols_names, cols_types)}
         
         # For an extra source
         else :
-            source['data'] = get_dictionary(data[0])
-            if data[1] <= 1:
+            source['data'] = get_dictionary(data)
+            if len(cols_names) <= 1:
                 raise NoColumnToJoinError(source_name)
             else:
-                source['cols_names'] = [e[0] for e in data[1][1:]]
+                source['cols_names'] = cols_names[1:]
+                source['cols_types'] = {n:t for n,t in zip(cols_names[1:], cols_types[1:])}
                 try:
-                    source['cols_types'] = {e[0]:self.field_types[e[1]] for e in data[1][1:]}
+                    source['join_on'] = self.main_source['cols_names'].index(source['join_on'])
                 except Exception as e:
-                    raise UnknownColumnTypeError(e)
+                    raise UnknownJoinOnColumnError(source['join_on'], source_name)
         
     def _get_cols_info(self):
         """
@@ -338,33 +285,20 @@ class TableBuilder(object):
         if self.result_cols_names is None:
             self.result_cols_names = sorted(self.result_cols_types.keys())
         
-        # Checking if columns name are right (if user-defined)
-        matching = set(self.result_cols_types.keys()) & set(self.result_cols_names)
-        not_matching_sql = set(self.result_cols_types.keys()) - matching
-        not_matching_user_defined = set(self.result_cols_names) - matching
-        if len(not_matching_sql) + len(not_matching_user_defined) > 0:
-            raise WrongColumnsNamesError(not_matching_sql, not_matching_user_defined)
-            
+        # Checking if user defined column names are right
+        cols_user_def = set(self.result_cols_names)
+        cols_from_sql = set(self.result_cols_types.keys())
+        cols_user_def_correct = cols_user_def & cols_from_sql
+        
+        if cols_user_def <= cols_from_sql:
+            self.result_cols_names += tuple(cols_from_sql-cols_user_def)
+        else:
+            raise WrongColumnsNamesError(cols_user_def-cols_from_sql, cols_from_sql-cols_user_def)
+               
     def _append_result_row(self, row, matches):
         """
         Given a row (of the main source) and the dictionary of the matches for
         each source, returns the final joined row.
-        
-        Example :
-        > self.sources
-        {
-            'codes':{
-                join_on: 1,
-                ...
-            }
-            'people':{
-                join_on: 3,
-                ...
-            }
-        }
-        > self._append_result_row((5,1258,'note',6,2013),
-        {'codes':('ABCD','London'), 'people':('John',)})
-        [5,'ABCD','London','note',6,'John',2013]
         
         """
         result_row_unordered = {}
@@ -412,9 +346,6 @@ class TableBuilder(object):
                     source_data['matches_count'] += 1
             
             self._append_result_row(row, matches)
-        
-        if self.create_query is None:
-            self.create_query = self._get_create_query()
     
     def _write_data_batches(self, query):
         """
@@ -502,6 +433,7 @@ class TableBuilder(object):
             )
         
         """
+        self.add_main_source()
         for query_name, extra_query in extra_queries.items():
             self.add_source(name=query_name, **extra_query)
         
