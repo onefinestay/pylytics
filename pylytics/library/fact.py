@@ -120,7 +120,7 @@ class Fact(Table):
                     result.append(self.dim_map[dim_name][value])
                     error = False
                 except:
-                    result.append('NULL')
+                    result.append(None)
                     error = True
             else:
                 result.append(value)
@@ -218,6 +218,7 @@ class Fact(Table):
             self.output_data = tb.result
            
     def _insert_rows(self):
+        not_matching_count = 0
         error_count = 0
         success_count = 0
         
@@ -225,34 +226,30 @@ class Fact(Table):
         self._generate_dim_dict()
         
         for row in self.output_data:
-            destination_tuple, error = self._map_tuple(self._transform_tuple(row))
+            destination_tuple, not_matching = self._map_tuple(self._transform_tuple(row))
 
-            if error == False:
-                try:
-                    query = """
-                        REPLACE INTO `%s` VALUES (NULL, %s, NULL)
-                        """ % (self.table_name,
-                               self._values_placeholder(
-                                                    len(destination_tuple)))
-                    self.connection.execute(query, destination_tuple)
-                    success_count += 1
-                except Exception, e:
-                    self._print_status("MySQL error: %s" % str(
-                                                            destination_tuple))
-                    self._print_status("Row after _transform_tuple(): %s" % (
-                                            str(self._transform_tuple(row))))
-                    self._print_status("Raw row from DB: %s" % str(row))
-                    self._print_status(e)
-                    error_count += 1
-            else:
-                print "Error on mapping: %s" % str(destination_tuple)
-                print "Row after _transform_tuple(): %s" % str(
-                                                self._transform_tuple(row))
-                print "Raw row from DB: %s" % str(row)
+            try:
+                query = """
+                    REPLACE INTO `%s` VALUES (NULL, %s, NULL)
+                    """ % (self.table_name,
+                           self._values_placeholder(
+                                                len(destination_tuple)))
+                self.connection.execute(query, destination_tuple)
+                success_count += 1
+            except Exception, e:
+                self._print_status("MySQL error: %s" % str(
+                                                        destination_tuple))
+                self._print_status("Row after _transform_tuple(): %s" % (
+                                        str(self._transform_tuple(row))))
+                self._print_status("Raw row from DB: %s" % str(row))
+                self._print_status(e)
                 error_count += 1
+                
+            if not_matching:
+                not_matching_count += 1
         
-        msg = "%s rows inserted, %s errors (i.e. rows not inserted)" % (
-                                                    success_count, error_count)
+        msg = """%s rows inserted, %s of which don't match the dimensions.
+        %s errors happened.""" % (success_count, not_matching_count, error_count)
         self._print_status(msg)
         
     def build(self):
@@ -263,12 +260,12 @@ class Fact(Table):
         self._process_data()
         self._build()
         
-    def update(self, historical=False, index=0):
+    def update(self):
         """
         Updates the fact table with the newest rows.
         
         """
-        self._process_data(historical, index)
+        self._process_data(historical=False, index=0)
         self._build() 
         self._insert_rows()
 
@@ -278,6 +275,8 @@ class Fact(Table):
         scratch.
 
         """
+        self.update()
+        
         for i in xrange(self.historical_iterations):
-            if self.update(historical=True, index=i) == 0:
-                break
+            self._process_data(historical=True, index=i)
+            self._insert_rows()
