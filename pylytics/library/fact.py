@@ -29,9 +29,12 @@ class Fact(Table):
         self.output_cols_names = None
         self.output_cols_types = None
         self.dim_dict = None
-        
+        if not hasattr(self, 'dim_links'):
+            self.dim_links = self.dim_names
+
         super(Fact, self).__init__(*args, **kwargs)
         
+        self.dim_classes = [get_class(dim_link, dimension=True)(connection=self.connection) for dim_link in self.dim_links]
         self.input_cols_names = self._get_cols_from_sql()
         
     def _transform_tuple(self, src_tuple):
@@ -92,13 +95,7 @@ class Fact(Table):
         > self.dim_classes[1].get_dictionary('short_code')
 
         """
-        for dim_name, dim_field in zip(self.dim_names, self.dim_fields):
-            # Import the modules and the class of the corresponding
-            # dimensions.
-            dim_class = get_class(dim_name, dimension=True)(
-                                                connection=self.connection)
-            self.dim_classes.append(dim_class)
-                
+        for dim_name, dim_class, dim_field in zip(self.dim_names, self.dim_classes, self.dim_fields):
             # Get the dictionary for each dimension.
             self.dim_map[dim_name] = dim_class.get_dictionary(dim_field)
 
@@ -138,12 +135,10 @@ class Fact(Table):
         auto-generated structure if not)
         
         """
-        for dim_name in self.dim_names:
-            dimension = get_class(dim_name, dimension=True)(
-                                                connection=self.connection)
-            dimension.build()
-            dimension.update()
-            
+        for dim_class in self.dim_classes:
+            dim_class.build()
+            dim_class.update()
+           
         table_built = super(Fact, self).build()
         
         if not table_built:
@@ -152,8 +147,9 @@ class Fact(Table):
             
             sql = SQLBuilder(table_name=self.table_name, cols_names=self.output_cols_names,
                              cols_types=self.output_cols_types, unique_key=self.dim_names, 
-                             foreign_keys=zip(self.dim_names,self.dim_names)).query
+                             foreign_keys=zip(self.dim_names,self.dim_links)).query
             self.connection.execute(sql)
+            
             self._print_status('Table built.\n\n')
             
     def _get_cols_from_sql(self):
