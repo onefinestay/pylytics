@@ -248,8 +248,9 @@ class Fact(Table):
             if not_matching:
                 not_matching_count += 1
         
-        msg = """%s rows inserted, %s of which don't match the dimensions.
-        %s errors happened.""" % (success_count, not_matching_count, error_count)
+        msg = "{0} rows inserted, {1} of which don't match the dimensions. " \
+              "{2} errors happened.".format(success_count, not_matching_count,
+                                            error_count)
         self._print_status(msg)
         
     def build(self):

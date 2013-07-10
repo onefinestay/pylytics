@@ -85,9 +85,10 @@ class NoColumnToJoinError(Exception):
         self.source_name = source_name
     
     def __str__(self):
-        return """The source '%s' contains less than 2 columns. All the
-        secondary sources should contain at least one column to join on,
-        as well as one column to add.""" % self.source_name
+        return "The source '{}' contains less than 2 columns. All the " \
+               "secondary sources should contain at least one column to " \
+               "join on, as well as one column to add.\r".format(
+                                                            self.source_name)
 
 
 class WrongColumnsNamesError(Exception):
@@ -96,20 +97,21 @@ class WrongColumnsNamesError(Exception):
         self.sql_fields = sql_fields
     
     def __str__(self):
-        return """The column names %s don't match
-        any of the fields %s from your SELECT queries""" % (list(self.not_matching), list(self.sql_fields))
-        
-        
+        return "The column names {0} don't match any of the fields {1} from " \
+               "your SELECT queries\n".format(
+                            list(self.not_matching), list(self.sql_fields))
+
+
 class UnknownJoinOnColumnError(Exception):
     def __init__(self, col, source):
         self.col = col
         self.source = source
     
     def __str__(self):
-        return """The column '%s' from source '%s' you are trying to join on is unknown
-        in the SQL field list.""" % (self.col, self.source)
- 
- 
+        return "The column '{0}' from source '{1}' you are trying to join " \
+               "on is unknown in the SQL field list.\n".format(self.col,
+                                                                self.source)
+
 ###############################################################################
 
 def get_dictionary(sequence):

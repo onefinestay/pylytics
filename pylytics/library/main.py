@@ -52,18 +52,22 @@ def run_command(facts, command):
     errors = {}
     with DB(settings.pylytics_db) as database_connection:
         for fact in facts:
-            sys.stdout.write("Running %s %s\n" % (fact, command))
-            try :
+            sys.stdout.write("Running {0} {1}\n".format(fact, command))
+            try:
                 MyFact = get_class(fact)(connection=database_connection)
                 getattr(MyFact, command)()
             except Exception as e:
-                sys.stdout.write("Running %s %s failed !\n" % (fact, command))
-                errors[fact+'.'+command] = e
+                sys.stdout.write("Running {0} {1} failed!\n".format(fact, command))
+                errors['.'.join([fact, command])] = e
     if len(errors) == 0:
-        print "\n\nEverything went fine !"
+        sys.stdout.write("Everything went fine!\n")
     else:
-        print "\n\n%s commands not executed : %s\n" % (len(errors), ", ".join(errors.keys()))
-        print "\n".join(["- "+k+" : "+str(v) for k,v in errors.items()])
+        sys.stdout.write(
+            "%s commands not executed: %s\n" % (len(errors), ", ".join(errors.keys()))
+            )
+        sys.stdout.write(
+            "\n".join(["- {0}: {1}".format(key, value) for key, value in errors.items()])
+            )
 
 
 def load_settings(settings_path):

@@ -59,7 +59,7 @@ class GroupBy(object):
             'sum' : sum,
             'avg': lambda x : float(sum(x))/float(len(x)),
             'count': len,
-            'count_distinct': lambda x : len(set(x))           
+            'count_distinct': lambda x : len(set(x))  
         }
         functions_dict.update(user_def_functions)
         return functions_dict

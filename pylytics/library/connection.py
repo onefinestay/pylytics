@@ -8,13 +8,13 @@ import settings
 
 
 class UnknownColumnTypeError(Exception):
-    def __init__(self, e):
-        self.e = e
+    def __init__(self, error):
+        self.error = error
     
     def __str__(self):
-        return """The type code %s, which has been retrieved from
-        a SELECT query, doesn't exist in the 
-        'field_types' dictionnary.""" % self.e
+        return "The type code {}, which has been retrieved from " \
+               "a SELECT query, doesn't exist in the " \
+               "'field_types' dictionary.".format(self.error)
 
 
 def run_query(database, query):
