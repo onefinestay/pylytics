@@ -49,11 +49,21 @@ def run_command(facts, command):
 
     """
     from connection import DB
+    errors = {}
     with DB(settings.pylytics_db) as database_connection:
         for fact in facts:
             sys.stdout.write("Running %s %s\n" % (fact, command))
-            MyFact = get_class(fact)(connection=database_connection)
-            getattr(MyFact, command)()
+            try :
+                MyFact = get_class(fact)(connection=database_connection)
+                getattr(MyFact, command)()
+            except Exception as e:
+                sys.stdout.write("Running %s %s failed !\n" % (fact, command))
+                errors[fact+'.'+command] = e
+    if len(errors) == 0:
+        print "\n\nEverything went fine !"
+    else:
+        print "\n\n%s commands not executed : %s\n" % (len(errors), ", ".join(errors.keys()))
+        print "\n".join(["- "+k+" : "+str(v) for k,v in errors.items()])
 
 
 def load_settings(settings_path):
