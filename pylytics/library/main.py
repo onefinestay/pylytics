@@ -44,6 +44,30 @@ def get_class(module_name, dimension=False):
     return my_class
 
 
+def print_summary(errors):
+    """Print out a summary of the errors which happend during run_command."""
+    print_status("Summary", format='reverse', space=True, timestamp=False,
+                 indent=False)
+    if len(errors) == 0:
+        print_status("Everything went fine!", format='green', timestamp=False,
+                     indent=False)
+    else:
+        print_status("{0} commands not executed: {1}".format(
+                len(errors),
+                ", ".join(errors.keys())
+                ),
+            timestamp=False,
+            indent=False
+            )
+        template = "- {0}: {1}"
+        items = [template.format(key, value) for key, value in errors.items()]
+        print_status(
+            "\n".join(items),
+            timestamp=False,
+            indent=False
+            )
+
+
 def run_command(facts, command):
     """
     Run command for each fact in facts.
@@ -65,27 +89,7 @@ def run_command(facts, command):
                              format='red')
                 errors['.'.join([fact, command])] = e
     
-    # Summary
-    print_status("Summary", format='reverse', space=True, timestamp=False,
-                 indent=False)
-    if len(errors) == 0:
-        print_status("Everything went fine!", format='green', timestamp=False,
-                     indent=False)
-    else:
-        print_status("{0} commands not executed: {1}".format(
-                len(errors),
-                ", ".join(errors.keys())
-                ),
-            timestamp=False,
-            indent=False
-            )
-        template = "- {0}: {1}"
-        items = [template.format(key, value) for key, value in errors.items()]
-        print_status(
-            "\n".join(items),
-            timestamp=False,
-            indent=False
-            )
+    print_summary(errors)
 
 
 def load_settings(settings_path):
