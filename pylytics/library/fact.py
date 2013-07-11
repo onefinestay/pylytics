@@ -150,7 +150,7 @@ class Fact(Table):
                              foreign_keys=zip(self.dim_names,self.dim_links)).query
             self.connection.execute(sql)
             
-            self._print_status('Table built.', indent=True)
+            self._print_status('Table built.')
             
     def _get_cols_from_sql(self):
         try:
@@ -184,7 +184,7 @@ class Fact(Table):
         
         """
         # Status.
-        self._print_status("Updating {}".format(self.table_name), indent=True)
+        self._print_status("Updating {}".format(self.table_name))
         
         # Initializing the table builder
         tb = TableBuilder(
@@ -251,7 +251,7 @@ class Fact(Table):
         msg = "{0} rows inserted, {1} of which don't match the dimensions. " \
               "{2} errors happened.".format(success_count, not_matching_count,
                                             error_count)
-        self._print_status(msg)
+        self._print_status(msg, format='green')
         
     def build(self):
         """

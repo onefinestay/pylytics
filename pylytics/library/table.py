@@ -69,7 +69,6 @@ class Table(object):
                 """ % query
         try:
             self.connection.execute(query)
-            self._print_status('Success', format='green')
         except MySQLdb.IntegrityError:
             print """--> Table could not be deleted, due to foreign key \
                 constraints. Try removing the fact tables first."""
@@ -107,7 +106,7 @@ class Table(object):
 
                     # Execute the sql.
                     self.connection.execute(sql)
-                    self._print_status('Table built.\n\n')
+                    self._print_status('Table built.')
                     table_built = True
                 except Exception as e:
                     table_built = False

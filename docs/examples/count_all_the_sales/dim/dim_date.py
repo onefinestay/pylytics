@@ -10,7 +10,7 @@ class DimDate(Dim):
         """Updates the dim_date table with all the dates since 01/01/2011."""
         # Status.
         msg = "Populating {0}".format(self.table_name)
-        self._print_status(msg, indent=True)
+        self._print_status(msg)
 
         # Get the last inserted date
         cur_date = self.connection.execute(
@@ -47,5 +47,3 @@ class DimDate(Dim):
                 )
 
             cur_date = cur_date + datetime.timedelta(days=1)
-
-        self._print_status('Success', format='green', indent=True)

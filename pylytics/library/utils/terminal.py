@@ -11,6 +11,7 @@ MAP = {
     'bold': '\033[1m',
     'green': '\033[32m',
     'reset': '\033[0m',
+    'reverse': '\033[7m',
 }
 
 
@@ -24,15 +25,19 @@ def format_text(format):
     sys.stdout.write(MAP['reset'])
 
 
-def print_status(message, timestamp=True, format=None, indent=False):
+def print_status(message, timestamp=True, format=None, indent=True,
+                 space=False):
     """
     Printing output with simple formatting options.
     """
+    if space:
+        sys.stdout.write('\n')
+    
     if indent:
         sys.stdout.write('   ')
     
     if timestamp:
-        message = '{0}: {1}'.format(datetime.datetime.now(), message)
+        sys.stdout.write('{}: '.format(datetime.datetime.now()))
     
     if format:
         with format_text(format):

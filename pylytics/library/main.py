@@ -51,26 +51,36 @@ def run_command(facts, command):
     """
     from connection import DB
     errors = {}
+    
     with DB(settings.pylytics_db) as database_connection:
         for fact in facts:
             print_status("Running {0} {1}".format(fact, command),
-                         format='blue')
+                         format='blue', indent=False, space=True,
+                         timestamp=False)
             try:
                 MyFact = get_class(fact)(connection=database_connection)
                 getattr(MyFact, command)()
             except Exception as e:
-                sys.stdout.write("Running {0} {1} failed!\n".format(fact, command))
+                print_status("Running {0} {1} failed!".format(fact, command),
+                             format='red')
                 errors['.'.join([fact, command])] = e
+    
+    # Summary
+    print_status("Summary", format='reverse', space=True, timestamp=False, indent=False)
     if len(errors) == 0:
-        print_status("Everything went fine!", format='green')
+        print_status("Everything went fine!", format='green', timestamp=False, indent=False)
     else:
-        print_status(
-            "%s commands not executed: %s\n" % (len(errors), ", ".join(errors.keys())),
-            indent=True,
-            )
+        print_status("{0} commands not executed: {1}".format(
+            len(errors),
+            ", ".join(errors.keys())
+            ),
+            timestamp=False,
+            indent=False
+        )    
         print_status(
             "\n".join(["- {0}: {1}".format(key, value) for key, value in errors.items()]),
-            indent=True,
+            timestamp=False,
+            indent=False
             )
 
 
@@ -112,7 +122,8 @@ def main():
     command = args['command'][0]
     
     if 'all' in facts:
-        sys.stdout.write('Running all fact scripts:\n')
+        print_status('Running all fact scripts:', indent=False,
+                     timestamp=False, format='reverse', space=True)
         facts = all_facts()
     
     # Import settings:
