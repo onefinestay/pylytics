@@ -67,6 +67,7 @@ import datetime
 
 from connection import DB
 from build_sql import SQLBuilder
+from utils.terminal import print_status
 
 ###############################################################################
 
@@ -163,13 +164,8 @@ class TableBuilder(object):
         self.unique_key = unique_key
         self.foreign_keys = foreign_keys
 
-    def _print_status(self, message):
-        """
-        Use this for all printing all output.
-        
-        """
-        if self.verbose:
-            print message
+    def _print_status(self, message, **kwargs):
+        print_status(message, **kwargs)
     
     def _rebuild_sql(self):
         """
@@ -179,11 +175,13 @@ class TableBuilder(object):
         self._print_status("(Re)-creating the output table.")
         
         if self.create_query is None:
-            self.create_query = SQLBuilder(table_name=self.output_table,
-                                           cols_names=self.result_cols_names,
-                                           cols_types=self.result_cols_types,
-                                           unique_key=self.unique_key,
-                                           foreign_keys=self.foreign_keys).query
+            self.create_query = SQLBuilder(
+                table_name=self.output_table,
+                cols_names=self.result_cols_names,
+                cols_types=self.result_cols_types,
+                unique_key=self.unique_key,
+                foreign_keys=self.foreign_keys
+                ).query
 
         with DB(self.output_db) as database:
             drop_query = "DROP TABLE IF EXISTS `" + self.output_table + "`"
@@ -245,7 +243,8 @@ class TableBuilder(object):
             if self.preliminary_query != None:
                 db.execute(self.preliminary_query)
             
-            data, cols_names, cols_types = db.execute(source['query'], get_cols=True)
+            data, cols_names, cols_types = db.execute(source['query'],
+                                                      get_cols=True)
         
         # For the main source
         if source_name == None:
@@ -260,7 +259,8 @@ class TableBuilder(object):
                 raise NoColumnToJoinError(source_name)
             else:
                 source['cols_names'] = cols_names[1:]
-                source['cols_types'] = {n:t for n,t in zip(cols_names[1:], cols_types[1:])}
+                source['cols_types'] = {n:t for n,t in zip(cols_names[1:],
+                                                           cols_types[1:])}
                 try:
                     source['join_on'] = self.main_source['cols_names'].index(source['join_on'])
                 except Exception as e:
@@ -293,9 +293,10 @@ class TableBuilder(object):
         cols_user_def_correct = cols_user_def & cols_from_sql
         
         if cols_user_def <= cols_from_sql:
-            self.result_cols_names += tuple(cols_from_sql-cols_user_def)
+            self.result_cols_names += tuple(cols_from_sql - cols_user_def)
         else:
-            raise WrongColumnsNamesError(cols_user_def-cols_from_sql, cols_from_sql-cols_user_def)
+            raise WrongColumnsNamesError(cols_user_def - cols_from_sql,
+                                         cols_from_sql - cols_user_def)
                
     def _append_result_row(self, row, matches):
         """
@@ -309,11 +310,13 @@ class TableBuilder(object):
         
         if all(checks):
             # Adding all the fields from the main source
-            result_row_unordered.update(zip(self.main_source['cols_names'], row))
+            result_row_unordered.update(zip(self.main_source['cols_names'],
+                                            row))
             
             # Concatenating the joined fields
             for s_name,s in self.sources.items():
-                result_row_unordered.update(zip(s['cols_names'], matches[s_name]))
+                result_row_unordered.update(zip(s['cols_names'],
+                                                matches[s_name]))
             
             # Getting the values in the right order
             result_row = [result_row_unordered[f] for f in self.result_cols_names]

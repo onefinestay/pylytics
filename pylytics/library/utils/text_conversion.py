@@ -1,4 +1,4 @@
-"""Miscellaneous functions."""
+"""Utilities for converting to and from camelcase."""
 
 import re
 

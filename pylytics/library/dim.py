@@ -54,7 +54,7 @@ class Dim(Table):
         """Updates the dimension table."""
         # Status.
         msg = "Populating %s" % self.table_name
-        self._print_status(msg)
+        self._print_status(msg, indent=True)
 
         # Get the full source list.
         data = []
@@ -71,4 +71,4 @@ class Dim(Table):
                     ),
                 destination_tuple
                 )
-        self._print_status('Success')
+        self._print_status('Success', format='green', indent=True)

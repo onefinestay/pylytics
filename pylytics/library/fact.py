@@ -150,7 +150,7 @@ class Fact(Table):
                              foreign_keys=zip(self.dim_names,self.dim_links)).query
             self.connection.execute(sql)
             
-            self._print_status('Table built.\n\n')
+            self._print_status('Table built.', indent=True)
             
     def _get_cols_from_sql(self):
         try:
@@ -184,7 +184,7 @@ class Fact(Table):
         
         """
         # Status.
-        self._print_status("Updating %s" % self.table_name)
+        self._print_status("Updating {}".format(self.table_name), indent=True)
         
         # Initializing the table builder
         tb = TableBuilder(

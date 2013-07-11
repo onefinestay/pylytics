@@ -5,7 +5,8 @@ import importlib
 import os
 import sys
 
-from utils import underscore_to_camelcase
+from utils.text_conversion import underscore_to_camelcase
+from utils.terminal import print_status
 
 
 def all_facts():
@@ -52,7 +53,8 @@ def run_command(facts, command):
     errors = {}
     with DB(settings.pylytics_db) as database_connection:
         for fact in facts:
-            sys.stdout.write("Running {0} {1}\n".format(fact, command))
+            print_status("Running {0} {1}".format(fact, command),
+                         format='blue')
             try:
                 MyFact = get_class(fact)(connection=database_connection)
                 getattr(MyFact, command)()
@@ -60,13 +62,15 @@ def run_command(facts, command):
                 sys.stdout.write("Running {0} {1} failed!\n".format(fact, command))
                 errors['.'.join([fact, command])] = e
     if len(errors) == 0:
-        sys.stdout.write("Everything went fine!\n")
+        print_status("Everything went fine!", format='green')
     else:
-        sys.stdout.write(
-            "%s commands not executed: %s\n" % (len(errors), ", ".join(errors.keys()))
+        print_status(
+            "%s commands not executed: %s\n" % (len(errors), ", ".join(errors.keys())),
+            indent=True,
             )
-        sys.stdout.write(
-            "\n".join(["- {0}: {1}".format(key, value) for key, value in errors.items()])
+        print_status(
+            "\n".join(["- {0}: {1}".format(key, value) for key, value in errors.items()]),
+            indent=True,
             )
 
 

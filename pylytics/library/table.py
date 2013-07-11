@@ -4,7 +4,8 @@ import sys
 import textwrap
 import warnings
 
-from utils import camelcase_to_underscore
+from utils.text_conversion import camelcase_to_underscore
+from utils.terminal import print_status
 
 
 class Table(object):
@@ -16,12 +17,8 @@ class Table(object):
         self.class_name = self.__class__.__name__
         self.table_name = camelcase_to_underscore(self.class_name)
 
-    def _print_status(self, message):
-        """
-        Use this for all printing all output.
-        
-        """
-        sys.stdout.write("%s %s\n" % (str(datetime.datetime.now()), message))
+    def _print_status(self, message, **kwargs):
+        print_status(message, **kwargs)
 
     def _values_placeholder(self, length):
         """
@@ -72,7 +69,7 @@ class Table(object):
                 """ % query
         try:
             self.connection.execute(query)
-            self._print_status('Success')
+            self._print_status('Success', format='green')
         except MySQLdb.IntegrityError:
             print """--> Table could not be deleted, due to foreign key \
                 constraints. Try removing the fact tables first."""
@@ -97,7 +94,7 @@ class Table(object):
         # Building the table if not exists
         try:
             self.connection.execute("SELECT * FROM `%s` LIMIT 0,0" % self.table_name)
-            self._print_status("Database already exists - %s on %s\n" % (
+            self._print_status("Database already exists - {0} on {1}".format(
                                     self.table_name, self.connection.database))
             table_built = True
         except Exception as db_error:
