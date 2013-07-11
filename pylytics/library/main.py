@@ -66,19 +66,23 @@ def run_command(facts, command):
                 errors['.'.join([fact, command])] = e
     
     # Summary
-    print_status("Summary", format='reverse', space=True, timestamp=False, indent=False)
+    print_status("Summary", format='reverse', space=True, timestamp=False,
+                 indent=False)
     if len(errors) == 0:
-        print_status("Everything went fine!", format='green', timestamp=False, indent=False)
+        print_status("Everything went fine!", format='green', timestamp=False,
+                     indent=False)
     else:
         print_status("{0} commands not executed: {1}".format(
-            len(errors),
-            ", ".join(errors.keys())
-            ),
+                len(errors),
+                ", ".join(errors.keys())
+                ),
             timestamp=False,
             indent=False
-        )    
+            )
+        template = "- {0}: {1}"
+        items = [template.format(key, value) for key, value in errors.items()]
         print_status(
-            "\n".join(["- {0}: {1}".format(key, value) for key, value in errors.items()]),
+            "\n".join(items),
             timestamp=False,
             indent=False
             )
