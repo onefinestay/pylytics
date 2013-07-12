@@ -1,0 +1,16 @@
+CREATE TABLE `{{ table_name }}` (
+    `id` INT(11) NOT NULL AUTO_INCREMENT,
+    {% for column in columns %}
+    {{ column }},
+    {% endfor %}
+    `created` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    {% if unique_key %}
+    UNIQUE KEY `{{ table_name }}_uk` ({{ unique_key|join(', ') }}),
+    {% endif %}
+    {% if foreign_keys %}
+    {% for foreign_key in foreign_keys %}
+    CONSTRAINT `{{ table_name }}_ibfk_{{ loop.index }}` FOREIGN KEY (`{{ foreign_key[0] }}`) REFERENCES `{{ foreign_key[1] }}` (`id`),        
+    {% endfor %}
+    {% endif %}
+    PRIMARY KEY (`id`)
+) ENGINE=INNODB DEFAULT CHARSET=utf8

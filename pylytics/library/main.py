@@ -45,7 +45,7 @@ def get_class(module_name, dimension=False):
 
 
 def print_summary(errors):
-    """Print out a summary of the errors which happend during run_command."""
+    """Print out a summary of the errors which happened during run_command."""
     print_status("Summary", format='reverse', space=True, timestamp=False,
                  indent=False)
     if len(errors) == 0:

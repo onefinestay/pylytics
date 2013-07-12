@@ -1,9 +1,15 @@
+import os
+
+from jinja2 import Template
+
+
 class SQLBuilder(object):
     """
     A class to easily generate a MySQL CREATE query, knowing the columns names,
     types, unique key and foreign key contraints.
     """
-    def __init__(self, table_name, cols_names, cols_types, unique_key=None, foreign_keys=None):
+    def __init__(self, table_name, cols_names, cols_types, unique_key=None,
+                 foreign_keys=None):
         self.table_name = table_name
         self.cols_names = cols_names
         self.cols_types = cols_types
@@ -15,24 +21,26 @@ class SQLBuilder(object):
         """
         Builds and returns the CREATE query
         
-        """        
-        query = 'CREATE TABLE {0} (\n' \
-                '  `id` INT(11) NOT NULL AUTO_INCREMENT\n'.format(
-                                                            self.table_name)
+        """
+        columns = []
+        for column in self.cols_names:
+            columns.append('`{0}` {1} DEFAULT NULL'.format(column,
+                                                    self.cols_types[column]))
         
-        for col in self.cols_names:
-            query += '  ,`%s` %s DEFAULT NULL' % (col, self.cols_types[col])
-            
-        query += '   ,`created` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'
-        query += '  ,PRIMARY KEY (`id`)'
+        template_path = os.path.join(os.path.dirname(__file__),
+                                     'templates/create_table.sql.jinja')
+        with open(template_path, 'r') as sql_file:
+            template_contents = sql_file.read()
         
-        if self.unique_key is not None :
-            query += '  ,UNIQUE KEY `%s_uk` (%s)' % (self.table_name, ','.join(['`'+e+'`' for e in self.unique_key]))
+        template = Template(template_contents, trim_blocks=True)
         
-        if self.foreign_keys is not None :
-            for i,(fk,ref) in enumerate(self.foreign_keys):
-                query += '  ,CONSTRAINT `%s_ibfk_%s` FOREIGN KEY (`%s`) REFERENCES `%s` (`id`)' % (self.table_name, i, fk, ref)
-
-        query += ') ENGINE=INNODB DEFAULT CHARSET=utf8'
+        rendered_template =  template.render(
+            table_name = self.table_name,
+            columns = columns,
+            unique_key = self.unique_key,
+            foreign_keys = self.foreign_keys
+            )
         
-        return query
+        import pdb; pdb.set_trace()
+        
+        return rendered_template
