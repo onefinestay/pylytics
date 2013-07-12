@@ -50,7 +50,7 @@ class GroupBy(object):
         if self.input_cols is None:
             return col_name
         else:
-            if self.cols_dict is None:          # Initializing cols_dict if necessary
+            if self.cols_dict is None:  # Initializing cols_dict if necessary
                 self.cols_dict = {name:i for i,name in enumerate(self.input_cols)}
             return self.cols_dict[col_name]
                 

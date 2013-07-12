@@ -1,3 +1,5 @@
+"""Automatic generation of SQL create queries."""
+
 import os
 
 from jinja2 import Template
@@ -16,29 +18,28 @@ class SQLBuilder(object):
         self.unique_key = unique_key
         self.foreign_keys = foreign_keys
         self.query = self._get_query()
-        
+
     def _get_query(self):
         """
         Builds and returns the CREATE query
-        
+
         """
         columns = []
         for column in self.cols_names:
             columns.append('`{0}` {1} DEFAULT NULL'.format(column,
                                                     self.cols_types[column]))
-        
+
         template_path = os.path.join(os.path.dirname(__file__),
                                      'templates/create_table.sql.jinja')
         with open(template_path, 'r') as sql_file:
             template_contents = sql_file.read()
-        
+
         template = Template(template_contents, trim_blocks=True)
-        
+
         rendered_template =  template.render(
             table_name = self.table_name,
             columns = columns,
             unique_key = self.unique_key,
-            foreign_keys = self.foreign_keys
-            )
-        
+            foreign_keys = self.foreign_keys)
+
         return rendered_template

@@ -130,9 +130,8 @@ class Fact(Table):
 
     def _build(self):
         """
-        Build and populate the dimensions required.
-        Build the fact SQL table (from .sql file if exists, from
-        auto-generated structure if not)
+        Build and populate the dimensions required, and build the fact table
+        (from .sql file if exists, from auto-generated structure if not).
         
         """
         for dim_class in self.dim_classes:
@@ -142,12 +141,17 @@ class Fact(Table):
         table_built = super(Fact, self).build()
         
         if not table_built:
-            # If the .sql file doesn't exist, auto-generate the structure and build the table
+            # If the .sql file doesn't exist, auto-generate the structure and
+            # build the table.
             self.output_cols_types.update({d:'INT(11)' for d in self.dim_names})
             
-            sql = SQLBuilder(table_name=self.table_name, cols_names=self.output_cols_names,
-                             cols_types=self.output_cols_types, unique_key=self.dim_names, 
-                             foreign_keys=zip(self.dim_names,self.dim_links)).query
+            sql = SQLBuilder(
+                table_name=self.table_name,
+                cols_names=self.output_cols_names,
+                cols_types=self.output_cols_types,
+                unique_key=self.dim_names, 
+                foreign_keys=zip(self.dim_names,self.dim_links)
+                ).query
             self.connection.execute(sql)
             
             self._print_status('Table built.')
