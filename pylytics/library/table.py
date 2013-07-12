@@ -4,9 +4,8 @@ import sys
 import textwrap
 import warnings
 
-import MySQLdb
-
-from utils import camelcase_to_underscore
+from utils.text_conversion import camelcase_to_underscore
+from utils.terminal import print_status
 
 
 class Table(object):
@@ -18,9 +17,8 @@ class Table(object):
         self.class_name = self.__class__.__name__
         self.table_name = camelcase_to_underscore(self.class_name)
 
-    def _print_status(self, message):
-        """Use this for all printing all output."""
-        sys.stdout.write("%s %s\n" % (str(datetime.datetime.now()), message))
+    def _print_status(self, message, **kwargs):
+        print_status(message, **kwargs)
 
     def _values_placeholder(self, length):
         """
@@ -34,7 +32,7 @@ class Table(object):
 
         """
         return " ".join(['%s,' for i in range(length)])[:-1]
-
+    
     @property
     def frequency(self):
         """
@@ -71,7 +69,6 @@ class Table(object):
                 """ % query
         try:
             self.connection.execute(query)
-            self._print_status('Success')
         except MySQLdb.IntegrityError:
             print """--> Table could not be deleted, due to foreign key \
                 constraints. Try removing the fact tables first."""
@@ -87,23 +84,33 @@ class Table(object):
 
     def build(self):
         """Builds the table."""
+        table_built = None
+        
         # Status.
         msg = "Building %s on %s" % (self.table_name, self.connection.database)
         self._print_status(msg)
-
-        # Read the sql file.
-        with open(os.path.join(self.dim_or_fact, 'sql',
-                               "%s.sql" % self.table_name)) as sql_file:
-            sql = sql_file.read().strip()
-
-        # Execute the sql.
+        
+        # Building the table if not exists
         try:
-            self.connection.execute(sql)
-        except MySQLdb.OperationalError, db_error:
-            if 1050 in db_error.args:
-                sys.stdout.write("Database already exists - %s on %s\n" % (
+            self.connection.execute("SELECT * FROM `%s` LIMIT 0,0" % self.table_name)
+            self._print_status("Database already exists - {0} on {1}".format(
                                     self.table_name, self.connection.database))
+            table_built = True
+        except Exception as db_error:
+            if 1146 in db_error.args:
+                try:
+                    # Read the sql file.
+                    with open(os.path.join(self.dim_or_fact, 'sql',
+                                           "%s.sql" % self.table_name)) as sql_file:
+                        sql = sql_file.read().strip()
+
+                    # Execute the sql.
+                    self.connection.execute(sql)
+                    self._print_status('Table built.')
+                    table_built = True
+                except Exception as e:
+                    table_built = False
             else:
                 raise db_error
 
-        self._print_status('Success')
+        return table_built

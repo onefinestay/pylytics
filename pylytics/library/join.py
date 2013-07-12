@@ -66,6 +66,8 @@ you added the sources.
 import datetime
 
 from connection import DB
+from build_sql import SQLBuilder
+from utils.terminal import print_status
 
 ###############################################################################
 
@@ -79,45 +81,37 @@ class SourceAlreadyExistsError(Exception):
         return "Error while adding source '%s': it already exists" % self.value
 
 
-class WrongColumnCountError(Exception):
-    def __init__(self, output_table_cols, sample_input_cols, table_name):
-        self.output_table_cols = output_table_cols
-        self.out_len = len(output_table_cols)
-        self.sample_input_cols = sample_input_cols
-        self.in_len = len(sample_input_cols)
-        self.table_name = table_name
-    
-    def __str__(self):
-        message = """
-            - The data you are about to insert contains %s columns, whereas \
-            the `%s` table contains %s columns.
-            Here is the list of the output table columns (on the left hand \
-            side), along with a sample data you are trying to insert (on the \
-            right hand side):""" % (self.in_len, self.table_name, self.out_len)
-        
-        for output_col, input_col in zip(self.output_table_cols,
-                                         self.sample_input_cols):
-            message += "%s = '%s'\n" % (output_col, input_col)
-        
-        if self.in_len > self.out_len:
-            message += ("".join(["? = " + e + "\n" for e in
-                        self.sample_input_cols[(self.out_len):]]))
-        else :
-            message += ("".join([" " + e + " = ?\n" for e in
-                        self.output_table_cols[(self.in_len):]]))
-        
-        return message
-
-
 class NoColumnToJoinError(Exception):
     def __init__(self, source_name):
         self.source_name = source_name
     
     def __str__(self):
-        return """The source '%s' contains less than 2 columns. All the \
-            secondary sources should contain at least one column to join on, \
-            as well as one column to add.""" % self.source_name
+        return "The source '{}' contains less than 2 columns. All the " \
+               "secondary sources should contain at least one column to " \
+               "join on, as well as one column to add.\r".format(
+                                                            self.source_name)
 
+
+class WrongColumnsNamesError(Exception):
+    def __init__(self, not_matching, sql_fields):
+        self.not_matching = not_matching
+        self.sql_fields = sql_fields
+    
+    def __str__(self):
+        return "The column names {0} don't match any of the fields {1} from " \
+               "your SELECT queries\n".format(
+                            list(self.not_matching), list(self.sql_fields))
+
+
+class UnknownJoinOnColumnError(Exception):
+    def __init__(self, col, source):
+        self.col = col
+        self.source = source
+    
+    def __str__(self):
+        return "The column '{0}' from source '{1}' you are trying to join " \
+               "on is unknown in the SQL field list.\n".format(self.col,
+                                                                self.source)
 
 ###############################################################################
 
@@ -142,10 +136,12 @@ class TableBuilder(object):
     """
     The main object you have to instantiate to join tables.
     
-    """
-    def __init__(self, main_db, main_query, create_query, output_table,
-                 verbose=False, output_db=None,
-                 preliminary_query=None, transform_row=(lambda x: x)):
+    """    
+    def __init__(self, main_db, main_query, output_table,
+                 create_query=None, verbose=False, output_db=None,
+                 cols=None, types=None, preliminary_query=None,
+                 unique_key=None, foreign_keys=None,
+                 transform_row=(lambda x: x)):
         self.sources = {}
         self.output_table = output_table
         self.create_query = create_query
@@ -158,14 +154,18 @@ class TableBuilder(object):
             'db': main_db,
             'query': main_query,
             'data': [],
+            'cols_names': [],
+            'cols_types': {}
         }
+        self.result_cols_names = cols
+        self.user_def_types = {} if types is None else types
+        self.result_cols_types = None
         self.preliminary_query = preliminary_query
-        self._get_data(None)
-        
-    def _print_status(self, message):
-        """Use this for all printing all output."""
-        if self.verbose:
-            print message
+        self.unique_key = unique_key
+        self.foreign_keys = foreign_keys
+
+    def _print_status(self, message, **kwargs):
+        print_status(message, **kwargs)
     
     def _rebuild_sql(self):
         """
@@ -174,13 +174,23 @@ class TableBuilder(object):
         """
         self._print_status("(Re)-creating the output table.")
         
-        if self.create_query:
-            with DB(self.output_db) as database:
-                query1 = "DROP TABLE IF EXISTS `" + self.output_table + "`"
-                database.execute(query1)
-                query2 = self.create_query
-                database.execute(query2)
-    
+        if self.create_query is None:
+            self.create_query = SQLBuilder(
+                table_name=self.output_table,
+                cols_names=self.result_cols_names,
+                cols_types=self.result_cols_types,
+                unique_key=self.unique_key,
+                foreign_keys=self.foreign_keys
+                ).query
+
+        with DB(self.output_db) as database:
+            drop_query = "DROP TABLE IF EXISTS `" + self.output_table + "`"
+            database.execute(drop_query)
+            database.execute(self.create_query)
+                
+    def add_main_source(self):
+        self._get_data(None)
+        
     def add_source(self, name, db, query, join_on, outer_join=False):
         """
         Adds a secondary source to the dictionary ('self.sources').
@@ -191,7 +201,7 @@ class TableBuilder(object):
         
         - join_on:    The index of the column (in the main source) on which you
                       want to join this source (starting at 0). Thus, the
-                      'join_on'-th column of the main source will be joined on
+                      'join_on' column of the main source will be joined on
                       the first (index 0) column of this source.
 
         """
@@ -199,27 +209,19 @@ class TableBuilder(object):
             raise SourceAlreadyExistsError(name)
         else:
             self.sources[name] = {
-                'id': len(self.sources),
                 'db': db,
                 'query': query,
-                'count_cols': None,
                 'join_on': join_on,
                 'outer_join': outer_join,
                 'errors_count': 0,
                 'matches_count': 0,
                 'errors': [],
-                'data': None
+                'data': None,
+                'cols_names': [],
+                'cols_types': {}
             }
         
         self._get_data(name)
-    
-    def _get_sources_order(self):
-        """
-        Returns a list of all the sources names ordered by their 'id' field.
-        
-        """
-        ids = {source['id']:source_name for source_name, source in self.sources.items()}
-        return [ids[e] for e in sorted(ids)]
     
     def _get_data(self, source_name):
         """
@@ -231,70 +233,106 @@ class TableBuilder(object):
         """
         self._print_status("Getting data from '%s' source." % (
                                                         source_name or 'main'))
-        
+
         if source_name == None:
             source = self.main_source
         else :
             source = self.sources[source_name]
-        
+            
         with DB(source['db']) as db:
             if self.preliminary_query != None:
                 db.execute(self.preliminary_query)
             
-            data = db.execute(source['query'], get_count_cols=True)
-            
-            if source_name == None:
-                self.main_source['data'] = data[0]
-            else :
-                self.sources[source_name]['data'] = get_dictionary(data[0])
-                if data[1] <= 1:
-                    raise NoColumnToJoinError(source_name)
-                else:
-                    self.sources[source_name]['count_cols'] = data[1] - 1
-    
+            data, cols_names, cols_types = db.execute(source['query'],
+                                                      get_cols=True)
+        
+        # For the main source
+        if source_name == None:
+            source['data'] = data
+            source['cols_names'] = cols_names
+            source['cols_types'] = {n:t for n,t in zip(cols_names, cols_types)}
+        
+        # For an extra source
+        else :
+            source['data'] = get_dictionary(data)
+            if len(cols_names) <= 1:
+                raise NoColumnToJoinError(source_name)
+            else:
+                source['cols_names'] = cols_names[1:]
+                source['cols_types'] = {n:t for n,t in zip(cols_names[1:],
+                                                           cols_types[1:])}
+                try:
+                    source['join_on'] = self.main_source['cols_names'].index(source['join_on'])
+                except Exception as e:
+                    raise UnknownJoinOnColumnError(source['join_on'], source_name)
+        
+    def _get_cols_info(self):
+        """
+        Gathers all the 'cols_names' and 'cols_types' (one per
+        source) into 'result_cols_names' and 'result_cols_types'.
+        If the columns order was not specified through'result_cols_names',
+        they are sorted alphabetically.
+        
+        """
+        # Auto-retreiving columns types
+        self.result_cols_types = self.main_source['cols_types']
+
+        for s in self.sources.values():
+            self.result_cols_types.update(s['cols_types'])
+           
+        # Overwriting it by user-defined types
+        self.result_cols_types.update(self.user_def_types)
+        
+        # Retreiving columns names (if not user-defined)
+        if self.result_cols_names is None:
+            self.result_cols_names = sorted(self.result_cols_types.keys())
+        
+        # Checking if user defined column names are right
+        cols_user_def = set(self.result_cols_names)
+        cols_from_sql = set(self.result_cols_types.keys())
+        cols_user_def_correct = cols_user_def & cols_from_sql
+        
+        if cols_user_def <= cols_from_sql:
+            self.result_cols_names += tuple(cols_from_sql - cols_user_def)
+        else:
+            raise WrongColumnsNamesError(cols_user_def - cols_from_sql,
+                                         cols_from_sql - cols_user_def)
+               
     def _append_result_row(self, row, matches):
         """
         Given a row (of the main source) and the dictionary of the matches for
         each source, returns the final joined row.
         
-        Example :
-        > self.sources
-        {
-            'codes':{
-                join_on: 1,
-                ...
-            }
-            'people':{
-                join_on: 3,
-                ...
-            }
-        }
-        > self._append_result_row((5,1258,'note',6,2013),
-        {'codes':('ABCD','London'), 'people':('John',)})
-        [5,'ABCD','London','note',6,'John',2013]
-        
         """
+        result_row_unordered = {}
         result_row = []
-        sources_ordered = self._get_sources_order()
         checks = [matches[match][0] != None or self.sources[match]['outer_join'] for match in matches]
         
         if all(checks):
             # Adding all the fields from the main source
-            result_row += row
+            result_row_unordered.update(zip(self.main_source['cols_names'],
+                                            row))
             
             # Concatenating the joined fields
-            for s_name in sources_ordered:
-                result_row += matches[s_name]
+            for s_name,s in self.sources.items():
+                result_row_unordered.update(zip(s['cols_names'],
+                                                matches[s_name]))
+            
+            # Getting the values in the right order
+            result_row = [result_row_unordered[f] for f in self.result_cols_names]
             
             self.result.append(self._transform_row(result_row))
     
     def join(self):
         """
-        Joins all the secondary sources to the main source (and stores the
-        result in 'self.result').
+        Joins all the secondary sources to the main source (stores the
+        result in 'self.result', and the columns informations in
+        'self.result_cols_names' and 'self.result_cols_types').
         
         """
         self._print_status("Joining sources.")
+        
+        self._get_cols_info()
         
         for row in self.main_source['data']:
             matches = {}
@@ -306,28 +344,13 @@ class TableBuilder(object):
                     matching_row = source_data['data'][join_on_value]
                     matches[source_name] = matching_row
                 except KeyError:
-                    matches[source_name] = (None,) * source_data['count_cols']
+                    matches[source_name] = (None,) * len(source_data['cols_names'])
                     source_data['errors'].append(join_on_value)
                     source_data['errors_count'] += 1
                 else:
                     source_data['matches_count'] += 1
             
             self._append_result_row(row, matches)
-    
-    def _get_columns(self, db_name, table):
-        """
-        Returns the list of the column names for the given table.
-        
-        """
-        cols = None
-        
-        with DB(db_name) as dw:
-            cur = dw.connection.cursor()
-            cur.execute("SELECT * FROM `" + table + "` LIMIT 0,0")
-            cols = cur.description
-            cur.close()
-        
-        return [col[0] for col in cols]
     
     def _write_data_batches(self, query):
         """
@@ -353,22 +376,14 @@ class TableBuilder(object):
         
         self._print_status("Writing the data into the datawarehouse.")
         
-        cols = self._get_columns(self.output_db, self.output_table)
-        
         if len(self.result) > 0:
-            # Checking if the data we are about to insert contain the same
-            # number of columns as the output table:
-            if len(cols) == len(self.result[0]):
-                with DB(self.output_db) as dw:
-                    query = "INSERT INTO {0} VALUES ({1})".format(
-                        self.output_table,
-                        ",".join(["%s"] * len(self.result[0]))
-                        )                
-                    self._write_data_batches(query)
-            else:
-                self.reporting()
-                raise WrongColumnCountError(cols, self.result[0],
-                                            self.output_table)
+            with DB(self.output_db) as dw:
+                query = "INSERT INTO {0} ({1}) VALUES ({2})".format(
+                    self.output_table,
+                    ",".join(self.result_cols_names),
+                    ",".join(["%s"] * len(self.result[0]))
+                    )                
+                self._write_data_batches(query)
         
     def reporting(self):
         """
@@ -400,7 +415,7 @@ class TableBuilder(object):
         print "(Execution time: %s)" % (datetime.datetime.now() -
                                         self.start_time)
     
-    def quick_join(self, extra_queries=[]):
+    def quick_join(self, **extra_queries):
         """
         High-level function to use the library (takes a list of sources):
         gets the data, performs the join and writes the output.
@@ -423,8 +438,9 @@ class TableBuilder(object):
             )
         
         """
-        for extra_query in extra_queries:
-            self.add_source(**extra_query)
+        self.add_main_source()
+        for query_name, extra_query in extra_queries.items():
+            self.add_source(name=query_name, **extra_query)
         
         self.join()
         self.write(rebuild=True)
