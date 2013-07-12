@@ -52,9 +52,10 @@ setup(
     packages=find_packages(),
     package_dir={'pylytics': 'pylytics'},
     package_data={'pylytics.conf.project_template.dim': ['sql/*'],
-                  'pylytics.conf.project_template.fact': ['sql/*']},
+                  'pylytics.conf.project_template.fact': ['sql/*'],
+                  'pylytics.library': ['templates/*']},
     scripts = ['pylytics/bin/pylytics-admin.py'],
     url='https://github.com/onefinestay/pylytics',
-    version='0.4.0',
+    version='0.4.1',
     zip_safe=False,
     )
