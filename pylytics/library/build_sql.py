@@ -41,6 +41,4 @@ class SQLBuilder(object):
             foreign_keys = self.foreign_keys
             )
         
-        import pdb; pdb.set_trace()
-        
         return rendered_template
