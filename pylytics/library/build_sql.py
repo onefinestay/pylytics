@@ -30,7 +30,7 @@ class SQLBuilder(object):
                                                     self.cols_types[column]))
 
         template_path = os.path.join(os.path.dirname(__file__),
-                                     'templates/create_table.sql.jinja')
+                                     'templates/create_table.jinja')
         with open(template_path, 'r') as sql_file:
             template_contents = sql_file.read()
 
