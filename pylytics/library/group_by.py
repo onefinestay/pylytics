@@ -39,6 +39,12 @@ class GroupBy(object):
         self.functions_corresp = {self._get_col_id(e):self.functions[k] for k,l in group_by['aggregate'].items() for e in l}
         self.dims = [self._get_col_id(e) for e in dims]
         self.data_output = []
+        self.groups = defaultdict(list)
+        self.output_cols = self._get_output_cols()
+        
+    def _get_output_cols(self):
+        output_indices = sorted(set(self.indexes + self.dims + self.functions_corresp.keys()))
+        return [self.input_cols[i] for i in output_indices]
     
     def _get_col_id(self, col_name):
         if self.input_cols is None:
