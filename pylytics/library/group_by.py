@@ -35,7 +35,7 @@ class GroupBy(object):
         self.input_cols = cols
         self.cols_dict = None
         self.indexes = [self._get_col_id(e) for e in group_by['by']]
-        self.functions = self._get_updated_functions(group_by['functions'])
+        self.functions = self._get_updated_functions(group_by)
         self.functions_corresp = {self._get_col_id(e):self.functions[k] for k,l in group_by['aggregate'].items() for e in l}
         self.dims = [self._get_col_id(e) for e in dims]
         self.data_output = []
@@ -54,14 +54,17 @@ class GroupBy(object):
                 self.cols_dict = {name:i for i,name in enumerate(self.input_cols)}
             return self.cols_dict[col_name]
                 
-    def _get_updated_functions(self, user_def_functions):
+    def _get_updated_functions(self, group_by):
         functions_dict = {
             'sum' : sum,
             'avg': lambda x : float(sum(x))/float(len(x)),
             'count': len,
             'count_distinct': lambda x : len(set(x))  
         }
-        functions_dict.update(user_def_functions)
+        
+        if 'functions' in group_by:
+            functions_dict.update(group_by['functions'])
+            
         return functions_dict
         
     def _group_input_data(self):
