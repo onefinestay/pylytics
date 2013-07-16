@@ -59,8 +59,8 @@ def print_summary(errors):
             timestamp=False,
             indent=False
             )
-        template = "- {0}: {1}"
-        items = [template.format(key, value) for key, value in errors.items()]
+        template = "- {0}: {1} {2}"
+        items = [template.format(key, type(value).__name__, value) for key, value in errors.items()]
         print_status(
             "\n".join(items),
             timestamp=False,
