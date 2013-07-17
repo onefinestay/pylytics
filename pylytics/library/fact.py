@@ -282,6 +282,6 @@ class Fact(Table):
         """
         self.update()
         
-        for i in xrange(self.historical_iterations):
+        for i in xrange(1, self.historical_iterations):
             self._process_data(historical=True, index=i)
             self._insert_rows()
