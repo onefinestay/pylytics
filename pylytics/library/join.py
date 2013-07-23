@@ -176,16 +176,14 @@ class TableBuilder(object):
         self._print_status("(Re)-creating the output table.")
         
         if self.create_query is None:
-            sql_builder = SQLBuilder(
+            self.create_query = SQLBuilder(
                 table_name=self.output_table,
                 cols_names=self.result_cols_names,
                 cols_types=self.result_cols_types,
                 unique_key=self.unique_key,
                 foreign_keys=self.foreign_keys,
                 keys=self.keys
-                )
-            
-            self.create_query = sql_builder.query
+                ).query
 
         with DB(self.output_db) as database:
             drop_query = "DROP TABLE IF EXISTS `" + self.output_table + "`"
