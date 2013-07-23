@@ -12,5 +12,10 @@ CREATE TABLE `{{ table_name }}` (
     CONSTRAINT `{{ table_name }}_ibfk_{{ loop.index }}` FOREIGN KEY (`{{ foreign_key[0] }}`) REFERENCES `{{ foreign_key[1] }}` (`id`),        
     {% endfor %}
     {% endif %}
+    {% if keys %}
+    {% for key in keys %}
+    KEY `{{ table_name }}_index_{{ loop.index }}` (`{{ key }}`),        
+    {% endfor %}
+    {% endif %}
     PRIMARY KEY (`id`)
 ) ENGINE=INNODB DEFAULT CHARSET=utf8
