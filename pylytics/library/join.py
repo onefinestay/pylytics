@@ -140,7 +140,7 @@ class TableBuilder(object):
     def __init__(self, main_db, main_query, output_table,
                  create_query=None, verbose=False, output_db=None,
                  cols=None, types=None, preliminary_query=None,
-                 unique_key=None, foreign_keys=None,
+                 unique_key=None, foreign_keys=None, keys=None,
                  transform_row=(lambda x: x)):
         self.sources = {}
         self.output_table = output_table
@@ -163,6 +163,7 @@ class TableBuilder(object):
         self.preliminary_query = preliminary_query
         self.unique_key = unique_key
         self.foreign_keys = foreign_keys
+        self.keys = keys
 
     def _print_status(self, message, **kwargs):
         print_status(message, **kwargs)
@@ -180,7 +181,8 @@ class TableBuilder(object):
                 cols_names=self.result_cols_names,
                 cols_types=self.result_cols_types,
                 unique_key=self.unique_key,
-                foreign_keys=self.foreign_keys
+                foreign_keys=self.foreign_keys,
+                keys=self.keys
                 ).query
 
         with DB(self.output_db) as database:

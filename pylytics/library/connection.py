@@ -79,8 +79,8 @@ class DB(object):
     
     def __init__(self, database):
         if database not in (settings.DATABASES.keys()):
-            raise Exception("The Database isn't recognised! Check your \
-                             settings in settings.py")
+            raise Exception("The Database %s isn't recognised! Check your \
+                             settings in settings.py" % database)
         else:
             self.database = database
             self.connection = None
