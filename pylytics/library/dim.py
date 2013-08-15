@@ -71,4 +71,3 @@ class Dim(Table):
                     ),
                 destination_tuple
                 )
-        self._print_status('Success')
