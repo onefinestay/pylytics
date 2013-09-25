@@ -246,7 +246,7 @@ class Fact(Table):
                 self._print_status("Row after _transform_tuple(): %s" % (
                                         str(self._transform_tuple(row))))
                 self._print_status("Raw row from DB: %s" % str(row))
-                self._print_status(e)
+                self._print_status(repr(e))
                 error_count += 1
                 
             if not_matching:
