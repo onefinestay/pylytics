@@ -23,7 +23,7 @@ class Dim(Table):
         """
         dictionary = {}
         data = self.connection.execute(
-            "SELECT `%s`, id FROM `%s`;" % (field_name, self.table_name)
+            "SELECT `%s`, id FROM `%s` order by id asc;" % (field_name, self.table_name)
             )
         for element in data:
             dictionary[element[0]] = element[1]
