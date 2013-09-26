@@ -1,7 +1,7 @@
 CREATE TABLE `{{ table_name }}` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
     {% for column in columns %}
-    {{ column }},
+    {{ column }} NOT NULL,
     {% endfor %}
     `created` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     {% if unique_key %}

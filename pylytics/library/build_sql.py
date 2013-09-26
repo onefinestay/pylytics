@@ -27,7 +27,7 @@ class SQLBuilder(object):
         """
         columns = []
         for column in self.cols_names:
-            columns.append('`{0}` {1} NOT NULL'.format(column,
+            columns.append('`{0}` {1}'.format(column,
                                                     self.cols_types[column]))
 
         template_path = os.path.join(os.path.dirname(__file__),
