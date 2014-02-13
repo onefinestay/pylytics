@@ -1,13 +1,13 @@
 import datetime
 import warnings
 
+from build_sql import SQLBuilder
 from connection import DB
 from group_by import GroupBy
 from join import TableBuilder
-from table import Table
 from main import get_class
+from table import Table
 
-from build_sql import SQLBuilder
 
 class Fact(Table):
     """
@@ -23,7 +23,7 @@ class Fact(Table):
         self.dim_classes = []
         self.dim_map = {}
         self.dim_modules = []
-        self.types=self.types if hasattr(self, 'types') else None
+        self.types = self.types if hasattr(self, 'types') else None
 
         self.output_data = None
         self.output_cols_names = None

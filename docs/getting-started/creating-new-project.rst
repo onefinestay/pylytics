@@ -9,3 +9,6 @@ This installation adds pylytics-admin.py to the path. Use this to create a new p
     pylytics-admin.py my_project_name
 
 This creates the my_project_name folder in the current directory, with a skeleton project inside.
+
+Project structure
+-----------------
