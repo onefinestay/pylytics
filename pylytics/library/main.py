@@ -117,20 +117,23 @@ def run_command(facts, command):
     Run command for each fact in facts.
 
     """
+    import pdb; pdb.set_trace()
     from connection import DB
     errors = {}
 
-    fact_classes = []
-    for fact in facts:
-        try:
-            FactClass = get_class(fact)(connection=database_connection)
-        except Exception as e:
-            print 'Unable to find fact - {}.'.format(fact)
-        else:
-            fact_classes.append(FactClass)
+    with DB(settings.pylytics_db) as database_connection:
 
-    for fact in fact_classes:
-        # We want to check whether any setup scripts needs to be run.
+        # Get all the fact classes.
+        fact_classes = []
+        for fact in facts:
+            try:
+                FactClass = get_class(fact)(connection=database_connection)
+            except Exception as e:
+                print 'Unable to find fact - {}.'.format(fact)
+            else:
+                fact_classes.append(FactClass)
+
+        # Execute any setup scripts that need to be run.
         print_status("Checking setup scripts.")
         setup_scripts = _extract_setup_scripts(command, fact_classes)
         if setup_scripts:
@@ -138,17 +141,16 @@ def run_command(facts, command):
         else:
             print_status('No setup scripts to run.')
 
-    with DB(settings.pylytics_db) as database_connection:
-        for fact in facts:
-            print_status("Running {0} {1}".format(fact, command),
+        for fact_class in fact_classes:
+            print_status("Running {0} {1}".format(fact_class, command),
                          format='blue', indent=False, space=True,
                          timestamp=False)
 
             try:
-                getattr(MyFact, command)()
+                getattr(fact_class, command)()
             except Exception as e:
-                print_status("Running {0} {1} failed!".format(fact, command),
-                             format='red')
+                print_status("Running {0} {1} failed!".format(fact_class,
+                        command), format='red')
                 errors['.'.join([fact, command])] = e
     
     print_summary(errors)
