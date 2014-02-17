@@ -117,7 +117,6 @@ def run_command(facts, command):
     Run command for each fact in facts.
 
     """
-    import pdb; pdb.set_trace()
     from connection import DB
     errors = {}
 
@@ -141,11 +140,11 @@ def run_command(facts, command):
         else:
             print_status('No setup scripts to run.')
 
+        # Execute the command on each fact class.
         for fact_class in fact_classes:
             print_status("Running {0} {1}".format(fact_class, command),
                          format='blue', indent=False, space=True,
                          timestamp=False)
-
             try:
                 getattr(fact_class, command)()
             except Exception as e:
