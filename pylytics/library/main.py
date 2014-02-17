@@ -86,8 +86,8 @@ def _process_setup_scripts(setup_scripts):
 
         try:
             script.main()
-        except Exception as e:
-            print_status(e)
+        except Exception, e:
+            print_status(repr(e))
 
 
 def _extract_setup_scripts(command, fact_classes):
@@ -106,7 +106,7 @@ def _extract_setup_scripts(command, fact_classes):
                 print 'Setup_scripts must be a dictionary - ignoring.'
             else:
                 if command in fact_class.setup_scripts.keys():
-                    setup_scripts.append(fact.setup_scripts)
+                    setup_scripts.extend(fact_class.setup_scripts[command])
 
     # Remove duplicates.
     return list(set(setup_scripts))
@@ -127,7 +127,7 @@ def run_command(facts, command):
         for fact in facts:
             try:
                 FactClass = get_class(fact)(connection=database_connection)
-            except Exception as e:
+            except Exception, e:
                 print 'Unable to find fact - {}.'.format(fact)
             else:
                 fact_classes.append(FactClass)
@@ -136,21 +136,22 @@ def run_command(facts, command):
         print_status("Checking setup scripts.")
         setup_scripts = _extract_setup_scripts(command, fact_classes)
         if setup_scripts:
-            _process_setup_scripts()
+            _process_setup_scripts(setup_scripts)
         else:
             print_status('No setup scripts to run.')
 
         # Execute the command on each fact class.
         for fact_class in fact_classes:
-            print_status("Running {0} {1}".format(fact_class, command),
-                         format='blue', indent=False, space=True,
-                         timestamp=False)
+            fact_class_name = fact_class.__class__.__name__
+            print_status("Running {0} {1}".format(
+                    fact_class_name, command),
+                    format='blue', indent=False, space=True, timestamp=False)
             try:
                 getattr(fact_class, command)()
             except Exception as e:
-                print_status("Running {0} {1} failed!".format(fact_class,
+                print_status("Running {0} {1} failed!".format(fact_class_name,
                         command), format='red')
-                errors['.'.join([fact, command])] = e
+                errors['.'.join([fact_class_name, command])] = e
     
     print_summary(errors)
 
