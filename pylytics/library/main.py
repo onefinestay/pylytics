@@ -68,6 +68,50 @@ def print_summary(errors):
             )
 
 
+def _process_setup_scripts(setup_scripts):
+    """
+    Looks for the setup_scripts in the folder 'scripts' at the root of the
+    pylytics project, and runs them.
+
+    """
+    print 'Running setup_scripts.'
+    for script in setup_scripts:
+        try:
+            script = importlib.import_module('scripts.{}'.format(script))
+        except ImportError:
+            print_status('Unable to find the script - {}.'.format(script))
+            continue
+
+        print_status('Running {}'.format(script))
+
+        try:
+            script.main()
+        except Exception, e:
+            print_status(repr(e))
+
+
+def _extract_setup_scripts(command, fact_classes):
+    """
+    Introspect the list of fact_classes to see whether they require any
+    setup scripts to be run.
+
+    If the same setup script is listed in multiple fact classes, then it will
+    only be run once.
+
+    """
+    setup_scripts = []
+    for fact_class in fact_classes:
+        if hasattr(fact_class, 'setup_scripts'):
+            if type(fact_class.setup_scripts) != dict:
+                print 'Setup_scripts must be a dictionary - ignoring.'
+            else:
+                if command in fact_class.setup_scripts.keys():
+                    setup_scripts.extend(fact_class.setup_scripts[command])
+
+    # Remove duplicates.
+    return list(set(setup_scripts))
+
+
 def run_command(facts, command):
     """
     Run command for each fact in facts.
@@ -75,21 +119,44 @@ def run_command(facts, command):
     """
     from connection import DB
     errors = {}
-    
+
     with DB(settings.pylytics_db) as database_connection:
+
+        # Get all the fact classes.
+        fact_classes = []
         for fact in facts:
-            print_status("Running {0} {1}".format(fact, command),
-                         format='blue', indent=False, space=True,
-                         timestamp=False)
             try:
-                MyFact = get_class(fact)(connection=database_connection)
-                getattr(MyFact, command)()
+                FactClass = get_class(fact)(connection=database_connection)
+            except Exception, e:
+                print 'Unable to find fact - {}.'.format(fact)
+            else:
+                fact_classes.append(FactClass)
+
+        # Execute any setup scripts that need to be run.
+        print_status("Checking setup scripts.")
+        setup_scripts = _extract_setup_scripts(command, fact_classes)
+        if setup_scripts:
+            _process_setup_scripts(setup_scripts)
+        else:
+            print_status('No setup scripts to run.')
+
+        # Execute the command on each fact class.
+        for fact_class in fact_classes:
+            fact_class_name = fact_class.__class__.__name__
+            print_status("Running {0} {1}".format(
+                    fact_class_name, command),
+                    format='blue', indent=False, space=True, timestamp=False)
+            try:
+                getattr(fact_class, command)()
             except Exception as e:
-                print_status("Running {0} {1} failed!".format(fact, command),
-                             format='red')
-                errors['.'.join([fact, command])] = e
+                print_status("Running {0} {1} failed!".format(fact_class_name,
+                        command), format='red')
+                errors['.'.join([fact_class_name, command])] = e
     
     print_summary(errors)
+
+    # TODO We might add teardown scripts at some point too, for triggering
+    # things like notifications.
 
 
 def load_settings(settings_path):
