@@ -1,4 +1,7 @@
 import os
+
+from ez_setup import use_setuptools
+use_setuptools()
 from setuptools import setup, find_packages
 
 
@@ -51,11 +54,11 @@ setup(
     long_description=open(make_abs('README.rst')).read(),
     name='pylytics',
     packages=find_packages(),
-    package_data={
-        'pylytics.conf.project_template.dim': ['sql/*'],
-        'pylytics.conf.project_template.fact': ['sql/*'],
-        'pylytics.library': ['templates/*'],                  
-        },
+    #package_data={
+    #    'pylytics.conf.project_template.dim': ['sql/*'],
+    #    'pylytics.conf.project_template.fact': ['sql/*'],
+    #    'pylytics.library': ['templates/*'],
+    #    },
     scripts = ['pylytics/bin/pylytics-admin.py'],
     url='https://github.com/onefinestay/pylytics',
     version='0.5.0',
