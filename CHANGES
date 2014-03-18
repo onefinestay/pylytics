@@ -1,3 +1,8 @@
+Version 0.5.1
+-------------
+
+- our automated package releasing via Jenkins failed to include some non-Python files in the last release. We can't overwrite an existing release to include those files, hence this new release.
+
 Version 0.5.0
 -------------
 
