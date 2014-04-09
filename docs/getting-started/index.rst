@@ -12,3 +12,4 @@ Getting Started
    querying
    connection-library
    setup-scripts
+   setup-exit-scripts

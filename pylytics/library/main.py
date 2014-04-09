@@ -68,14 +68,14 @@ def print_summary(errors):
             )
 
 
-def _process_setup_scripts(setup_scripts):
+def _process_scripts(scripts):
     """
-    Looks for the setup_scripts in the folder 'scripts' at the root of the
+    Looks for the scripts in the folder 'scripts' at the root of the
     pylytics project, and runs them.
 
     """
-    print 'Running setup_scripts.'
-    for script in setup_scripts:
+    print 'Running scripts.'
+    for script in scripts:
         try:
             script = importlib.import_module('scripts.{}'.format(script))
         except ImportError:
@@ -90,26 +90,32 @@ def _process_setup_scripts(setup_scripts):
             print_status(repr(e))
 
 
-def _extract_setup_scripts(command, fact_classes):
+def _extract_scripts(command, fact_classes, script_type='setup_scripts'):
     """
     Introspect the list of fact_classes to see whether they require any
-    setup scripts to be run.
+    scripts to be run.
 
-    If the same setup script is listed in multiple fact classes, then it will
+    If the same script is listed in multiple fact classes, then it will
     only be run once.
 
     """
-    setup_scripts = []
+    scripts = []
     for fact_class in fact_classes:
-        if hasattr(fact_class, 'setup_scripts'):
-            if type(fact_class.setup_scripts) != dict:
-                print 'Setup_scripts must be a dictionary - ignoring.'
-            else:
-                if command in fact_class.setup_scripts.keys():
-                    setup_scripts.extend(fact_class.setup_scripts[command])
+        try:
+            script_dict = getattr(fact_class, script_type)
+        except AttributeError:
+            print_status('Unable to find {} in {}.'.format(script_type,
+                                                           fact_class))
+            continue
+
+        if type(script_dict) != dict:
+            print 'Setup_scripts must be a dictionary - ignoring.'
+        else:
+            if command in fact_class.setup_scripts.keys():
+                setup_scripts.extend(fact_class.setup_scripts[command])
 
     # Remove duplicates.
-    return list(set(setup_scripts))
+    return list(set(scripts))
 
 
 def run_command(facts, command):
@@ -134,9 +140,9 @@ def run_command(facts, command):
 
         # Execute any setup scripts that need to be run.
         print_status("Checking setup scripts.")
-        setup_scripts = _extract_setup_scripts(command, fact_classes)
+        setup_scripts = _extract_scripts(command, fact_classes)
         if setup_scripts:
-            _process_setup_scripts(setup_scripts)
+            _process_scripts(setup_scripts)
         else:
             print_status('No setup scripts to run.')
 
@@ -152,11 +158,17 @@ def run_command(facts, command):
                 print_status("Running {0} {1} failed!".format(fact_class_name,
                         command), format='red')
                 errors['.'.join([fact_class_name, command])] = e
-    
-    print_summary(errors)
 
-    # TODO We might add teardown scripts at some point too, for triggering
-    # things like notifications.
+        # Execute any exit scripts that need to be run.
+        print_status("Checking exit scripts.")
+        exit_scripts = _extract_scripts(command, fact_classes,
+                                        script_type='exit_scripts')
+        if exit_scripts:
+            _process_scripts(exit_scripts)
+        else:
+            print_status('No exit scripts to run.')
+
+    print_summary(errors)
 
 
 def load_settings(settings_path):
