@@ -111,8 +111,8 @@ def _extract_scripts(command, fact_classes, script_type='setup_scripts'):
         if type(script_dict) != dict:
             print 'Setup_scripts must be a dictionary - ignoring.'
         else:
-            if command in fact_class.setup_scripts.keys():
-                setup_scripts.extend(fact_class.setup_scripts[command])
+            if command in script_dict.keys():
+                scripts.append(script_dict[command])
 
     # Remove duplicates.
     return list(set(scripts))
@@ -181,6 +181,8 @@ def load_settings(settings_path):
 
 def main():
     """This is called by the manage.py created in the project directory."""
+    from fact import Fact
+    
     parser = argparse.ArgumentParser(
         description = "Run fact scripts.")
     parser.add_argument(
@@ -192,7 +194,7 @@ def main():
         )
     parser.add_argument(
         'command',
-        choices = ['update', 'build', 'test', 'historical'],
+        choices = Fact.public_methods(),
         help = 'The command you want to run.',
         nargs = 1,
         type = str,
@@ -203,16 +205,16 @@ def main():
         type = str,
         nargs = 1,
         )
-    
+
     args = parser.parse_args().__dict__
     facts = set(args['fact'])
     command = args['command'][0]
-    
+
     if 'all' in facts:
         print_status('Running all fact scripts:', indent=False,
                      timestamp=False, format='reverse', space=True)
         facts = all_facts()
-    
+
     # Import settings:
     load_settings(args['settings'])
 

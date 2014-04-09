@@ -25,8 +25,9 @@ class TestGetClass(object):
         fact_example = Mock()
         fact_example.FactExample.name = 'FactExample'
         importlib.import_module.return_value = fact_example
-
         response = main.get_class('fact_example')
+
+        importlib.import_module.assert_called_with('fact.fact_example')
         assert response.name == 'FactExample'
 
     def test_dim(self, importlib):
@@ -38,6 +39,43 @@ class TestGetClass(object):
         dim_example = Mock()
         dim_example.DimExample.name = 'DimExample'
         importlib.import_module.return_value = dim_example
-
         response = main.get_class('dim_example', dimension=True)
+
+        importlib.import_module.assert_called_with('dim.dim_example')
         assert response.name == 'DimExample'
+
+
+class TestProcessScripts(object):
+
+    @patch('pylytics.library.main.importlib')
+    def test_executed(self, importlib):
+        script = Mock()
+        importlib.import_module.return_value = script
+        main._process_scripts(['my_script'])
+
+        importlib.import_module.assert_called_with('scripts.my_script')
+        script.assert_called('main')
+
+
+class TestExtractScripts(object):
+
+    test_commands = ['update', 'historical', 'build', 'drop']
+
+    def _get_mock_fact(self):
+        TestFact = Mock()
+        TestFact.setup_scripts = {}
+        for command in self.test_commands:
+            TestFact.setup_scripts[command] = 'test_{}'.format(command)
+
+        return TestFact
+
+    # have two separate tests? One for setup and one for exit.
+    def test_success(self):
+        for command in self.test_commands:
+            fact_classes = [self._get_mock_fact()]
+            script_list = main._extract_scripts(command, fact_classes,
+                                                script_type='setup_scripts')
+            assert script_list == ['test_{}'.format(command)]
+
+    def test_no_duplicates(self):
+        pass

@@ -1,4 +1,5 @@
 import datetime
+import inspect
 import warnings
 
 from build_sql import SQLBuilder
@@ -281,7 +282,15 @@ class Fact(Table):
 
         """
         self.update()
-        
+
         for i in xrange(1, self.historical_iterations):
             self._process_data(historical=True, index=i)
             self._insert_rows()
+
+    @classmethod
+    def public_methods(self):
+        """
+        Returns a list of all public methods on this class.
+        """
+        methods = inspect.getmembers(self, predicate=inspect.ismethod)
+        return [i[0] for i in methods if not i[0].startswith('_')]
