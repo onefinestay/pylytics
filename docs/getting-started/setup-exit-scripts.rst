@@ -41,4 +41,4 @@ You designate which scripts will run for each Fact by including the ``setup_scri
 
 In the example above, the ``pull_from_google_api`` script will be run before ``update`` gets executed for ``MyFact``, and ``notify_admin`` will be run afterwards.
 
-If you have several Facts, and each one defines the same script, then the script will only be run once before all Facts are run.
+If you have several Facts, and each one requires the same setup or exit script, then the script will only be run once.
