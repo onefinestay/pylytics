@@ -35,7 +35,7 @@ def get_class(module_name, dimension=False):
         dim_or_fact = 'dim'
     else:
         dim_or_fact = 'fact'
-    
+
     module = importlib.import_module(
         '{0}.{1}'.format(dim_or_fact, module_name)
         )
