@@ -17,6 +17,8 @@ class Fact(Table):
     """
     
     historical_iterations = 100
+    setup_scripts = {}
+    exit_scripts = {}
     
     def __init__(self, *args, **kwargs):
         self.dim_or_fact = 'fact'
