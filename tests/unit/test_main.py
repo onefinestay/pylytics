@@ -69,13 +69,18 @@ class TestExtractScripts(object):
 
         return TestFact
 
-    # have two separate tests? One for setup and one for exit.
-    def test_success(self):
+    def test_response(self):
+        fact_classes = [self._get_mock_fact()]
         for command in self.test_commands:
-            fact_classes = [self._get_mock_fact()]
-            script_list = main._extract_scripts(command, fact_classes,
-                                                script_type='setup_scripts')
+            script_list = main._extract_scripts(command, fact_classes)
             assert script_list == ['test_{}'.format(command)]
 
     def test_no_duplicates(self):
-        pass
+        fact_classes = [self._get_mock_fact(), self._get_mock_fact()]
+        for command in self.test_commands:
+            script_list = main._extract_scripts(command, fact_classes)
+            assert script_list == ['test_{}'.format(command)]
+
+
+# TODO - tests for run_command. Will probably have to refactor run_command
+# first.
