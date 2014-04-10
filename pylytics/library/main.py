@@ -104,12 +104,12 @@ def _extract_scripts(command, fact_classes, script_type='setup_scripts'):
         try:
             script_dict = getattr(fact_class, script_type)
         except AttributeError:
-            print_status('Unable to find {} in {}.'.format(script_type,
-                                                           fact_class))
+            print_status('Unable to find {} in {}.'.format(
+                    script_type, fact_class.__class__.__name__))
             continue
 
         if type(script_dict) != dict:
-            print 'Setup_scripts must be a dictionary - ignoring.'
+            print_status('Setup_scripts must be a dictionary - ignoring.')
         else:
             if command in script_dict.keys():
                 scripts.append(script_dict[command])
@@ -139,7 +139,8 @@ def run_command(facts, command):
                 fact_classes.append(FactClass)
 
         # Execute any setup scripts that need to be run.
-        print_status("Checking setup scripts.")
+        print_status("Checking setup scripts.", indent=False, space=True,
+                     format='blue', timestamp=False)
         setup_scripts = _extract_scripts(command, fact_classes)
         if setup_scripts:
             _process_scripts(setup_scripts)
@@ -160,7 +161,8 @@ def run_command(facts, command):
                 errors['.'.join([fact_class_name, command])] = e
 
         # Execute any exit scripts that need to be run.
-        print_status("Checking exit scripts.")
+        print_status("Checking exit scripts.", indent=False, space=True,
+                     format='blue', timestamp=False)
         exit_scripts = _extract_scripts(command, fact_classes,
                                         script_type='exit_scripts')
         if exit_scripts:
