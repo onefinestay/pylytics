@@ -101,6 +101,7 @@ def _extract_scripts(command, fact_classes, script_type='setup_scripts'):
     """
     scripts = []
     for fact_class in fact_classes:
+
         try:
             script_dict = getattr(fact_class, script_type)
         except AttributeError:
@@ -108,11 +109,14 @@ def _extract_scripts(command, fact_classes, script_type='setup_scripts'):
                     script_type, fact_class.__class__.__name__))
             continue
 
-        if type(script_dict) != dict:
-            print_status('Setup_scripts must be a dictionary - ignoring.')
-        else:
-            if command in script_dict.keys():
+        if isinstance(script_dict, dict):
+            if command in script_dict:
                 scripts.append(script_dict[command])
+            else:
+                print_status("No {} found for {}.".format(
+                        script_type, fact_class.__class__.__name__))
+        else:
+            print_status('Setup_scripts must be a dictionary - ignoring.')
 
     # Remove duplicates.
     return list(set(scripts))

@@ -292,7 +292,7 @@ class Fact(Table):
     @classmethod
     def public_methods(self):
         """
-        Returns a list of all public methods on this class.
+        Returns a list of all public method names on this class.
         """
         methods = inspect.getmembers(self, predicate=inspect.ismethod)
         return [i[0] for i in methods if not i[0].startswith('_')]
