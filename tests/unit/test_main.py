@@ -65,7 +65,7 @@ class TestExtractScripts(object):
         TestFact = Mock()
         TestFact.setup_scripts = {}
         for command in self.test_commands:
-            TestFact.setup_scripts[command] = 'test_{}'.format(command)
+            TestFact.setup_scripts[command] = ['test_{}'.format(command)]
 
         return TestFact
 

@@ -92,11 +92,11 @@ def _process_scripts(scripts):
 
 def _extract_scripts(command, fact_classes, script_type='setup_scripts'):
     """
-    Introspect the list of fact_classes to see whether they require any
-    scripts to be run.
+    Introspects the list of fact_classes and returns a list of script names
+    that need to be run.
 
     If the same script is listed in multiple fact classes, then it will
-    only be run once.
+    only appear once in the list.
 
     """
     scripts = []
@@ -111,7 +111,7 @@ def _extract_scripts(command, fact_classes, script_type='setup_scripts'):
 
         if isinstance(script_dict, dict):
             if command in script_dict:
-                scripts.append(script_dict[command])
+                scripts.extend(script_dict[command])
             else:
                 print_status("No {} found for {}.".format(
                         script_type, fact_class.__class__.__name__))
