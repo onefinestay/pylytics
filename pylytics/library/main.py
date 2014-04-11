@@ -35,7 +35,7 @@ def get_class(module_name, dimension=False):
         dim_or_fact = 'dim'
     else:
         dim_or_fact = 'fact'
-    
+
     module = importlib.import_module(
         '{0}.{1}'.format(dim_or_fact, module_name)
         )
@@ -68,14 +68,14 @@ def print_summary(errors):
             )
 
 
-def _process_setup_scripts(setup_scripts):
+def _process_scripts(scripts):
     """
-    Looks for the setup_scripts in the folder 'scripts' at the root of the
+    Looks for the scripts in the folder 'scripts' at the root of the
     pylytics project, and runs them.
 
     """
-    print 'Running setup_scripts.'
-    for script in setup_scripts:
+    print 'Running scripts.'
+    for script in scripts:
         try:
             script = importlib.import_module('scripts.{}'.format(script))
         except ImportError:
@@ -90,26 +90,36 @@ def _process_setup_scripts(setup_scripts):
             print_status(repr(e))
 
 
-def _extract_setup_scripts(command, fact_classes):
+def _extract_scripts(command, fact_classes, script_type='setup_scripts'):
     """
-    Introspect the list of fact_classes to see whether they require any
-    setup scripts to be run.
+    Introspects the list of fact_classes and returns a list of script names
+    that need to be run.
 
-    If the same setup script is listed in multiple fact classes, then it will
-    only be run once.
+    If the same script is listed in multiple fact classes, then it will
+    only appear once in the list.
 
     """
-    setup_scripts = []
+    scripts = []
     for fact_class in fact_classes:
-        if hasattr(fact_class, 'setup_scripts'):
-            if type(fact_class.setup_scripts) != dict:
-                print 'Setup_scripts must be a dictionary - ignoring.'
+
+        try:
+            script_dict = getattr(fact_class, script_type)
+        except AttributeError:
+            print_status('Unable to find {} in {}.'.format(
+                    script_type, fact_class.__class__.__name__))
+            continue
+
+        if isinstance(script_dict, dict):
+            if command in script_dict:
+                scripts.extend(script_dict[command])
             else:
-                if command in fact_class.setup_scripts.keys():
-                    setup_scripts.extend(fact_class.setup_scripts[command])
+                print_status("No {} found for {}.".format(
+                        script_type, fact_class.__class__.__name__))
+        else:
+            print_status('Setup_scripts must be a dictionary - ignoring.')
 
     # Remove duplicates.
-    return list(set(setup_scripts))
+    return list(set(scripts))
 
 
 def run_command(facts, command):
@@ -133,10 +143,11 @@ def run_command(facts, command):
                 fact_classes.append(FactClass)
 
         # Execute any setup scripts that need to be run.
-        print_status("Checking setup scripts.")
-        setup_scripts = _extract_setup_scripts(command, fact_classes)
+        print_status("Checking setup scripts.", indent=False, space=True,
+                     format='blue', timestamp=False)
+        setup_scripts = _extract_scripts(command, fact_classes)
         if setup_scripts:
-            _process_setup_scripts(setup_scripts)
+            _process_scripts(setup_scripts)
         else:
             print_status('No setup scripts to run.')
 
@@ -152,11 +163,18 @@ def run_command(facts, command):
                 print_status("Running {0} {1} failed!".format(fact_class_name,
                         command), format='red')
                 errors['.'.join([fact_class_name, command])] = e
-    
-    print_summary(errors)
 
-    # TODO We might add teardown scripts at some point too, for triggering
-    # things like notifications.
+        # Execute any exit scripts that need to be run.
+        print_status("Checking exit scripts.", indent=False, space=True,
+                     format='blue', timestamp=False)
+        exit_scripts = _extract_scripts(command, fact_classes,
+                                        script_type='exit_scripts')
+        if exit_scripts:
+            _process_scripts(exit_scripts)
+        else:
+            print_status('No exit scripts to run.')
+
+    print_summary(errors)
 
 
 def load_settings(settings_path):
@@ -169,6 +187,8 @@ def load_settings(settings_path):
 
 def main():
     """This is called by the manage.py created in the project directory."""
+    from fact import Fact
+    
     parser = argparse.ArgumentParser(
         description = "Run fact scripts.")
     parser.add_argument(
@@ -180,7 +200,7 @@ def main():
         )
     parser.add_argument(
         'command',
-        choices = ['update', 'build', 'test', 'historical'],
+        choices = Fact.public_methods(),
         help = 'The command you want to run.',
         nargs = 1,
         type = str,
@@ -191,16 +211,16 @@ def main():
         type = str,
         nargs = 1,
         )
-    
+
     args = parser.parse_args().__dict__
     facts = set(args['fact'])
     command = args['command'][0]
-    
+
     if 'all' in facts:
         print_status('Running all fact scripts:', indent=False,
                      timestamp=False, format='reverse', space=True)
         facts = all_facts()
-    
+
     # Import settings:
     load_settings(args['settings'])
 

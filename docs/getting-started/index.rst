@@ -11,4 +11,4 @@ Getting Started
    running-scripts
    querying
    connection-library
-   setup-scripts
+   setup-exit-scripts
