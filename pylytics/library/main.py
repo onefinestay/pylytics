@@ -78,8 +78,9 @@ def _process_scripts(scripts):
     for script in scripts:
         try:
             script = importlib.import_module('scripts.{}'.format(script))
-        except ImportError:
-            print_status('Unable to find the script - {}.'.format(script))
+        except ImportError as exception:
+            print_status('Unable to import the script `{}`. '
+                         'Traceback - {}.'.format(script, str(exception)))
             continue
 
         print_status('Running {}'.format(script))
