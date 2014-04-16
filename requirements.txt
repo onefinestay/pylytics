@@ -1,2 +1,2 @@
 MySQL-python==1.2.4
-Jinja2==2.7
+Jinja2==2.7.2

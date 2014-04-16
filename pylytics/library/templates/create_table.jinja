@@ -9,12 +9,12 @@ CREATE TABLE `{{ table_name }}` (
     {% endif %}
     {% if foreign_keys %}
     {% for foreign_key in foreign_keys %}
-    CONSTRAINT `{{ table_name }}_ibfk_{{ loop.index }}` FOREIGN KEY (`{{ foreign_key[0] }}`) REFERENCES `{{ foreign_key[1] }}` (`id`),        
+    CONSTRAINT `{{ table_name }}_ibfk_{{ loop.index }}` FOREIGN KEY (`{{ foreign_key[0] }}`) REFERENCES `{{ foreign_key[1] }}` (`id`),
     {% endfor %}
     {% endif %}
     {% if keys %}
     {% for key in keys %}
-    KEY `{{ table_name }}_index_{{ loop.index }}` (`{{ key }}`),        
+    KEY `{{ table_name }}_index_{{ loop.index }}` (`{{ key }}`),
     {% endfor %}
     {% endif %}
     PRIMARY KEY (`id`)

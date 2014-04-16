@@ -1,1 +1,11 @@
-include README.rst LICENSE requirements.txt
+include *.py
+include *.txt
+include CHANGES
+include LICENSE
+recursive-include docs *.py
+recursive-include docs *.rst
+recursive-include docs *.sql
+recursive-include docs *.bat
+recursive-include docs Makefile
+recursive-include pylytics *.jinja
+recursive-include pylytics *.sql
