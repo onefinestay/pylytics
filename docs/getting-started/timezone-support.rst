@@ -48,4 +48,4 @@ When the fact runs, only a subset of the `dim_timezone` rows will be exposed. Th
 
 This means that the only rows which will be inserted into the fact table are those which have a `dim_timezone` value corresponding to one of these timezones.
 
-When you need timezone support, a CRON job should be setup to call ``manage.py name_of_my_timezone_fact.py update`` every half hour. This means that no timezones will missed.
+When you need timezone support, a CRON job should be setup to call ``manage.py name_of_my_timezone_fact.py update`` every half hour. This means that no timezones will be missed.
