@@ -43,7 +43,7 @@ def get_utcnow():
 def get_current_timezone_at_midnight():
     """
     Returns the current timezone which is at midnight UTC.
-    
+
     """
     utc_datetime = get_utcnow()
     hour = utc_datetime.utcnow().hour
@@ -52,10 +52,10 @@ def get_current_timezone_at_midnight():
     if 0 <= minute < 15:
         timezone = float(hour)
 
-    elif 15 <= minute <= 45:
+    elif 15 <= minute < 45:
         timezone = float(hour) + 0.5
 
-    elif 45 < minute < 60:
+    elif 45 <= minute < 60:
         timezone = float(hour) + 1
 
     return timezone
