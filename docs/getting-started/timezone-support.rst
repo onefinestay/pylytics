@@ -17,7 +17,7 @@ When you create a new pylytics project, a `dim_timezone` dimension is automatica
 What it does
 ------------
 
-dim_timezone will create a table with all the timezones in it.
+dim_timezone will create a table with all of the `Olson tz database <http://en.wikipedia.org/wiki/Tz_database>`_ timezones in it. The timezone information is accessed using `pytz <https://pypi.python.org/pypi/pytz/>`_.
 
 Here is an example of a fact which uses timezone support::
 
