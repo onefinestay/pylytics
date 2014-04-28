@@ -96,12 +96,12 @@ class DimTimezone(Dim):
         current_timezone_at_midnight = get_current_timezone_at_midnight()
 
         query = """
-            SELECT {}, id
-            FROM {}
-            WHERE utc_offset_in_hours = {}
+            SELECT {field_name}, id
+            FROM {table_name}
+            WHERE utc_offset_in_hours = {utc_offset}
             ORDER BY id asc;
-            """.format(field_name, self.table_name,
-                       current_timezone_at_midnight)
+            """.format(field_name=field_name, table_name=self.table_name,
+                       utc_offset=current_timezone_at_midnight)
 
         data = self.connection.execute(query)
 
