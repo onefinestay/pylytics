@@ -105,9 +105,7 @@ class DimTimezone(Dim):
 
         data = self.connection.execute(query)
 
-        data_dict = {}
-        for element in data:
-            # Map indexes to values.
-            data_dict[element[0]] = element[1]
+        # Map indexes to values.
+        data_dict = {element[0]: element[1] for element in data}
 
         return data_dict
