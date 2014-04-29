@@ -1,1 +1,1 @@
-from pylytics.builtins.dim import DimDate
+from pylytics.builtins.dim.dim_date import DimDate
