@@ -29,9 +29,9 @@ class TestGetCurrentTimezoneAtMidnight(object):
     @patch.dict('sys.modules', {'settings': Mock()})
     @pytest.mark.parametrize(
         ('dt', 'timezone'), ((datetime.datetime(2014, 1, 1, 15, 0), 15.0),
-                             (datetime.datetime(2014, 1, 1, 15, 15), 15.5),
+                             (datetime.datetime(2014, 1, 1, 15, 15), 15.25),
                              (datetime.datetime(2014, 1, 1, 15, 30), 15.5),
-                             (datetime.datetime(2014, 1, 1, 15, 45), 16.0),
+                             (datetime.datetime(2014, 1, 1, 15, 45), 15.75),
                              (datetime.datetime(2014, 1, 1, 16, 0), 16.0))
         )
     def test_success(self, dt, timezone):

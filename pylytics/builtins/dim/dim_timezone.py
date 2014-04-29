@@ -22,7 +22,7 @@ def get_utc_offsets():
 
             utcoffset_seconds = utcoffset.seconds
             utcoffset_minutes = utcoffset_seconds / 60
-            # We need to divide by a decimal, since timezones can be in half
+            # We need to divide by a decimal, since timezones can be in quarter
             # hour increments.
             utcoffset_hours = utcoffset_minutes / 60.0
 
@@ -49,13 +49,22 @@ def get_current_timezone_at_midnight():
     hour = utc_datetime.hour
     minute = utc_datetime.minute
 
-    if 0 <= minute < 15:
+    if 0 <= minute < 7.5:
         timezone = float(hour)
 
-    elif 15 <= minute < 45:
+    elif 7.5 <= minute < 22.5:
+        # There aren't any timezones which are X hours and 15 minutes ahead
+        # of UTC at the moment, but it's included here to make the logic
+        # clearer.
+        timezone = float(hour) + 0.25
+
+    elif 22.5 <= minute < 37.5:
         timezone = float(hour) + 0.5
 
-    elif 45 <= minute < 60:
+    elif 37.5 <= minute < 52.5:
+        timezone = float(hour) + 0.75
+
+    elif 52.5 <= minute < 60:
         timezone = float(hour) + 1
 
     return timezone

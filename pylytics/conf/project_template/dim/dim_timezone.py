@@ -1,1 +1,1 @@
-from pylytics.builtins.dim import DimTimezone
+from pylytics.builtins.dim.dim_timezone import DimTimezone
