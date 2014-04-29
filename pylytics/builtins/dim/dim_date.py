@@ -4,6 +4,11 @@ from datetime import date
 from pylytics.library.dim import Dim
 
 
+# If no dim_date values exist, then dim_dates will be created from this date
+# up to the present.
+START_DATE = date(2000, 01, 01)
+
+
 class DimDate(Dim):
 
     def update(self):
@@ -18,7 +23,7 @@ class DimDate(Dim):
         
         if cur_date == None:
             # Build history.
-            cur_date = date(2011, 01, 01)
+            cur_date = START_DATE
 
         today = date.today()
         while cur_date <= today:
