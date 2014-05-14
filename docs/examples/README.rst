@@ -9,8 +9,7 @@ Import the *setup.sql* file into your *pylytics_test* database, which creates th
 
 Then run the following from inside one of the example folders::
 
-    chmod +x manage.py
-    ./manage.py all update
+    python manage.py all update
 
 This creates and updates the star schema tables.
 

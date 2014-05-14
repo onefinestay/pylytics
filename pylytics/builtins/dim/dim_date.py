@@ -4,15 +4,19 @@ from datetime import date
 from pylytics.library.dim import Dim
 
 
-# If no dim_date values exist, then dim_dates will be created from this date
-# up to the present.
 START_DATE = date(2000, 01, 01)
+END_DATE = datetime.datetime.now().date() + datetime.timedelta(
+    weeks=104) # Approx 2 years.
 
 
 class DimDate(Dim):
 
     def update(self):
-        """Updates the dim_date table with all the dates since 01/01/2011."""
+        """
+        Updates the dim_date table with all the dates from START_DATE to
+        END_DATE.
+
+        """
         # Status.
         msg = "Populating {0}".format(self.table_name)
         self._print_status(msg)
@@ -26,7 +30,7 @@ class DimDate(Dim):
             cur_date = START_DATE
 
         today = date.today()
-        while cur_date <= today:
+        while cur_date <= END_DATE:
             quarter = (cur_date.month - 1)/3 + 1
             date_field = (
                 cur_date.isoformat(),
