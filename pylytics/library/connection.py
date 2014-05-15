@@ -8,9 +8,10 @@ import settings
 
 
 class UnknownColumnTypeError(Exception):
+
     def __init__(self, error):
         self.error = error
-    
+
     def __str__(self):
         return "The type code {}, which has been retrieved from " \
                "a SELECT query, doesn't exist in the " \
@@ -45,7 +46,7 @@ class DB(object):
     example.close()
 
     """
-    
+
     # List of SQL types
     field_types = {
          0: 'DECIMAL',
@@ -74,13 +75,13 @@ class DB(object):
          252: 'BLOB',
          253: 'VARCHAR(255)',
          254: 'VARCHAR(255)',
-         255: 'VARCHAR(255)'
-    }
-    
+         255: 'VARCHAR(255)',
+         }
+
     def __init__(self, database):
         if database not in (settings.DATABASES.keys()):
-            raise Exception("The Database %s isn't recognised! Check your \
-                             settings in settings.py" % database)
+            raise Exception("The database {} isn't recognised! Check your "
+                            "settings in settings.py.".format(database))
         else:
             self.database = database
             self.connection = None

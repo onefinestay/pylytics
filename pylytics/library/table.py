@@ -10,7 +10,7 @@ from utils.terminal import print_status
 
 class Table(object):
     """Base class."""
-    
+
     def __init__(self, *args, **kwargs):
         if 'connection' in kwargs:
             self.connection = kwargs['connection']
@@ -32,7 +32,7 @@ class Table(object):
 
         """
         return " ".join(['%s,' for i in range(length)])[:-1]
-    
+
     @property
     def frequency(self):
         """
@@ -85,14 +85,15 @@ class Table(object):
     def build(self):
         """Builds the table."""
         table_built = None
-        
+
         # Status.
         msg = "Building %s on %s" % (self.table_name, self.connection.database)
         self._print_status(msg)
-        
+
         # Building the table if not exists
         try:
-            self.connection.execute("SELECT * FROM `%s` LIMIT 0,0" % self.table_name)
+            self.connection.execute(
+                "SELECT * FROM `{}` LIMIT 0,0".format(self.table_name))
             self._print_status("Database already exists - {0} on {1}".format(
                                     self.table_name, self.connection.database))
             table_built = True
@@ -100,8 +101,12 @@ class Table(object):
             if 1146 in db_error.args:
                 try:
                     # Read the sql file.
-                    with open(os.path.join(self.dim_or_fact, 'sql',
-                                           "%s.sql" % self.table_name)) as sql_file:
+                    filename = os.path.join(
+                        self.dim_or_fact,
+                        "sql",
+                        "{}.sql".format(self.table_name),
+                        )
+                    with open(filename) as sql_file:
                         sql = sql_file.read().strip()
 
                     # Execute the sql.
