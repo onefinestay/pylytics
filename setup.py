@@ -56,6 +56,6 @@ setup(
     packages=find_packages(),
     scripts = ['pylytics/bin/pylytics-admin.py'],
     url='https://github.com/onefinestay/pylytics',
-    version='0.5.4',
+    version='0.6.0',
     zip_safe=False,
     )

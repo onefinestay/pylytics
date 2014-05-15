@@ -1,3 +1,11 @@
+Version 0.6.0
+-------------
+
+- added timezone support.
+- updated example.
+- dim_date now creates values in the future too.
+
+
 Version 0.5.4
 -------------
 
