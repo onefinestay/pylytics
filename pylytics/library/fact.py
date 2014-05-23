@@ -231,7 +231,7 @@ class Fact(Table):
         
         self._import_dimensions()
         self._generate_dim_dict()
-        
+
         for row in self.output_data:
             destination_tuple, not_matching = self._map_tuple(self._transform_tuple(row))
 
