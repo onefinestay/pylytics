@@ -1,3 +1,10 @@
+Version 0.6.1
+-------------
+
+- bumped version of MySQLdb to the latest version (which fixes an install bug
+  on Ubuntu).
+
+
 Version 0.6.0
 -------------
 
