@@ -19,6 +19,7 @@ class Fact(Table):
     historical_iterations = 100
     setup_scripts = {}
     exit_scripts = {}
+    base_package = None
     
     def __init__(self, *args, **kwargs):
         super(Fact, self).__init__(*args, **kwargs)
@@ -35,8 +36,14 @@ class Fact(Table):
         self.dim_dict = None
         if not hasattr(self, 'dim_links'):
             self.dim_links = self.dim_names
+        if "base_package" in kwargs:
+            self.base_package = kwargs["base_package"]
 
-        self.dim_classes = [get_class(dim_link, dimension=True)(connection=self.connection) for dim_link in self.dim_links]
+        self.dim_classes = [
+            get_class(dim_link, dimension=True,
+                      package=self.base_package)(connection=self.connection)
+            for dim_link in self.dim_links
+        ]
         self.input_cols_names = self._get_cols_from_sql()
         
     def _transform_tuple(self, src_tuple):
