@@ -6,8 +6,8 @@ class Dim(Table):
     """Dimension base class."""
 
     def __init__(self, *args, **kwargs):
-        self.dim_or_fact = 'dim'
         super(Dim, self).__init__(*args, **kwargs)
+        self.dim_or_fact = 'dim'
 
     def get_dictionary(self, field_name):
         """
@@ -21,14 +21,13 @@ class Dim(Table):
         }
 
         """
-        dictionary = {}
-        data = self.connection.execute(
-            "SELECT `%s`, id FROM `%s` order by id asc;" % (field_name, self.table_name)
-            )
-        for element in data:
-            dictionary[element[0]] = element[1]
-
-        return dictionary
+        sql = """\
+        SELECT {field_name}, {surrogate_key_column}
+        FROM {table_name}
+        ORDER BY {surrogate_key_column}
+        """.format(field_name=field_name, table_name=self.table_name,
+                   surrogate_key_column=self.surrogate_key_column)
+        return dict(self.connection.execute(sql))
 
     def _transform_tuple(self, src_tuple):
         """
@@ -37,7 +36,7 @@ class Dim(Table):
         table to insert.
         NB: - This function should be implemented when extending the dim
               object.
-            - The columns in the retured tuple must be in the same order as in
+            - The columns in the returned tuple must be in the same order as in
               the dimension table.
             - The first field (auto_increment `id`) and the last field
               (`created` automatic timestamp) must be omitted in the result.

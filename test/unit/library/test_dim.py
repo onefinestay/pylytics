@@ -43,25 +43,27 @@ class DimRing(Dim):
     """ Example dimension class.
     """
     source_db = "middle_earth"
-    source_query = "SELECT name FROM rings_of_power ORDER BY id"
+    source_query = "SELECT name FROM rings_of_power"
 
 
-@pytest.fixture
-def dim_ring(warehouse):
-    """ Example dimension fixture.
+def build_ring_dimension(warehouse, update=False, surrogate_key_column="id"):
+    """ Build and optionally update an example dimension.
     """
-    dim = DimRing(connection=warehouse)
+    dim = DimRing(connection=warehouse,
+                  surrogate_key_column=surrogate_key_column)
     dim.drop()
     sql = """\
     CREATE TABLE dim_ring (
-        id INT AUTO_INCREMENT COMMENT 'surrogate key',
+        {surrogate_key_column} INT AUTO_INCREMENT COMMENT 'surrogate key',
         name VARCHAR(40) COMMENT 'natural key',
         created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
                                  ON UPDATE CURRENT_TIMESTAMP,
-        PRIMARY KEY (id)
+        PRIMARY KEY ({surrogate_key_column})
     ) CHARSET=utf8
-    """
+    """.format(surrogate_key_column=surrogate_key_column)
     if dim.build(sql):
+        if update:
+            dim.update()
         return dim
     else:
         raise Exception("Unable to build dimension")
@@ -70,10 +72,58 @@ def dim_ring(warehouse):
 @pytest.mark.usefixtures("warehouse")
 class TestDimension(object):
 
-    def test_can_build_dimension(self, dim_ring):
-        assert dim_ring.exists()
+    def test_can_build(self, warehouse):
+        # when
+        dim = build_ring_dimension(warehouse)
+        # then
+        assert dim.exists()
 
     @pytest.mark.usefixtures("ring_source")
-    def test_can_update_dimension(self, dim_ring):
-        dim_ring.update()
-        assert dim_ring.count() == len(RINGS)
+    def test_can_update(self, warehouse):
+        # given
+        dim = build_ring_dimension(warehouse)
+        # when
+        dim.update()
+        # then
+        assert dim.count() == len(RINGS)
+
+    @pytest.mark.usefixtures("ring_source")
+    def test_can_get_dictionary(self, warehouse):
+        # given
+        dim = build_ring_dimension(warehouse, update=True)
+        # when
+        actual = dim.get_dictionary("name")
+        # then
+        expected = dict(zip(*reversed(zip(*RINGS))))
+        assert expected == actual
+
+
+@pytest.mark.usefixtures("warehouse")
+class TestDimensionWithAlternativeSurrogateKeyColumn(object):
+
+    def test_can_build(self, warehouse):
+        # when
+        dim = build_ring_dimension(warehouse, surrogate_key_column="pk")
+        # then
+        assert dim.exists()
+        assert dim.surrogate_key_column == "pk"
+
+    @pytest.mark.usefixtures("ring_source")
+    def test_can_update(self, warehouse):
+        # given
+        dim = build_ring_dimension(warehouse, surrogate_key_column="pk")
+        # when
+        dim.update()
+        # then
+        assert dim.count() == len(RINGS)
+
+    @pytest.mark.usefixtures("ring_source")
+    def test_can_get_dictionary(self, warehouse):
+        # given
+        dim = build_ring_dimension(warehouse, update=True,
+                                   surrogate_key_column="pk")
+        # when
+        actual = dim.get_dictionary("name")
+        # then
+        expected = dict(zip(*reversed(zip(*RINGS))))
+        assert expected == actual

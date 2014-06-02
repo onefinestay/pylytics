@@ -10,20 +10,27 @@ from utils.terminal import print_status
 
 class Table(object):
     """Base class."""
-    
+
+    surrogate_key_column = "id"
+    natural_key_column = None
+
     def __init__(self, *args, **kwargs):
         if 'connection' in kwargs:
             self.connection = kwargs['connection']
         self.class_name = self.__class__.__name__
         self.table_name = camelcase_to_underscore(self.class_name)
         self.dim_or_fact = None
-        self.surrogate_key_column = "id"
-        self.natural_key_column = None
+        if "surrogate_key_column" in kwargs:
+            self.surrogate_key_column = kwargs["surrogate_key_column"]
+        if "natural_key_column" in kwargs:
+            self.natural_key_column = kwargs["natural_key_column"]
 
-    def _print_status(self, message, **kwargs):
+    @classmethod
+    def _print_status(cls, message, **kwargs):
         print_status(message, **kwargs)
 
-    def _values_placeholder(self, length):
+    @classmethod
+    def _values_placeholder(cls, length):
         """
         Returns a placeholder string of the specified length (to use within a
         MySQL INSERT query).
