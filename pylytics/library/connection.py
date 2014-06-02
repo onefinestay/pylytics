@@ -10,7 +10,7 @@ import settings
 class UnknownColumnTypeError(Exception):
     def __init__(self, error):
         self.error = error
-    
+
     def __str__(self):
         return "The type code {}, which has been retrieved from " \
                "a SELECT query, doesn't exist in the " \
@@ -45,7 +45,7 @@ class DB(object):
     example.close()
 
     """
-    
+
     # List of SQL types
     field_types = {
          0: 'DECIMAL',
@@ -76,7 +76,7 @@ class DB(object):
          254: 'VARCHAR(255)',
          255: 'VARCHAR(255)'
     }
-    
+
     def __init__(self, database):
         if database not in (settings.DATABASES.keys()):
             raise Exception("The Database %s isn't recognised! Check your \
@@ -97,6 +97,15 @@ class DB(object):
             self.connection.close()
 
     def execute(self, query, values=None, many=False, get_cols=False):
+        """ Executes the given `query` through the currently open connection.
+
+        There must be a connection established before calling this method.
+
+        `values` should contain the data to be inserted when issuing `INSERT`
+        or `REPLACE` queries. If the `many` flag is set to `True`, `values` is
+        expected to be an iterable of iterables. Otherwise, `values` should
+        contain the data directly.
+        """
         cursor = None
         data = None
         cols_names = None
