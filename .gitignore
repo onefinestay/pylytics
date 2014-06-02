@@ -37,6 +37,7 @@ nosetests.xml
 # Local config files
 !settings.py
 !*.sql
+test/settings.py
 
 # Compiled documentation
 html/

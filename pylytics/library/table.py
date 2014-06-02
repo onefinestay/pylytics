@@ -16,6 +16,9 @@ class Table(object):
             self.connection = kwargs['connection']
         self.class_name = self.__class__.__name__
         self.table_name = camelcase_to_underscore(self.class_name)
+        self.dim_or_fact = None
+        self.surrogate_key_column = "id"
+        self.natural_key_column = None
 
     def _print_status(self, message, **kwargs):
         print_status(message, **kwargs)
@@ -82,35 +85,66 @@ class Table(object):
                 self._print_status("Unable to drop view for %s" % (
                                                             self.table_name))
 
-    def build(self):
-        """Builds the table."""
-        table_built = None
+    def exists(self):
+        """ Determine whether or not the table exists and return a boolean
+        to indicate which.
+        """
+        try:
+            self.connection.execute("SELECT * FROM `%s` "
+                                    "LIMIT 0,0" % self.table_name)
+        except Exception as db_error:
+            if 1146 in db_error.args:
+                return False
+            else:
+                raise
+        else:
+            return True
+
+    def count(self):
+        """ Return a count of the number of rows present in this table.
+        """
+        return self.connection.execute("SELECT COUNT(*) "
+                                       "FROM `%s`" % self.table_name)[0][0]
+
+    def build(self, sql=None):
+        """ Builds the table using SQL from a file or, optionally, passed in
+        directly as a string.
+        """
         
         # Status.
         msg = "Building %s on %s" % (self.table_name, self.connection.database)
         self._print_status(msg)
         
-        # Building the table if not exists
-        try:
-            self.connection.execute("SELECT * FROM `%s` LIMIT 0,0" % self.table_name)
+        # Build the table only if it doesn't already exist.
+        if self.exists():
             self._print_status("Database already exists - {0} on {1}".format(
-                                    self.table_name, self.connection.database))
-            table_built = True
-        except Exception as db_error:
-            if 1146 in db_error.args:
-                try:
-                    # Read the sql file.
-                    with open(os.path.join(self.dim_or_fact, 'sql',
-                                           "%s.sql" % self.table_name)) as sql_file:
-                        sql = sql_file.read().strip()
+                               self.table_name, self.connection.database))
+            return False
 
-                    # Execute the sql.
-                    self.connection.execute(sql)
-                    self._print_status('Table built.')
-                    table_built = True
-                except Exception as e:
-                    table_built = False
-            else:
-                raise db_error
+        self._print_status("Reading SQL")
+        if sql is None:
+            # Load from file instead.
 
-        return table_built
+            file_name = os.path.join(self.dim_or_fact, 'sql',
+                                     "%s.sql" % self.table_name)
+            # Read the sql file.
+            try:
+                with open(file_name) as sql_file:
+                    sql = sql_file.read().strip()
+            except Exception as e:
+                self._print_status("Cannot read SQL: {}".format(e))
+                return False
+
+        self._print_status("Executing SQL")
+        try:
+            self.connection.execute(sql)
+        except Exception as e:
+            self._print_status("Cannot execute SQL: {}".format(e))
+            self.connection.rollback()
+            return False
+        else:
+            self._print_status('Table built.')
+            self.connection.commit()
+
+        # Table successfully built: return True.
+        return True

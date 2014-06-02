@@ -71,3 +71,5 @@ class Dim(Table):
                     ),
                 destination_tuple
                 )
+
+        self.connection.commit()
