@@ -1,8 +1,8 @@
 test_settings = {
 
     "local_mysql_credentials": {
-        "user": "ofs",
-        "passwd": "ofs",
+        "user": "local_mysql_user",
+        "passwd": "local_mysql_password",
     }
 
 }
