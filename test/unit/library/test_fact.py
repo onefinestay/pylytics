@@ -19,11 +19,3 @@ class TestFact(object):
         fact_ring_journey.build()
         # then
         assert fact_ring_journey.exists()
-
-    def test_can_update(self, fact_ring_journey):
-        # given
-        fact_ring_journey.build()
-        # when
-        fact_ring_journey.update()
-        # then
-        assert False

@@ -30,9 +30,10 @@ def db_fixture(request, **kwargs):
 
     conn = mysql.connect(host=host, user=user, passwd=passwd)
     with warnings.catch_warnings():
-        # Hide warnings saying the database already exists
+        # Hide warnings
         warnings.simplefilter("ignore")
-        execute(conn, "CREATE DATABASE IF NOT EXISTS {}".format(db))
+        execute(conn, "DROP DATABASE IF EXISTS {}".format(db))
+    execute(conn, "CREATE DATABASE IF NOT EXISTS {}".format(db))
     conn.commit()
     conn.close()
 
