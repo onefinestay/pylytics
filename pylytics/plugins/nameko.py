@@ -76,7 +76,7 @@ class DBConnector(InjectionProvider):
         """
         while not self.should_stop.ready():
             self._process_queue()
-            eventlet.wait()
+            eventlet.sleep()
 
     def acquire_injection(self, worker_ctx):
         return self.database
