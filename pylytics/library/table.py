@@ -1,4 +1,5 @@
 import datetime
+from importlib import import_module
 import os
 import sys
 import textwrap
@@ -11,6 +12,7 @@ from utils.terminal import print_status
 class Table(object):
     """Base class."""
 
+    base_package = None
     surrogate_key_column = "id"
     natural_key_column = None
 
@@ -20,6 +22,8 @@ class Table(object):
         self.class_name = self.__class__.__name__
         self.table_name = camelcase_to_underscore(self.class_name)
         self.dim_or_fact = None
+        if "base_package" in kwargs:
+            self.base_package = kwargs["base_package"]
         if "surrogate_key_column" in kwargs:
             self.surrogate_key_column = kwargs["surrogate_key_column"]
         if "natural_key_column" in kwargs:
@@ -80,8 +84,9 @@ class Table(object):
         try:
             self.connection.execute(query)
         except MySQLdb.IntegrityError:
-            print """--> Table could not be deleted, due to foreign key \
-                constraints. Try removing the fact tables first."""
+            self._print_status("Table could not be deleted due to foreign "
+                               "key constraints. Try removing the fact "
+                               "tables first.")
 
         if self.class_name == 'Fact':
             # Try and drop the corresponding view.
@@ -113,9 +118,8 @@ class Table(object):
         return self.connection.execute("SELECT COUNT(*) "
                                        "FROM `%s`" % self.table_name)[0][0]
 
-    def build(self, sql=None):
-        """ Builds the table using SQL from a file or, optionally, passed in
-        directly as a string.
+    def build(self):
+        """ Build the table using SQL from a file.
         """
         
         # Status.
@@ -124,23 +128,28 @@ class Table(object):
         
         # Build the table only if it doesn't already exist.
         if self.exists():
-            self._print_status("Database already exists - {0} on {1}".format(
+            self._print_status("Table already exists - {0} on {1}".format(
                                self.table_name, self.connection.database))
+            return True
+
+        # Derive the SQL file name
+        parts = [self.dim_or_fact, 'sql', "%s.sql" % self.table_name]
+        if self.base_package:
+            module = import_module("test.unit.library.fixtures")
+            parts.insert(0, os.path.dirname(module.__file__))
+        file_name = os.path.join(*parts)
+
+        # Read the sql file.
+        self._print_status("Reading SQL")
+        try:
+            with open(file_name) as sql_file:
+                sql = sql_file.read().strip()
+        except Exception as e:
+            self._print_status("Cannot read SQL: {}".format(e))
             return False
 
-        self._print_status("Reading SQL")
-        if sql is None:
-            # Load from file instead.
-
-            file_name = os.path.join(self.dim_or_fact, 'sql',
-                                     "%s.sql" % self.table_name)
-            # Read the sql file.
-            try:
-                with open(file_name) as sql_file:
-                    sql = sql_file.read().strip()
-            except Exception as e:
-                self._print_status("Cannot read SQL: {}".format(e))
-                return False
+        # Tweak the SQL after loading it
+        sql = sql.format(surrogate_key_column=self.surrogate_key_column)
 
         self._print_status("Executing SQL")
         try:

@@ -1,26 +1,29 @@
 import pytest
 
-from test.unit.library.conftest import (
-    build_ring_journey_fact_table, build_ring_dimension_table,
-    build_location_dimension_table)
+from test.unit.library.fixtures.fact.fact_ring_journey import FactRingJourney
 
 
-@pytest.mark.usefixtures("warehouse")
+FIXTURE_PACKAGE = "test.unit.library.fixtures"
+
+
+@pytest.mark.usefixtures("middle_earth")
 class TestFact(object):
 
-    def test_can_build(self, warehouse, middle_earth):
-        # when
-        fact = build_ring_journey_fact_table(warehouse)
-        # then
-        assert fact.exists()
+    @pytest.fixture
+    def fact_ring_journey(self, empty_warehouse):
+        return FactRingJourney(connection=empty_warehouse,
+                               base_package=FIXTURE_PACKAGE)
 
-    @pytest.mark.usefixtures("ring_journey_source")
-    def test_can_update(self, warehouse):
-        # given
-        dim_ring = build_ring_dimension_table(warehouse)
-        dim_location = build_location_dimension_table(warehouse)
-        fact = build_ring_journey_fact_table(warehouse)
+    def test_can_build(self, fact_ring_journey):
         # when
-        fact.update()
+        fact_ring_journey.build()
+        # then
+        assert fact_ring_journey.exists()
+
+    def test_can_update(self, fact_ring_journey):
+        # given
+        fact_ring_journey.build()
+        # when
+        fact_ring_journey.update()
         # then
         assert False

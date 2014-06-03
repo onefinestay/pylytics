@@ -1,9 +1,6 @@
 import pytest
 
 from test.helpers import db_fixture
-from test.unit.library.fixtures.dim.dim_location import DimLocation
-from test.unit.library.fixtures.dim.dim_ring import DimRing
-from test.unit.library.fixtures.fact.fact_ring_journey import FactRingJourney
 
 
 BASE_PACKAGE = "test.unit.library.fixtures"
@@ -16,12 +13,19 @@ LOCATIONS = [
     ("MTD", "Mount Doom"),
 ]
 
-RINGS = [
+# Please note that if this variable name is ever spoken
+# aloud, a deep, booming voice must be used.
+RINGS_OF_POWER = [
     (1, 'One Ring'),
     (2, 'Narya'),
     (3, 'Nenya'),
     (4, 'Vilna'),
 ]
+
+
+@pytest.fixture(scope="session")
+def fixture_package():
+    return "test.unit.library.fixtures"
 
 
 @pytest.fixture(scope="session")
@@ -43,7 +47,7 @@ def middle_earth(request, local_mysql_credentials):
     db.execute("""\
     INSERT INTO rings_of_power (id, name)
     VALUES {}
-    """.format(", ".join(map(repr, RINGS))))
+    """.format(", ".join(map(repr, RINGS_OF_POWER))))
     db.commit()
 
     # Locations
@@ -84,67 +88,67 @@ def middle_earth(request, local_mysql_credentials):
     db.commit()
 
     return db
-
-
-def build_ring_dimension_table(warehouse, update=False,
-                               surrogate_key_column="id"):
-    """ Build and optionally update an example dimension table.
-    """
-    dim = DimRing(connection=warehouse,
-                  surrogate_key_column=surrogate_key_column)
-    dim.drop()
-    sql = """\
-    CREATE TABLE dim_ring (
-        {surrogate_key_column} INT AUTO_INCREMENT COMMENT 'surrogate key',
-        name VARCHAR(40) COMMENT 'natural key',
-        created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-                                 ON UPDATE CURRENT_TIMESTAMP,
-        PRIMARY KEY ({surrogate_key_column})
-    ) CHARSET=utf8
-    """.format(surrogate_key_column=surrogate_key_column)
-    if dim.build(sql):
-        if update:
-            dim.update()
-        return dim
-    else:
-        raise Exception("Unable to build dimension table")
-
-
-def build_location_dimension_table(warehouse, update=False,
-                                   surrogate_key_column="id"):
-    """ Build and optionally update an example dimension table.
-    """
-    dim = DimLocation(connection=warehouse,
-                      surrogate_key_column=surrogate_key_column)
-    dim.drop()
-    sql = """\
-    CREATE TABLE dim_locations (
-        {surrogate_key_column} INT AUTO_INCREMENT COMMENT 'surrogate key',
-        code CHAR(3) COMMENT 'natural key',
-        name VARCHAR(40),
-        created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-                                 ON UPDATE CURRENT_TIMESTAMP,
-        PRIMARY KEY ({surrogate_key_column})
-    ) CHARSET=utf8
-    """.format(surrogate_key_column=surrogate_key_column)
-    if dim.build(sql):
-        if update:
-            dim.update()
-        return dim
-    else:
-        raise Exception("Unable to build dimension table")
-
-
-def build_ring_journey_fact_table(warehouse, update=False):
-    """ Build an example fact table.
-    """
-    # build_ring_dimension_table(warehouse, update=update)
-    # build_location_dimension_table(warehouse, update=update)
-    fact = FactRingJourney(connection=warehouse, base_package=BASE_PACKAGE)
-    fact.drop()
-    if fact.build():
-        if update:
-            fact.update()
-        return fact
-    else:
-        raise Exception("Unable to build fact table")
+#
+#
+# def build_ring_dimension_table(warehouse, update=False,
+#                                surrogate_key_column="id"):
+#     """ Build and optionally update an example dimension table.
+#     """
+#     dim = DimRing(connection=warehouse,
+#                   surrogate_key_column=surrogate_key_column)
+#     dim.drop()
+#     sql = """\
+#     CREATE TABLE dim_ring (
+#         {surrogate_key_column} INT AUTO_INCREMENT COMMENT 'surrogate key',
+#         name VARCHAR(40) COMMENT 'natural key',
+#         created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+#                                  ON UPDATE CURRENT_TIMESTAMP,
+#         PRIMARY KEY ({surrogate_key_column})
+#     ) CHARSET=utf8
+#     """.format(surrogate_key_column=surrogate_key_column)
+#     if dim.build(sql):
+#         if update:
+#             dim.update()
+#         return dim
+#     else:
+#         raise Exception("Unable to build dimension table")
+#
+#
+# def build_location_dimension_table(warehouse, update=False,
+#                                    surrogate_key_column="id"):
+#     """ Build and optionally update an example dimension table.
+#     """
+#     dim = DimLocation(connection=warehouse,
+#                       surrogate_key_column=surrogate_key_column)
+#     dim.drop()
+#     sql = """\
+#     CREATE TABLE dim_locations (
+#         {surrogate_key_column} INT AUTO_INCREMENT COMMENT 'surrogate key',
+#         code CHAR(3) COMMENT 'natural key',
+#         name VARCHAR(40),
+#         created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+#                                  ON UPDATE CURRENT_TIMESTAMP,
+#         PRIMARY KEY ({surrogate_key_column})
+#     ) CHARSET=utf8
+#     """.format(surrogate_key_column=surrogate_key_column)
+#     if dim.build(sql):
+#         if update:
+#             dim.update()
+#         return dim
+#     else:
+#         raise Exception("Unable to build dimension table")
+#
+#
+# def build_ring_journey_fact_table(warehouse, update=False):
+#     """ Build an example fact table.
+#     """
+#     # build_ring_dimension_table(warehouse, update=update)
+#     # build_location_dimension_table(warehouse, update=update)
+#     fact = FactRingJourney(connection=warehouse, base_package=BASE_PACKAGE)
+#     fact.drop()
+#     if fact.build():
+#         if update:
+#             fact.update()
+#         return fact
+#     else:
+#         raise Exception("Unable to build fact table")

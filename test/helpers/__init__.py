@@ -1,3 +1,5 @@
+import warnings
+
 import MySQLdb as mysql
 
 from pylytics.library import connection
@@ -27,7 +29,10 @@ def db_fixture(request, **kwargs):
     }
 
     conn = mysql.connect(host=host, user=user, passwd=passwd)
-    execute(conn, "CREATE DATABASE IF NOT EXISTS {}".format(db))
+    with warnings.catch_warnings():
+        # Hide warnings saying the database already exists
+        warnings.simplefilter("ignore")
+        execute(conn, "CREATE DATABASE IF NOT EXISTS {}".format(db))
     conn.commit()
     conn.close()
 
