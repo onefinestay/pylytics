@@ -1,47 +1,70 @@
+from mock import ANY
 import pytest
 
-from test.unit.library.conftest import RINGS_OF_POWER
+from test.unit.library.conftest import LOCATIONS, RINGS_OF_POWER
+from test.unit.library.fixtures.dim.dim_location import DimLocation
 from test.unit.library.fixtures.dim.dim_ring import DimRing
 
 
 @pytest.mark.usefixtures("middle_earth")
 class TestDimension(object):
 
+    key = "name"
+    expected_dict = dict(zip(*reversed(zip(*RINGS_OF_POWER))))
+
     @pytest.fixture
-    def ring_dimension(self, empty_warehouse, fixture_package):
+    def dimension(self, empty_warehouse, fixture_package):
         return DimRing(connection=empty_warehouse,
                        base_package=fixture_package)
 
-    def test_can_build(self, ring_dimension):
+    def test_can_build(self, dimension):
         # when
-        ring_dimension.build()
+        dimension.build()
         # then
-        assert ring_dimension.exists()
+        assert dimension.exists()
 
-    def test_can_update(self, ring_dimension):
+    def test_can_update(self, dimension):
         # given
-        ring_dimension.build()
+        dimension.build()
         # when
-        ring_dimension.update()
+        dimension.update()
         # then
-        assert ring_dimension.count() == len(RINGS_OF_POWER)
+        assert dimension.count() == len(self.expected_dict)
 
-    def test_can_get_dictionary(self, ring_dimension):
+    def test_can_get_dictionary(self, dimension):
         # given
-        ring_dimension.build()
-        ring_dimension.update()
+        dimension.build()
+        dimension.update()
         # when
-        actual = ring_dimension.get_dictionary("name")
+        actual_dict = dimension.get_dictionary(self.key)
         # then
-        expected = dict(zip(*reversed(zip(*RINGS_OF_POWER))))
-        assert expected == actual
+        assert self.expected_dict == actual_dict
 
 
 @pytest.mark.usefixtures("middle_earth")
 class TestDimensionWithAlternativeSurrogateKeyColumn(TestDimension):
 
     @pytest.fixture
-    def ring_dimension(self, empty_warehouse, fixture_package):
+    def dimension(self, empty_warehouse, fixture_package):
         return DimRing(connection=empty_warehouse,
                        base_package=fixture_package,
                        surrogate_key_column="pk")
+
+    def test_has_stored_surrogate_key_column(self, dimension):
+        assert dimension.surrogate_key_column == "pk"
+
+
+@pytest.mark.usefixtures("middle_earth")
+class TestDimensionWithMarkedNaturalKeyColumn(TestDimension):
+
+    key = "code"
+    expected_dict = dict(zip(dict(LOCATIONS).keys(), [ANY] * len(LOCATIONS)))
+
+    @pytest.fixture
+    def dimension(self, empty_warehouse, fixture_package):
+        return DimLocation(connection=empty_warehouse,
+                           base_package=fixture_package,
+                           natural_key_column=self.key)
+
+    def test_has_stored_natural_key_column(self, dimension):
+        assert dimension.natural_key_column == self.key
