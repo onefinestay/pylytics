@@ -31,16 +31,19 @@ SQLQuery = namedtuple('SQLQuery', ['query', 'values', 'many', 'get_cols'])
 
 
 class DBConnector(InjectionProvider):
+    """ Provides a centralised queue for executing sql statements over a single
+    connection (as mysqldb is not compatible with eventlet).
 
-    def __init__(self, database_key):
-        self.database_key = database_key
+    """
+
+    def __init__(self):
         self.database = None
         self.should_stop = Event()
         self.gt = None
         self.query_queue = []
 
     def prepare(self):
-        self.database = DB(self.database_key)
+        self.database = DB(settings.pylytics_db)
         self.database.connect()
 
     def start(self):
@@ -117,12 +120,24 @@ class NamekoCollectionService(object):
 
     name = 'pylytics'
 
-    stash = fact_collector('example')
+    stash = fact_collector()
 
     @rpc
     def save(self, fact_table, **values):
         """ Stashes the information provided in `values` for later processing
         into the target fact table.
+
+        Usage::
+
+            pylitics.save(
+                fact_table='fact_something_interesting',
+                dimension='foo',
+                another_dimension='bar',
+            )
+
+        :Returns:
+            Nothing
+
         """
         self.stash(fact_table, values)
 
