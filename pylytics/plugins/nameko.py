@@ -15,6 +15,7 @@ from collections import namedtuple
 import json
 import logging
 
+import eventlet
 from eventlet.event import Event
 from nameko.dependencies import injection, InjectionProvider, DependencyFactory
 from nameko.messaging import AMQP_URI_CONFIG_KEY
@@ -75,6 +76,7 @@ class DBConnector(InjectionProvider):
         """
         while not self.should_stop.ready():
             self._process_queue()
+            eventlet.wait()
 
     def acquire_injection(self, worker_ctx):
         return self.database
@@ -82,13 +84,16 @@ class DBConnector(InjectionProvider):
 
 @injection
 def db_connector(database_key):
-    DependencyFactory(DBConnector, database_key)
+    return DependencyFactory(DBConnector, database_key)
 
 
 class FactCollector(DBConnector):
 
     def enqueue(self, fact_table, values):
-        """ Stash the fact data represented by
+        """ Stash the fact data represented by the data mapped in `values`.
+
+        Serialises `values` into a JSON structure for processing into the
+        target `fact_tables` by another utility.
         """
         query = SQLQuery(
             query='INSERT INTO stash_table (fact_table, value_map) '
@@ -105,10 +110,10 @@ class FactCollector(DBConnector):
 
 @injection
 def fact_collector(database_key):
-    DependencyFactory(FactCollector, database_key)
+    return DependencyFactory(FactCollector, database_key)
 
 
-class NamekoCollector(object):
+class NamekoCollectionService(object):
 
     name = 'pylytics'
 
@@ -137,7 +142,7 @@ def run_collector():
 
     service_runner = ServiceRunner(config)
 
-    service_runner.add_service(NamekoCollector)
+    service_runner.add_service(NamekoCollectionService)
 
     service_runner.start()
     service_runner.wait()
