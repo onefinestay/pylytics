@@ -53,3 +53,21 @@ def test_db_connection(patched_db, service_container):
         )
 
         assert database.execute.call_args == expected_call
+
+
+def test_multiple_requests(patched_db, service_container):
+
+    assert patched_db.called
+    database = patched_db.return_value
+
+    assert database.connect.called
+
+    with entrypoint_hook(service_container, 'save') as save:
+
+        [save('fact_foo', foo=i) for i in xrange(10)]
+
+        with eventlet.Timeout(5):
+            while database.execute.call_count < 10:
+                pass
+
+        assert database.execute.call_count == 10
