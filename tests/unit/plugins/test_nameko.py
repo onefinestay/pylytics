@@ -64,7 +64,8 @@ def test_multiple_requests(patched_db, service_container):
 
     with entrypoint_hook(service_container, 'save') as save:
 
-        [save('fact_foo', foo=i) for i in xrange(10)]
+        for i in xrange(10):
+            save('fact_foo', foo=i)
 
         with eventlet.Timeout(5):
             while database.execute.call_count < 10:
