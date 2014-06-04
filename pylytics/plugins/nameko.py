@@ -12,10 +12,12 @@ except ImportError:
         '`pip install nameko`')
 
 from collections import namedtuple
+from datetime import datetime
 import json
 import logging
 
 from eventlet.queue import Queue
+from MySQLdb import ProgrammingError
 from nameko.dependencies import injection, InjectionProvider, DependencyFactory
 from nameko.messaging import AMQP_URI_CONFIG_KEY
 from nameko.rpc import rpc
@@ -29,6 +31,9 @@ _log = logging.getLogger(__name__)
 SQLQuery = namedtuple('SQLQuery', ['query', 'values', 'many', 'get_cols'])
 
 SHOULD_STOP = object()  # marker for gracefully stopping the DB connector
+
+
+COLLECTOR_TYPE = 'nameko'
 
 
 class DBConnector(InjectionProvider):
@@ -59,13 +64,18 @@ class DBConnector(InjectionProvider):
         self.database.close()
 
     def _execute_query(self, query):
-        self.database.execute(
-            query=query.query,
-            values=query.values,
-            many=query.many,
-            get_cols=query.get_cols,
-        )
-        self.database.commit()
+        try:
+            self.database.execute(
+                query=query.query,
+                values=query.values,
+                many=query.many,
+                get_cols=query.get_cols,
+            )
+            self.database.commit()
+        except ProgrammingError as exc:
+            _log.error(
+                'Unable to stash fact data {} MySQL exitied with error: '
+                '"{}"'.format(query, exc))
 
     def _run(self):
         """ Processes the query queue until told to stop.
@@ -100,10 +110,12 @@ class FactCollector(DBConnector):
         Serialises `values` into a JSON structure for processing into the
         target `fact_tables` by another utility.
         """
+        now = datetime.utcnow()
         query = SQLQuery(
-            query='INSERT INTO stash_table (fact_table, value_map) '
-                  'VALUES (%s, %s)',
-            values=(fact_table, json.dumps(values)),
+            query='INSERT INTO staging '
+                  '(collector_type, fact_table, value_map, created) '
+                  'VALUES (%s, %s, %s, %s)',
+            values=(COLLECTOR_TYPE, fact_table, json.dumps(values), now),
             many=False,
             get_cols=False,
         )
