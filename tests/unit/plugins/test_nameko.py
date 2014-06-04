@@ -42,7 +42,7 @@ def test_db_connection(patched_db, service_container):
         save('fact_foo', foo='bar')
 
         with eventlet.Timeout(5):
-            while database.execute.called is False:
+            while not database.execute.called:
                 pass
 
         expected_call = call(
