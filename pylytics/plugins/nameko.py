@@ -32,13 +32,13 @@ SQLQuery = namedtuple('SQLQuery', ['query', 'values', 'many', 'get_cols'])
 
 SHOULD_STOP = object()  # marker for gracefully stopping the DB connector
 
-
 COLLECTOR_TYPE = 'nameko'
 
 
-class DBConnector(InjectionProvider):
-    """ Provides a centralised queue for executing sql statements over a single
-    connection (as mysqldb is not compatible with eventlet).
+class FactCollector(InjectionProvider):
+    """ Provides a centralised queue for stashing staging data as a
+    compatibility layer between the nameko service runner and the mysql driver
+    (which isn't greenthread-safe).
 
     """
 
@@ -90,19 +90,6 @@ class DBConnector(InjectionProvider):
 
             self._execute_query(query)
             self.query_queue.task_done()
-
-    def acquire_injection(self, worker_ctx):
-        return self.query_queue
-
-
-@injection
-def db_connector():
-    """ Returns the execution queue for placing SQLQuery objects on
-    """
-    return DependencyFactory(DBConnector)
-
-
-class FactCollector(DBConnector):
 
     def enqueue(self, fact_table, values):
         """ Stash the fact data represented by the data mapped in `values`.
