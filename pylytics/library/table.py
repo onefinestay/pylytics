@@ -5,6 +5,8 @@ import sys
 import textwrap
 import warnings
 
+from MySQLdb import ProgrammingError
+
 from utils.text_conversion import camelcase_to_underscore
 from utils.terminal import print_status
 
@@ -104,7 +106,7 @@ class Table(object):
         try:
             self.connection.execute("SELECT * FROM `%s` "
                                     "LIMIT 0,0" % self.table_name)
-        except Exception as db_error:
+        except ProgrammingError as db_error:
             if 1146 in db_error.args:
                 return False
             else:
@@ -148,7 +150,10 @@ class Table(object):
             self._print_status("Cannot read SQL: {}".format(e))
             return False
 
-        # Tweak the SQL after loading it
+        # Substitute variables into the SQL before execution.
+        # TODO: Refactor this out when separation of SQL load/generate and
+        # TODO: table build has been carried out. The variant used for unit
+        # TODO: testing (with 'pk' surrogate) can then be hardcoded.
         sql = sql.format(surrogate_key_column=self.surrogate_key_column)
 
         self._print_status("Executing SQL")
