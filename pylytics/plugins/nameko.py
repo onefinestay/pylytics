@@ -15,8 +15,7 @@ from collections import namedtuple
 import json
 import logging
 
-import eventlet
-from eventlet.event import Event
+from eventlet.queue import Queue
 from nameko.dependencies import injection, InjectionProvider, DependencyFactory
 from nameko.messaging import AMQP_URI_CONFIG_KEY
 from nameko.rpc import rpc
@@ -29,6 +28,8 @@ _log = logging.getLogger(__name__)
 
 SQLQuery = namedtuple('SQLQuery', ['query', 'values', 'many', 'get_cols'])
 
+SHOULD_STOP = object()  # marker for gracefully stopping the DB connector
+
 
 class DBConnector(InjectionProvider):
     """ Provides a centralised queue for executing sql statements over a single
@@ -38,9 +39,8 @@ class DBConnector(InjectionProvider):
 
     def __init__(self):
         self.database = None
-        self.should_stop = Event()
         self.gt = None
-        self.query_queue = []
+        self.query_queue = Queue()
 
     def prepare(self):
         self.database = DB(settings.pylytics_db)
@@ -50,7 +50,7 @@ class DBConnector(InjectionProvider):
         self.gt = self.container.spawn_managed_thread(self._run)
 
     def stop(self):
-        self.should_stop.send(True)
+        self.query_queue.put(SHOULD_STOP)
         self.gt.wait()
         self.database.close()
 
@@ -58,11 +58,7 @@ class DBConnector(InjectionProvider):
         self.gt.kill()
         self.database.close()
 
-    def _process_queue(self):
-        if not self.query_queue:
-            return
-
-        query = self.query_queue.pop(0)
+    def _execute_query(self, query):
         self.database.execute(
             query=query.query,
             values=query.values,
@@ -77,17 +73,23 @@ class DBConnector(InjectionProvider):
         This should not be called directly, rather the `start()` method
         should be used.
         """
-        while not self.should_stop.ready():
-            self._process_queue()
-            eventlet.sleep()
+        while True:
+            query = self.query_queue.get()  # blocks until an item is available
+            if query is SHOULD_STOP:
+                break
+
+            self._execute_query(query)
+            self.query_queue.task_done()
 
     def acquire_injection(self, worker_ctx):
-        return self.database
+        return self.query_queue
 
 
 @injection
-def db_connector(database_key):
-    return DependencyFactory(DBConnector, database_key)
+def db_connector():
+    """ Returns the execution queue for placing SQLQuery objects on
+    """
+    return DependencyFactory(DBConnector)
 
 
 class FactCollector(DBConnector):
@@ -105,15 +107,15 @@ class FactCollector(DBConnector):
             many=False,
             get_cols=False,
         )
-        self.query_queue.append(query)
+        self.query_queue.put(query)
 
     def acquire_injection(self, worker_ctx):
         return self.enqueue
 
 
 @injection
-def fact_collector(database_key):
-    return DependencyFactory(FactCollector, database_key)
+def fact_collector():
+    return DependencyFactory(FactCollector)
 
 
 class NamekoCollectionService(object):
