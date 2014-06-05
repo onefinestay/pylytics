@@ -2,7 +2,6 @@ import datetime
 from importlib import import_module
 import os
 import sys
-import textwrap
 import warnings
 
 from MySQLdb import ProgrammingError
@@ -48,7 +47,7 @@ class Table(object):
 
         """
         return " ".join(['%s,' for i in range(length)])[:-1]
-    
+
     @property
     def frequency(self):
         """
@@ -123,11 +122,10 @@ class Table(object):
     def build(self):
         """ Build the table using SQL from a file.
         """
-        
         # Status.
         msg = "Building %s on %s" % (self.table_name, self.connection.database)
         self._print_status(msg)
-        
+
         # Build the table only if it doesn't already exist.
         if self.exists():
             self._print_status("Table already exists - {0} on {1}".format(

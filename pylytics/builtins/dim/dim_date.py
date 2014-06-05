@@ -24,7 +24,7 @@ class DimDate(Dim):
         # Get the last inserted date
         cur_date = self.connection.execute(
             "SELECT MAX(`date`) FROM `{}`".format(self.table_name))[0][0]
-        
+
         if cur_date == None:
             # Build history.
             cur_date = START_DATE

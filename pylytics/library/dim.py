@@ -11,12 +11,12 @@ class Dim(Table):
 
     def get_dictionary(self, field_name):
         """
-        Returns a dictionary of the dimension.
+        Returns a mapping of field values to their id.
 
         For example:
         {
-            'field value 1':id1
-            'field value 2':id2
+            'field value 1': id_1,
+            'field value 2': id_2,
             ...
         }
 
@@ -43,7 +43,7 @@ class Dim(Table):
 
         Example usage for a dimension table like (id, name, attrib, created):
         > _transform_tuple(('name_val_in', 'attrib_val_in', 'unused value'))
-        Returns :
+        Returns:
         > ('name_val_out', 'attrib_val_out')
 
         """
@@ -63,12 +63,10 @@ class Dim(Table):
         # Update the dim table.
         for row in data:
             destination_tuple = self._transform_tuple(row)
-            self.connection.execute(
-                """INSERT IGNORE INTO `%s` VALUES (NULL, %s, NULL)""" % (
-                    self.table_name,
-                    self._values_placeholder(len(destination_tuple))
-                    ),
-                destination_tuple
+            query = "INSERT IGNORE INTO `{}` VALUES (NULL, {}, NULL)".format(
+                self.table_name,
+                self._values_placeholder(len(destination_tuple)),
                 )
+            self.connection.execute(query, destination_tuple)
 
         self.connection.commit()
