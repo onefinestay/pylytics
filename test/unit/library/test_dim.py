@@ -31,6 +31,14 @@ class TestDimension(object):
         # then
         assert dimension.count() == len(self.expected_dict)
 
+    def test_can_drop(self, dimension):
+        # given
+        dimension.build()
+        # when
+        dimension.drop()
+        # then
+        assert not dimension.exists()
+
     def test_can_get_dictionary(self, dimension):
         # given
         dimension.build()
