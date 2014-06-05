@@ -29,9 +29,6 @@ class Fact(Table):
         self.dim_modules = []
         self.types = self.types if hasattr(self, 'types') else None
 
-        self.output_data = None
-        self.output_cols_names = None
-        self.output_cols_types = None
         self.dim_dict = None
         if not hasattr(self, 'dim_links'):
             self.dim_links = self.dim_names
@@ -61,14 +58,6 @@ class Fact(Table):
         Returns :
         > ('name_val_out', 'attrib_val_out')
         
-        """
-        """
-        result = []
-        for value in src_tuple:
-            if type(value) == datetime.datetime:
-                result.append(value.date())
-            else:
-                result.append(value)
         """
         return src_tuple
     
@@ -140,26 +129,28 @@ class Fact(Table):
             dim_class.build()
             dim_class.update()
 
-    def _auto_build(self):
+    def _auto_build(self, data):
         """ Auto-generate the structure and build the table (used if no SQL
         file exists).
         """
         self._print_status("Building table from auto-generated DDL")
-        self.output_cols_types.update({d:'INT(11)' for d in self.dim_names})
+        column_types = dict(data.column_types,
+                            **{name: 'INT(11)' for name in self.dim_names})
         sql = SQLBuilder(
             table_name=self.table_name,
-            cols_names=self.output_cols_names,
-            cols_types=self.output_cols_types,
+            cols_names=data.column_names,
+            cols_types=column_types,
             unique_key=self.dim_names,
-            foreign_keys=zip(self.dim_names,self.dim_links)
+            foreign_keys=zip(self.dim_names, self.dim_links)
         ).query
         self.connection.execute(sql)
         self._print_status("Table successfully built")
 
     def _get_cols_from_sql(self):
         try:
-            cols_names = self.connection.execute("SELECT * FROM `%s` LIMIT 0,0" % self.table_name,
-                                           get_cols=True)[1]
+            cols_names = self.connection.execute(
+                "SELECT * FROM `%s` LIMIT 0,0" % self.table_name,
+                get_cols=True)[1]
             return filter(lambda x : x not in [self.surrogate_key_column,'created'], cols_names)
         except Exception, e:
             if 1146 not in e.args:
@@ -177,18 +168,18 @@ class Fact(Table):
                 query = self.historical_source_query.format(index)
         return query
     
-    def _generate_dim_dict(self):
-        self.dim_dict = {i:d for i,d in enumerate(self.output_cols_names) if d in self.dim_names}
+    def _generate_dim_dict(self, data):
+        self.dim_dict = {i: column_name
+                         for i, column_name in enumerate(data.column_names)
+                         if column_name in self.dim_names}
     
     def _fetch_from_source(self, historical=False, index=0):
+        """ Get, joins and group the source data for this table. The data is
+        returned as a `SourceData` instance that contains `column_names`,
+        `column_types` and `rows`.
         """
-        Gets, joins and groups the data.
-        Outputs the result into 'self.output_cols_names',
-        'self.output_cols_types' and 'self.output_data'
-        
-        """
-        # Status.
-        self._print_status("Updating {}".format(self.table_name))
+        self._print_status("Fetching data from source "
+                           "database for {}".format(self.table_name))
         
         # Initializing the table builder
         tb = TableBuilder(
@@ -210,26 +201,19 @@ class Fact(Table):
                 tb.add_source(name=extra_query, **query_dict)
         tb.join()
 
-        data = SourceData()
-        data.column_types = tb.result_cols_types
-        # TODO: remove
-        self.output_cols_types = tb.result_cols_types
+        data = SourceData(column_types=tb.result_cols_types)
         
         # Grouping by if required
-        if hasattr(self, 'group_by'):
+        try:
             group_by = self.group_by
-            gb = GroupBy(tb.result, group_by, cols=tb.result_cols_names, dims=self.dim_names)
-            data.column_names = gb.output_cols
-            data.rows = gb.process()
-            # TODO: remove
-            self.output_cols_names = gb.output_cols
-            self.output_data = gb.process()
-        else:
+        except AttributeError:
             data.column_names = tb.result_cols_names
             data.rows = tb.result
-            # TODO: remove
-            self.output_cols_names = tb.result_cols_names
-            self.output_data = tb.result
+        else:
+            gb = GroupBy(tb.result, group_by,
+                         cols=tb.result_cols_names, dims=self.dim_names)
+            data.column_names = gb.output_cols
+            data.rows = gb.process()
 
         return data
 
@@ -242,7 +226,7 @@ class Fact(Table):
         success_count = 0
 
         self._import_dimensions()
-        self._generate_dim_dict()
+        self._generate_dim_dict(data)
 
         for row in data.rows:
             destination_tuple, not_matching = self._map_tuple(self._transform_tuple(row))
@@ -275,10 +259,10 @@ class Fact(Table):
     def build(self, sql=None):
         """ Ensure the table is built.
         """
-        self._fetch_from_source()
+        data = self._fetch_from_source()
         self._build_dimensions()
-        if not Table.build(self):
-            self._auto_build()
+        if not Table.build(self, sql):
+            self._auto_build(data)
         
     def update(self):
         """ Update the fact table with the newest rows, first building the
@@ -287,7 +271,7 @@ class Fact(Table):
         data = self._fetch_from_source()
         self._build_dimensions()
         if not Table.build(self):
-            self._auto_build()
+            self._auto_build(data)
         self._insert(data)
 
     def historical(self):

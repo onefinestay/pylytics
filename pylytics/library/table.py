@@ -147,6 +147,17 @@ class Table(object):
         return self.connection.execute("SELECT COUNT(*) "
                                        "FROM `%s`" % self.table_name)[0][0]
 
+    def primary_key(self):
+        """ Fetch the name of the primary key column for this table.
+        """
+        statement = ("SHOW INDEXES FROM `{}` "
+                     "WHERE Key_name = 'PRIMARY'".format(self.table_name))
+        rows, columns, _ = self.connection.execute(statement, get_cols=True)
+        if rows:
+            return rows[0][columns.index("Column_name")]
+        else:
+            return None
+
     def build(self, sql=None):
         """ Ensure the table is built, attempting to create it if necessary.
 
@@ -169,12 +180,6 @@ class Table(object):
                 sql = self.load_ddl()
             except IOError:
                 return False
-
-        # Substitute variables into the SQL before execution.
-        # TODO: Refactor this out when separation of SQL load/generate and
-        # TODO: table build has been carried out. The variant used for unit
-        # TODO: testing (with 'pk' surrogate) can then be hardcoded.
-        sql = sql.format(surrogate_key_column=self.surrogate_key_column)
 
         self._print_status("Executing SQL")
         try:
@@ -225,7 +230,7 @@ class Table(object):
 
 class SourceData(object):
 
-    def __init__(self, rows=None):
-        self.column_names = None
-        self.column_types = None
-        self.rows = rows
+    def __init__(self, **kwargs):
+        self.column_names = kwargs.get("column_names")
+        self.column_types = kwargs.get("column_types")
+        self.rows = kwargs.get("rows")
