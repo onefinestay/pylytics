@@ -5,7 +5,7 @@ import sys
 import textwrap
 import warnings
 
-from MySQLdb import ProgrammingError
+from MySQLdb import IntegrityError, ProgrammingError
 
 from utils.text_conversion import camelcase_to_underscore
 from utils.terminal import print_status
@@ -17,6 +17,8 @@ class Table(object):
     base_package = None
     surrogate_key_column = "id"
     natural_key_column = None
+    source_db = None
+    source_query = None
 
     def __init__(self, *args, **kwargs):
         if 'connection' in kwargs:
@@ -30,6 +32,31 @@ class Table(object):
             self.surrogate_key_column = kwargs["surrogate_key_column"]
         if "natural_key_column" in kwargs:
             self.natural_key_column = kwargs["natural_key_column"]
+
+    @property
+    def ddl_file_path(self):
+        """ The expected absolute file path of the SQL file containing the
+        CREATE TABLE statement for this table.
+        """
+        parts = [self.dim_or_fact, 'sql', "%s.sql" % self.table_name]
+        if self.base_package:
+            module = import_module("test.unit.library.fixtures")
+            parts.insert(0, os.path.dirname(module.__file__))
+        return os.path.join(*parts)
+
+    def load_ddl(self):
+        """ Load DDL from SQL file associated with this table.
+        """
+        path = self.ddl_file_path
+        self._print_status("Loading SQL from {}".format(path))
+        try:
+            with open(path) as f:
+                sql = f.read()
+        except IOError as error:
+            self._print_status("Unable to load DDL from file {}".format(error))
+            raise
+        else:
+            return sql.strip()
 
     @classmethod
     def _print_status(cls, message, **kwargs):
@@ -85,7 +112,7 @@ class Table(object):
                 """ % query
         try:
             self.connection.execute(query)
-        except MySQLdb.IntegrityError:
+        except IntegrityError:
             self._print_status("Table could not be deleted due to foreign "
                                "key constraints. Try removing the fact "
                                "tables first.")
@@ -95,7 +122,7 @@ class Table(object):
             query = 'DROP VIEW IF EXISTS `vw_%s' % self.table_name
             try:
                 self.connection.execute(query)
-            except MySQLdb.IntegrityError:
+            except IntegrityError:
                 self._print_status("Unable to drop view for %s" % (
                                                             self.table_name))
 
@@ -120,35 +147,28 @@ class Table(object):
         return self.connection.execute("SELECT COUNT(*) "
                                        "FROM `%s`" % self.table_name)[0][0]
 
-    def build(self):
-        """ Build the table using SQL from a file.
+    def build(self, sql=None):
+        """ Ensure the table is built, attempting to create it if necessary.
+
+        Returns: `True` if the table already existed or was successfully
+                 built, `False` otherwise.
+
         """
+        self._print_status("Ensuring table is built `{}`.`{}`".format(
+            self.connection.database, self.table_name))
         
-        # Status.
-        msg = "Building %s on %s" % (self.table_name, self.connection.database)
-        self._print_status(msg)
-        
-        # Build the table only if it doesn't already exist.
+        # If the table already exists, exit as successful.
         if self.exists():
             self._print_status("Table already exists - {0} on {1}".format(
                                self.table_name, self.connection.database))
             return True
 
-        # Derive the SQL file name
-        parts = [self.dim_or_fact, 'sql', "%s.sql" % self.table_name]
-        if self.base_package:
-            module = import_module("test.unit.library.fixtures")
-            parts.insert(0, os.path.dirname(module.__file__))
-        file_name = os.path.join(*parts)
-
-        # Read the sql file.
-        self._print_status("Reading SQL")
-        try:
-            with open(file_name) as sql_file:
-                sql = sql_file.read().strip()
-        except Exception as e:
-            self._print_status("Cannot read SQL: {}".format(e))
-            return False
+        # Load SQL from file if none is supplied.
+        if sql is None:
+            try:
+                sql = self.load_ddl()
+            except IOError:
+                return False
 
         # Substitute variables into the SQL before execution.
         # TODO: Refactor this out when separation of SQL load/generate and
@@ -160,12 +180,52 @@ class Table(object):
         try:
             self.connection.execute(sql)
         except Exception as e:
-            self._print_status("Cannot execute SQL: {}".format(e))
+            self._print_status("SQL execution error: {}".format(e))
             self.connection.rollback()
             return False
         else:
-            self._print_status('Table built.')
             self.connection.commit()
+            self._print_status("Table successfully built")
+            return True
 
-        # Table successfully built: return True.
-        return True
+    def _fetch_from_source(self):
+        """ Fetch data from a SQL data source as described by the `source_db`
+        and `source_query` attributes. Should return a `SourceData` instance.
+        """
+        raise NotImplementedError("Cannot fetch rows from source database")
+
+    def _fetch_from_staging(self):
+        """ Fetch data from staging table and inflate it ready for insertion.
+        Should return a `SourceData` instance.
+        """
+        raise NotImplementedError("Cannot fetch rows from staging table")
+
+    def _insert(self, data):
+        """ Insert rows from the supplied `SourceData` instance into the table.
+        """
+        raise NotImplementedError("Cannot insert rows into table")
+
+    def update(self):
+        """ Update the table by fetching data from its designated origin and
+        inserting it into the table.
+        """
+        self._print_status("Updating table {}".format(self.table_name))
+        # Fetch data
+        if self.source_db == "__staging__":
+            rows = self._fetch_from_staging()
+        else:
+            rows = self._fetch_from_source()
+        # Insert data
+        if rows:
+            self._insert(rows)
+        else:
+            self._print_status("Nothing to insert")
+        self._print_status("Table updated")
+
+
+class SourceData(object):
+
+    def __init__(self, rows=None):
+        self.column_names = None
+        self.column_types = None
+        self.rows = rows

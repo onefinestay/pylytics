@@ -1,5 +1,5 @@
 from connection import DB
-from table import Table
+from table import Table, SourceData
 
 
 class Dim(Table):
@@ -49,26 +49,26 @@ class Dim(Table):
         """
         return src_tuple
 
-    def update(self):
-        """Updates the dimension table."""
-        # Status.
-        msg = "Populating %s" % self.table_name
-        self._print_status(msg)
-
-        # Get the full source list.
-        data = []
+    def _fetch_from_source(self):
+        """ Fetch data from a SQL data source as described by the `source_db`
+        and `source_query` attributes.
+        """
+        self._print_status("Fetching from {}".format(self.source_db))
         with DB(self.source_db) as database:
-            data = database.execute(self.source_query)
+            return SourceData(rows=database.execute(self.source_query))
 
-        # Update the dim table.
-        for row in data:
+    def _insert(self, data):
+        """ Insert rows from the supplied `SourceData` instance into the table.
+        """
+        self._print_status("Inserting into {}".format(self.table_name))
+        assert isinstance(data, SourceData), "Expected SourceData instance"
+
+        connection = self.connection
+        insert_statement = ("INSERT IGNORE INTO `{table}` "
+                            "VALUES (NULL, {values}, NULL)")
+        for row in data.rows:
             destination_tuple = self._transform_tuple(row)
-            self.connection.execute(
-                """INSERT IGNORE INTO `%s` VALUES (NULL, %s, NULL)""" % (
-                    self.table_name,
-                    self._values_placeholder(len(destination_tuple))
-                    ),
-                destination_tuple
-                )
-
-        self.connection.commit()
+            values = self._values_placeholder(len(destination_tuple))
+            connection.execute(insert_statement.format(
+                table=self.table_name, values=values), destination_tuple)
+        connection.commit()

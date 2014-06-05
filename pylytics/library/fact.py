@@ -7,7 +7,7 @@ from connection import DB
 from group_by import GroupBy
 from join import TableBuilder
 from main import get_class
-from table import Table
+from table import Table, SourceData
 
 
 class Fact(Table):
@@ -133,34 +133,29 @@ class Fact(Table):
 
         return (tuple(result), error)
 
-    def _build(self):
-        """
-        Build and populate the dimensions required, and build the fact table
-        (from .sql file if exists, from auto-generated structure if not).
-        
+    def _build_dimensions(self):
+        """ Build (and update) the dimension tables related to this fact.
         """
         for dim_class in self.dim_classes:
             dim_class.build()
             dim_class.update()
-           
-        table_built = super(Fact, self).build()
-        
-        if not table_built:
-            # If the .sql file doesn't exist, auto-generate the structure and
-            # build the table.
-            self.output_cols_types.update({d:'INT(11)' for d in self.dim_names})
-            
-            sql = SQLBuilder(
-                table_name=self.table_name,
-                cols_names=self.output_cols_names,
-                cols_types=self.output_cols_types,
-                unique_key=self.dim_names, 
-                foreign_keys=zip(self.dim_names,self.dim_links)
-                ).query
-            self.connection.execute(sql)
-            
-            self._print_status('Table built.')
-            
+
+    def _auto_build(self):
+        """ Auto-generate the structure and build the table (used if no SQL
+        file exists).
+        """
+        self._print_status("Building table from auto-generated DDL")
+        self.output_cols_types.update({d:'INT(11)' for d in self.dim_names})
+        sql = SQLBuilder(
+            table_name=self.table_name,
+            cols_names=self.output_cols_names,
+            cols_types=self.output_cols_types,
+            unique_key=self.dim_names,
+            foreign_keys=zip(self.dim_names,self.dim_links)
+        ).query
+        self.connection.execute(sql)
+        self._print_status("Table successfully built")
+
     def _get_cols_from_sql(self):
         try:
             cols_names = self.connection.execute("SELECT * FROM `%s` LIMIT 0,0" % self.table_name,
@@ -185,7 +180,7 @@ class Fact(Table):
     def _generate_dim_dict(self):
         self.dim_dict = {i:d for i,d in enumerate(self.output_cols_names) if d in self.dim_names}
     
-    def _process_data(self, historical=False, index=0):
+    def _fetch_from_source(self, historical=False, index=0):
         """
         Gets, joins and groups the data.
         Outputs the result into 'self.output_cols_names',
@@ -214,27 +209,42 @@ class Fact(Table):
             for (extra_query, query_dict) in self.extra_queries.items():
                 tb.add_source(name=extra_query, **query_dict)
         tb.join()
+
+        data = SourceData()
+        data.column_types = tb.result_cols_types
+        # TODO: remove
         self.output_cols_types = tb.result_cols_types
         
         # Grouping by if required
         if hasattr(self, 'group_by'):
             group_by = self.group_by
             gb = GroupBy(tb.result, group_by, cols=tb.result_cols_names, dims=self.dim_names)
+            data.column_names = gb.output_cols
+            data.rows = gb.process()
+            # TODO: remove
             self.output_cols_names = gb.output_cols
             self.output_data = gb.process()
         else:
+            data.column_names = tb.result_cols_names
+            data.rows = tb.result
+            # TODO: remove
             self.output_cols_names = tb.result_cols_names
             self.output_data = tb.result
-           
-    def _insert_rows(self):
+
+        return data
+
+    def _insert(self, data):
+        self._print_status("Inserting into {}".format(self.table_name))
+        assert isinstance(data, SourceData), "Expected SourceData instance"
+
         not_matching_count = 0
         error_count = 0
         success_count = 0
-        
+
         self._import_dimensions()
         self._generate_dim_dict()
 
-        for row in self.output_data:
+        for row in data.rows:
             destination_tuple, not_matching = self._map_tuple(self._transform_tuple(row))
 
             try:
@@ -262,22 +272,23 @@ class Fact(Table):
                                             error_count)
         self._print_status(msg, format='green')
         
-    def build(self):
+    def build(self, sql=None):
+        """ Ensure the table is built.
         """
-        Build only (without updating)
-        
-        """
-        self._process_data()
-        self._build()
+        self._fetch_from_source()
+        self._build_dimensions()
+        if not Table.build(self):
+            self._auto_build()
         
     def update(self):
+        """ Update the fact table with the newest rows, first building the
+        table if it doesn't already exist.
         """
-        Updates the fact table with the newest rows.
-        
-        """
-        self._process_data(historical=False, index=0)
-        self._build() 
-        self._insert_rows()
+        data = self._fetch_from_source()
+        self._build_dimensions()
+        if not Table.build(self):
+            self._auto_build()
+        self._insert(data)
 
     def historical(self):
         """
@@ -288,8 +299,8 @@ class Fact(Table):
         self.update()
 
         for i in xrange(1, self.historical_iterations):
-            self._process_data(historical=True, index=i)
-            self._insert_rows()
+            data = self._fetch_from_source(historical=True, index=i)
+            self._insert(data)
 
     @classmethod
     def public_methods(self):
