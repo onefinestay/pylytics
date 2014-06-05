@@ -217,6 +217,14 @@ class Fact(Table):
 
         return data
 
+    def _fetch_from_staging(self):
+        """ Fetch data from staging table and inflate it ready for insertion.
+        Should return a `SourceData` instance or raise a RuntimeError if the
+        staging table cannot be found.
+        """
+        self.connection.execute("SELECT * FROM staging "
+                                "WHERE fact_table_name = %s")
+
     def _insert(self, data):
         self._print_status("Inserting into {}".format(self.table_name))
         assert isinstance(data, SourceData), "Expected SourceData instance"

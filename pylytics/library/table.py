@@ -11,6 +11,9 @@ from utils.text_conversion import camelcase_to_underscore
 from utils.terminal import print_status
 
 
+STAGING = "__staging__"
+
+
 class Table(object):
     """Base class."""
 
@@ -216,7 +219,7 @@ class Table(object):
         """
         self._print_status("Updating table {}".format(self.table_name))
         # Fetch data
-        if self.source_db == "__staging__":
+        if self.source_db == STAGING:
             rows = self._fetch_from_staging()
         else:
             rows = self._fetch_from_source()
