@@ -107,20 +107,20 @@ class Fact(Table):
         result = []
         error = False
         
-        for i,value in enumerate(src_tuple):
+        for i, value in enumerate(src_tuple):
             if i in self.dim_dict:
                 dim_name = self.dim_dict[i]
                 try:
                     result.append(self.dim_map[dim_name][value])
                     error = False
-                except:
+                except:  # TODO: clarify an exception type here
                     result.append(None)
                     error = True
             else:
                 result.append(value)
                 error = False
 
-        return (tuple(result), error)
+        return tuple(result), error
 
     def _build_dimensions(self):
         """ Build (and update) the dimension tables related to this fact.
@@ -151,9 +151,9 @@ class Fact(Table):
             cols_names = self.connection.execute(
                 "SELECT * FROM `%s` LIMIT 0,0" % self.table_name,
                 get_cols=True)[1]
-            return filter(lambda x : x not in [self.surrogate_key_column,'created'], cols_names)
-        except Exception, e:
-            if 1146 not in e.args:
+            return filter(lambda x: x not in [self.surrogate_key_column,'created'], cols_names)
+        except Exception as error:
+            if 1146 not in error.args:
                 # If an error other than "table doesn't exists" happens
                 raise
 

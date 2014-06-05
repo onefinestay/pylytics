@@ -22,6 +22,14 @@ RINGS_OF_POWER = [
     (4, 'Vilna'),
 ]
 
+JOURNEY = [
+    (1, 'One Ring', 'HOB'),
+    (2, 'One Ring', 'RIV'),
+    (3, 'One Ring', 'MRA'),
+    (4, 'One Ring', 'MDR'),
+    (5, 'One Ring', 'MTD'),
+]
+
 
 @pytest.fixture(scope="session")
 def fixture_package():
@@ -79,12 +87,8 @@ def middle_earth(request, local_mysql_credentials):
     db.commit()
     db.execute("""\
     INSERT INTO ring_journey (id, ring_name, checkpoint)
-    VALUES (1, 'One Ring', 'HOB'),
-           (2, 'One Ring', 'RIV'),
-           (3, 'One Ring', 'MRA'),
-           (4, 'One Ring', 'MDR'),
-           (5, 'One Ring', 'MTD')
-    """)
+    VALUES {}
+    """.format(", ".join(map(repr, JOURNEY))))
     db.commit()
 
     return db

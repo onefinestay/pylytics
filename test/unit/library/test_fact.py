@@ -1,4 +1,6 @@
+from mock import ANY
 import pytest
+from test.unit.library.conftest import LOCATIONS, RINGS_OF_POWER, JOURNEY
 
 from test.unit.library.fixtures.fact.fact_ring_journey import FactRingJourney
 
@@ -19,3 +21,10 @@ class TestFact(object):
         fact_ring_journey.build()
         # then
         assert fact_ring_journey.exists()
+
+    def test_can_update(self, fact_ring_journey):
+        # when
+        fact_ring_journey.update()
+        # then
+        assert fact_ring_journey.exists()
+        assert fact_ring_journey.count() == len(JOURNEY)
