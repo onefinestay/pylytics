@@ -158,14 +158,12 @@ class Fact(Table):
     def _get_cols_from_sql(self):
         query = "SELECT * FROM `{}` LIMIT 0,0".format(self.table_name)
         try:
-            cols_names = self.connection.execute("SELECT * FROM `%s` LIMIT 0,0" % self.table_name,
-                                           get_cols=True)[1]
-            return filter(lambda x: x not in [self.surrogate_key_column, 'created'], cols_names)
+            cols_names = self.connection.execute(query, get_cols=True)[1]
+            return filter(lambda x : x not in [self.surrogate_key_column,'created'], cols_names)
         except Exception, e:
             if 1146 not in e.args:
                 # If an error other than "table doesn't exists" happens
                 raise
-        return filter(lambda x: x not in ['id', 'created'], cols_names)
 
     def _get_query(self, historical, index):
         if not historical:

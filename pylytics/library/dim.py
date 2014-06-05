@@ -67,4 +67,6 @@ class Dim(Table):
                 self.table_name,
                 self._values_placeholder(len(destination_tuple)),
                 )
+            self.connection.execute(query, destination_tuple)
+
         self.connection.commit()
