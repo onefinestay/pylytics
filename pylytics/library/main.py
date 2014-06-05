@@ -19,7 +19,7 @@ def all_facts():
     return facts
 
 
-def get_class(module_name, dimension=False):
+def get_class(module_name, dimension=False, package=None):
     """
     Effectively does this:
     from fact/fact_count_all_the_sales import FactCountAllTheSales
@@ -31,13 +31,14 @@ def get_class(module_name, dimension=False):
     If dimension is True then it searches for a dimension instead.
 
     """
-    if dimension:
-        dim_or_fact = 'dim'
-    else:
-        dim_or_fact = 'fact'
+    module_name_parts = []
+    if package:
+        module_name_parts.append(package)
+    module_name_parts.append("dim" if dimension else "fact")
+    module_name_parts.append(module_name)
+    qualified_module_name = ".".join(module_name_parts)
 
-    module = importlib.import_module(
-        '{0}.{1}'.format(dim_or_fact, module_name))
+    module = importlib.import_module(qualified_module_name)
     class_name = underscore_to_camelcase(module_name)
     my_class = getattr(module, class_name)
     return my_class

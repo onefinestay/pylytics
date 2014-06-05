@@ -21,6 +21,7 @@ class Fact(Table):
     exit_scripts={}
 
     def __init__(self, *args, **kwargs):
+        super(Fact, self).__init__(*args, **kwargs)
         self.dim_or_fact = 'fact'
 
         self.dim_classes = []
@@ -35,10 +36,10 @@ class Fact(Table):
         if not hasattr(self, 'dim_links'):
             self.dim_links = self.dim_names
 
-        super(Fact, self).__init__(*args, **kwargs)
-
-        self.dim_classes = [get_class(dim_link, dimension=True)(
-            connection=self.connection) for dim_link in self.dim_links]
+        self.dim_classes = [
+            get_class(dim_link, dimension=True, package=self.base_package)(connection=self.connection, base_package=self.base_package)
+            for dim_link in self.dim_links
+        ]
         self.input_cols_names = self._get_cols_from_sql()
 
     def _transform_tuple(self, src_tuple):
@@ -157,7 +158,9 @@ class Fact(Table):
     def _get_cols_from_sql(self):
         query = "SELECT * FROM `{}` LIMIT 0,0".format(self.table_name)
         try:
-            cols_names = self.connection.execute(query, get_cols=True)[1]
+            cols_names = self.connection.execute("SELECT * FROM `%s` LIMIT 0,0" % self.table_name,
+                                           get_cols=True)[1]
+            return filter(lambda x: x not in [self.surrogate_key_column, 'created'], cols_names)
         except Exception, e:
             if 1146 not in e.args:
                 # If an error other than "table doesn't exists" happens

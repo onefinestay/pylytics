@@ -6,8 +6,8 @@ class Dim(Table):
     """Dimension base class."""
 
     def __init__(self, *args, **kwargs):
-        self.dim_or_fact = 'dim'
         super(Dim, self).__init__(*args, **kwargs)
+        self.dim_or_fact = 'dim'
 
     def get_dictionary(self, field_name):
         """
@@ -21,10 +21,13 @@ class Dim(Table):
         }
 
         """
-        query = "SELECT `{}`, id FROM `{}` order by id asc".format(
-            field_name, self.table_name)
-        data = self.connection.execute(query)
-        return dict(data)
+        sql = """\
+        SELECT {field_name}, {surrogate_key_column}
+        FROM {table_name}
+        ORDER BY {surrogate_key_column}
+        """.format(field_name=field_name, table_name=self.table_name,
+                   surrogate_key_column=self.surrogate_key_column)
+        return dict(self.connection.execute(sql))
 
     def _transform_tuple(self, src_tuple):
         """
@@ -64,4 +67,4 @@ class Dim(Table):
                 self.table_name,
                 self._values_placeholder(len(destination_tuple)),
                 )
-            self.connection.execute(query, destination_tuple)
+        self.connection.commit()
