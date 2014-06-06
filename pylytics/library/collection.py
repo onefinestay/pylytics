@@ -3,7 +3,7 @@ CREATE TABLE `staging` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `collector_type` varchar(127) NOT NULL,
   `fact_table` varchar(255) NOT NULL,
-  `value_map` text,
+  `value_map` text NOT NULL,
   `created` datetime NOT NULL,
   PRIMARY KEY (`id`),
   KEY `collector_type` (`collector_type`),
