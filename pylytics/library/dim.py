@@ -6,29 +6,28 @@ class Dim(Table):
     """Dimension base class."""
 
     def __init__(self, *args, **kwargs):
-        self.dim_or_fact = 'dim'
         super(Dim, self).__init__(*args, **kwargs)
+        self.dim_or_fact = 'dim'
 
     def get_dictionary(self, field_name):
         """
-        Returns a dictionary of the dimension.
+        Returns a mapping of field values to their id.
 
         For example:
         {
-            'field value 1':id1
-            'field value 2':id2
+            'field value 1': id_1,
+            'field value 2': id_2,
             ...
         }
 
         """
-        dictionary = {}
-        data = self.connection.execute(
-            "SELECT `%s`, id FROM `%s` order by id asc;" % (field_name, self.table_name)
-            )
-        for element in data:
-            dictionary[element[0]] = element[1]
-
-        return dictionary
+        sql = """\
+        SELECT {field_name}, {surrogate_key_column}
+        FROM {table_name}
+        ORDER BY {surrogate_key_column}
+        """.format(field_name=field_name, table_name=self.table_name,
+                   surrogate_key_column=self.surrogate_key_column)
+        return dict(self.connection.execute(sql))
 
     def _transform_tuple(self, src_tuple):
         """
@@ -37,14 +36,14 @@ class Dim(Table):
         table to insert.
         NB: - This function should be implemented when extending the dim
               object.
-            - The columns in the retured tuple must be in the same order as in
+            - The columns in the returned tuple must be in the same order as in
               the dimension table.
             - The first field (auto_increment `id`) and the last field
               (`created` automatic timestamp) must be omitted in the result.
 
         Example usage for a dimension table like (id, name, attrib, created):
         > _transform_tuple(('name_val_in', 'attrib_val_in', 'unused value'))
-        Returns :
+        Returns:
         > ('name_val_out', 'attrib_val_out')
 
         """
@@ -64,10 +63,10 @@ class Dim(Table):
         # Update the dim table.
         for row in data:
             destination_tuple = self._transform_tuple(row)
-            self.connection.execute(
-                """INSERT IGNORE INTO `%s` VALUES (NULL, %s, NULL)""" % (
-                    self.table_name,
-                    self._values_placeholder(len(destination_tuple))
-                    ),
-                destination_tuple
+            query = "INSERT IGNORE INTO `{}` VALUES (NULL, {}, NULL)".format(
+                self.table_name,
+                self._values_placeholder(len(destination_tuple)),
                 )
+            self.connection.execute(query, destination_tuple)
+
+        self.connection.commit()

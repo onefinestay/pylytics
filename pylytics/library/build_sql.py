@@ -10,6 +10,7 @@ class SQLBuilder(object):
     A class to easily generate a MySQL CREATE query, knowing the columns names,
     types, unique key and foreign key contraints.
     """
+
     def __init__(self, table_name, cols_names, cols_types, unique_key=None,
                  foreign_keys=None, keys=None):
         self.table_name = table_name
@@ -37,11 +38,11 @@ class SQLBuilder(object):
 
         template = Template(template_contents, trim_blocks=True)
 
-        rendered_template =  template.render(
-            table_name = self.table_name,
-            columns = columns,
-            unique_key = self.unique_key,
-            foreign_keys = self.foreign_keys,
-            keys = self.keys)
+        rendered_template = template.render(
+            table_name=self.table_name,
+            columns=columns,
+            unique_key=self.unique_key,
+            foreign_keys=self.foreign_keys,
+            keys=self.keys)
 
         return rendered_template

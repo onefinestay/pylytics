@@ -2,12 +2,25 @@
 Utilities for making database connections easier.
 """
 
+import warnings
+
 import MySQLdb
 
-import settings
+try:
+    import settings
+except ImportError:
+    # Fall back to empty settings to make testing easier.
+    warnings.warn("No settings defined")
+
+    class Settings(object):
+        pylytics_db = None
+        DATABASES = {}
+
+    settings = Settings()
 
 
 class UnknownColumnTypeError(Exception):
+
     def __init__(self, error):
         self.error = error
 
@@ -74,13 +87,13 @@ class DB(object):
          252: 'BLOB',
          253: 'VARCHAR(255)',
          254: 'VARCHAR(255)',
-         255: 'VARCHAR(255)'
-    }
+         255: 'VARCHAR(255)',
+         }
 
     def __init__(self, database):
         if database not in (settings.DATABASES.keys()):
-            raise Exception("The Database %s isn't recognised! Check your \
-                             settings in settings.py" % database)
+            raise Exception("The database {} isn't recognised! Check your "
+                            "settings in settings.py.".format(database))
         else:
             self.database = database
             self.connection = None
@@ -89,6 +102,12 @@ class DB(object):
         if not self.connection:
             self.connection = MySQLdb.connect(
                     **settings.DATABASES[self.database])
+
+    def commit(self):
+        self.connection.commit()
+
+    def rollback(self):
+        self.connection.rollback()
 
     def close(self):
         """You should always call this after opening a connection."""
