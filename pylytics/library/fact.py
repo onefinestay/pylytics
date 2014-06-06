@@ -1,9 +1,8 @@
-import datetime
 import inspect
+import json
 import warnings
 
 from build_sql import SQLBuilder
-from connection import DB
 from group_by import GroupBy
 from join import TableBuilder
 from main import get_class
@@ -15,7 +14,10 @@ class Fact(Table):
     Fact base class.
     
     """
-    
+
+    dim_names = None
+    metric_names = None
+
     historical_iterations = 100
     setup_scripts = {}
     exit_scripts = {}
@@ -106,16 +108,18 @@ class Fact(Table):
         """
         result = []
         error = False
-        
+
         for i, value in enumerate(src_tuple):
             if i in self.dim_dict:
                 dim_name = self.dim_dict[i]
                 try:
-                    result.append(self.dim_map[dim_name][value])
-                    error = False
-                except:  # TODO: clarify an exception type here
+                    dim_value = self.dim_map[dim_name][value]
+                except KeyError:
                     result.append(None)
                     error = True
+                else:
+                    result.append(dim_value)
+                    error = False
             else:
                 result.append(value)
                 error = False
@@ -133,6 +137,11 @@ class Fact(Table):
         """ Auto-generate the structure and build the table (used if no SQL
         file exists).
         """
+        if data.column_types is None:
+            self._print_status("Cannot auto-build table: "
+                               "No column definitions available")
+            return
+
         self._print_status("Building table from auto-generated DDL")
         column_types = dict(data.column_types,
                             **{name: 'INT(11)' for name in self.dim_names})
@@ -151,7 +160,8 @@ class Fact(Table):
             cols_names = self.connection.execute(
                 "SELECT * FROM `%s` LIMIT 0,0" % self.table_name,
                 get_cols=True)[1]
-            return filter(lambda x: x not in [self.surrogate_key_column,'created'], cols_names)
+            return filter(lambda x: x not in [self.surrogate_key_column,
+                                              "created"], cols_names)
         except Exception as error:
             if 1146 not in error.args:
                 # If an error other than "table doesn't exists" happens
@@ -172,7 +182,7 @@ class Fact(Table):
         self.dim_dict = {i: column_name
                          for i, column_name in enumerate(data.column_names)
                          if column_name in self.dim_names}
-    
+
     def _fetch_from_source(self, historical=False, index=0):
         """ Get, joins and group the source data for this table. The data is
         returned as a `SourceData` instance that contains `column_names`,
@@ -222,8 +232,33 @@ class Fact(Table):
         Should return a `SourceData` instance or raise a RuntimeError if the
         staging table cannot be found.
         """
-        self.connection.execute("SELECT * FROM staging "
-                                "WHERE fact_table_name = %s")
+        sql = """\
+        SELECT id, value_map FROM staging
+        WHERE fact_table = '{}'
+        ORDER BY created, id
+        """.format(self.table_name)
+        results = self.connection.execute(sql)
+
+        column_names = self.dim_names + self.metric_names
+        rows = []
+        recycling = []
+        for id_, value_map in results:
+            data = json.loads(value_map)
+            row = [data[key] for key in column_names]
+            rows.append(row)
+            recycling.append(id_)
+
+        source_data = SourceData(column_names=column_names, rows=rows)
+
+        # Remove the rows we've processed, if any.
+        if recycling:
+            sql = """\
+            DELETE FROM staging
+            WHERE id in ({})
+            """.format(",".join(map(str, recycling)))
+            self.connection.execute(sql)
+
+        return source_data
 
     def _insert(self, data):
         self._print_status("Inserting into {}".format(self.table_name))
@@ -237,28 +272,33 @@ class Fact(Table):
         self._generate_dim_dict(data)
 
         for row in data.rows:
-            destination_tuple, not_matching = self._map_tuple(self._transform_tuple(row))
+
+            destination_tuple, not_matching = self._map_tuple(
+                self._transform_tuple(row))
+
+            query = """\
+            REPLACE INTO `%s` VALUES (NULL, %s, NULL)
+            """ % (self.table_name,
+                   self._values_placeholder(len(destination_tuple)))
+            print destination_tuple
 
             try:
-                query = """
-                    REPLACE INTO `%s` VALUES (NULL, %s, NULL)
-                    """ % (self.table_name,
-                           self._values_placeholder(
-                                                len(destination_tuple)))
                 self.connection.execute(query, destination_tuple)
-                success_count += 1
-            except Exception, e:
-                self._print_status("MySQL error: %s" % str(
-                                                        destination_tuple))
+            except Exception as e:
+                self._print_status("MySQL error: {}".format(destination_tuple))
                 self._print_status("Row after _transform_tuple(): %s" % (
                                         str(self._transform_tuple(row))))
                 self._print_status("Raw row from DB: %s" % str(row))
                 self._print_status(repr(e))
                 error_count += 1
-                
+            else:
+                success_count += 1
+
             if not_matching:
                 not_matching_count += 1
-        
+
+        self.connection.commit()
+
         msg = "{0} rows inserted, {1} of which don't match the dimensions. " \
               "{2} errors happened.".format(success_count, not_matching_count,
                                             error_count)
@@ -267,16 +307,16 @@ class Fact(Table):
     def build(self, sql=None):
         """ Ensure the table is built.
         """
-        data = self._fetch_from_source()
+        data = self._fetch()
         self._build_dimensions()
         if not Table.build(self, sql):
             self._auto_build(data)
-        
+
     def update(self):
         """ Update the fact table with the newest rows, first building the
         table if it doesn't already exist.
         """
-        data = self._fetch_from_source()
+        data = self._fetch()
         self._build_dimensions()
         if not Table.build(self):
             self._auto_build(data)

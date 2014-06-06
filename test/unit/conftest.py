@@ -45,3 +45,22 @@ def empty_warehouse(warehouse):
             if table.startswith(prefix):
                 warehouse.execute("DROP TABLE {}".format(table))
     return warehouse
+
+
+@pytest.fixture
+def staging(warehouse):
+    warehouse.execute("DROP TABLE IF EXISTS staging")
+    warehouse.execute("""\
+    CREATE TABLE `staging` (
+      `id` int(11) NOT NULL AUTO_INCREMENT,
+      `collector_type` varchar(127) NOT NULL,
+      `fact_table` varchar(255) NOT NULL,
+      `value_map` text NOT NULL,
+      `created` timestamp NOT NULL default now(),
+      PRIMARY KEY (`id`),
+      KEY `collector_type` (`collector_type`),
+      KEY `fact_table` (`fact_table`),
+      KEY `created` (`created`)
+    ) CHARSET=utf8;
+    """)
+    warehouse.commit()

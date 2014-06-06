@@ -8,3 +8,7 @@ class FactRingJourneyFromStaging(Fact):
 
     dim_names = ["dim_ring", "dim_location"]
     dim_fields = ["name", "code"]
+
+    # We also need a list of metric names which will come in order
+    # after the dimensions.
+    metric_names = ["fellowship_count"]

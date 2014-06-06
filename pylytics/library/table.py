@@ -5,7 +5,8 @@ import sys
 import textwrap
 import warnings
 
-from MySQLdb import IntegrityError, ProgrammingError
+from MySQLdb import IntegrityError
+from pylytics.library.errors import NoSuchTableError
 
 from utils.text_conversion import camelcase_to_underscore
 from utils.terminal import print_status
@@ -133,14 +134,11 @@ class Table(object):
         """ Determine whether or not the table exists and return a boolean
         to indicate which.
         """
+        statement = "SELECT * FROM `%s` LIMIT 0,0" % self.table_name
         try:
-            self.connection.execute("SELECT * FROM `%s` "
-                                    "LIMIT 0,0" % self.table_name)
-        except ProgrammingError as db_error:
-            if 1146 in db_error.args:
-                return False
-            else:
-                raise
+            self.connection.execute(statement)
+        except NoSuchTableError:
+            return False
         else:
             return True
 
@@ -196,6 +194,16 @@ class Table(object):
             self._print_status("Table successfully built")
             return True
 
+    def _fetch(self, *args, **kwargs):
+        """ Fetch data from the appropriate source, as described by
+        the `source_db` attribute.
+        """
+        if self.source_db == STAGING:
+            rows = self._fetch_from_staging()
+        else:
+            rows = self._fetch_from_source()
+        return rows
+
     def _fetch_from_source(self):
         """ Fetch data from a SQL data source as described by the `source_db`
         and `source_query` attributes. Should return a `SourceData` instance.
@@ -218,11 +226,7 @@ class Table(object):
         inserting it into the table.
         """
         self._print_status("Updating table {}".format(self.table_name))
-        # Fetch data
-        if self.source_db == STAGING:
-            rows = self._fetch_from_staging()
-        else:
-            rows = self._fetch_from_source()
+        rows = self._fetch()
         # Insert data
         if rows:
             self._insert(rows)

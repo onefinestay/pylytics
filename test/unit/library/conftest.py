@@ -23,11 +23,11 @@ RINGS_OF_POWER = [
 ]
 
 JOURNEY = [
-    (1, 'One Ring', 'HOB'),
-    (2, 'One Ring', 'RIV'),
-    (3, 'One Ring', 'MRA'),
-    (4, 'One Ring', 'MDR'),
-    (5, 'One Ring', 'MTD'),
+    (1, 'One Ring', 'HOB', 12),
+    (2, 'One Ring', 'RIV', 9),
+    (3, 'One Ring', 'MRA', 5),
+    (4, 'One Ring', 'MDR', 4),
+    (5, 'One Ring', 'MTD', 2),
 ]
 
 
@@ -81,12 +81,13 @@ def middle_earth(request, local_mysql_credentials):
         id int,
         ring_name varchar(40),
         checkpoint varchar(3),
+        fellowship_count int,
         primary key (id)
     ) CHARSET=utf8
     """)
     db.commit()
     db.execute("""\
-    INSERT INTO ring_journey (id, ring_name, checkpoint)
+    INSERT INTO ring_journey (id, ring_name, checkpoint, fellowship_count)
     VALUES {}
     """.format(", ".join(map(repr, JOURNEY))))
     db.commit()
