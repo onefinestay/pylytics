@@ -8,6 +8,6 @@ CREATE TABLE `staging` (
   PRIMARY KEY (`id`),
   KEY `collector_type` (`collector_type`),
   KEY `fact_table` (`fact_table`),
-  KEY `created` (`created`),
+  KEY `created` (`created`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 """
