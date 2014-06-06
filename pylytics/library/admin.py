@@ -1,5 +1,5 @@
-from .collection import CREATE_STAGING_TABLE
-from .connection import DB
+from pylytics.library.collection import CREATE_STAGING_TABLE
+from pylytics.library.connection import DB
 
 import settings
 
