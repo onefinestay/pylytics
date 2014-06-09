@@ -6,7 +6,7 @@ import textwrap
 import warnings
 
 from MySQLdb import IntegrityError
-from pylytics.library.errors import NoSuchTableError
+from pylytics.library.exceptions import NoSuchTableError
 
 from utils.text_conversion import camelcase_to_underscore
 from utils.terminal import print_status

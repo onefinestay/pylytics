@@ -5,7 +5,7 @@ Utilities for making database connections easier.
 import warnings
 
 import MySQLdb
-from pylytics.library.errors import classify_error
+from pylytics.library.exceptions import classify_error
 
 try:
     import settings

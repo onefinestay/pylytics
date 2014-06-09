@@ -6,6 +6,7 @@ from build_sql import SQLBuilder
 from group_by import GroupBy
 from join import TableBuilder
 from main import get_class
+from pylytics.library.exceptions import NoSuchTableError
 from table import Table, SourceData
 
 
@@ -155,17 +156,23 @@ class Fact(Table):
         self.connection.execute(sql)
         self._print_status("Table successfully built")
 
+    @property
+    def fixed_columns(self):
+        """ Tuple of column names that are fixed and not pulled from the
+        data source.
+        """
+        return self.surrogate_key_column, "created"
+
     def _get_cols_from_sql(self):
         try:
-            cols_names = self.connection.execute(
-                "SELECT * FROM `%s` LIMIT 0,0" % self.table_name,
-                get_cols=True)[1]
-            return filter(lambda x: x not in [self.surrogate_key_column,
-                                              "created"], cols_names)
-        except Exception as error:
-            if 1146 not in error.args:
-                # If an error other than "table doesn't exists" happens
-                raise
+            result = self.connection.execute(
+                "SELECT * FROM `%s` LIMIT 0,0" % self.table_name, get_cols=True)
+        except NoSuchTableError:
+            self._print_status("Unable to ascertain columns for "
+                               "non-existent table {}".format(self.table_name))
+        else:
+            columns = result[1]
+            return [_ for _ in columns if _ not in self.fixed_columns]
 
     def _get_query(self, historical, index):
         if not historical:
