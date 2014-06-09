@@ -2,6 +2,8 @@ import inspect
 import json
 import warnings
 
+from MySQLdb import IntegrityError
+
 from build_sql import SQLBuilder
 from group_by import GroupBy
 from join import TableBuilder
@@ -16,15 +18,22 @@ class Fact(Table):
 
     """
 
-    DELETE_FROM_STAGING = "DELETE FROM staging WHERE id in ({ids})"
-    INTEGER = "INT(11)"
-    REPLACE = "REPLACE INTO `{table}` VALUES (NULL, {values}, NULL)"
+    DELETE_FROM_STAGING = """\
+    DELETE FROM staging WHERE id in ({ids})
+    """
+    DROP_VIEW = """\
+    DROP VIEW IF EXISTS `vw_{table}`
+    """
+    REPLACE = """\
+    REPLACE INTO `{table}` VALUES (NULL, {values}, NULL)
+    """
     SELECT_FROM_STAGING = """\
     SELECT id, value_map FROM staging
     WHERE fact_table = '{table}'
     ORDER BY created, id
     """
-    SELECT_NONE = "SELECT * FROM `{table}` LIMIT 0,0"
+
+    INTEGER = "INT(11)"
 
     dim_names = None
     metric_names = None
@@ -349,3 +358,15 @@ class Fact(Table):
         """
         methods = inspect.getmembers(self, predicate=inspect.ismethod)
         return [i[0] for i in methods if not i[0].startswith('_')]
+
+    def drop(self, force=False):
+        Table.drop(self, force)
+
+        # Try to also drop the corresponding view if one exists.
+        sql = self.DROP_VIEW.format(table=self.table_name)
+        try:
+            self.connection.execute(sql)
+        except IntegrityError:
+            self._print_status("Unable to drop view for %s" % (
+                                                        self.table_name))
+

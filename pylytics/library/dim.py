@@ -5,10 +5,11 @@ from table import Table, SourceData
 class Dim(Table):
     """Dimension base class."""
 
-    INSERT = "INSERT IGNORE INTO `{table}` VALUES (NULL, {values}, NULL)"
+    INSERT = """\
+    INSERT IGNORE INTO `{table}` VALUES (NULL, {values}, NULL)
+    """
     SELECT_DICT = """\
-    SELECT `{field}`, `{surrogate_key}`
-    FROM `{table}`
+    SELECT `{field}`, `{surrogate_key}` FROM `{table}`
     ORDER BY `{surrogate_key}`
     """
 

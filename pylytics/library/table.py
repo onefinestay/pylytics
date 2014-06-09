@@ -1,7 +1,6 @@
 import datetime
 from importlib import import_module
 import os
-import sys
 import warnings
 
 from MySQLdb import IntegrityError
@@ -16,6 +15,25 @@ STAGING = "__staging__"
 
 class Table(object):
     """Base class."""
+
+    DROP_TABLE = """\
+    DROP TABLE IF EXISTS `{table}`
+    """
+    DROP_TABLE_FORCE = """\
+    SET foreign_key_checks = 0;
+    DROP TABLE IF EXISTS `{table}`;
+    SET foreign_key_checks = 1;
+    """
+    SELECT_COUNT = """\
+    SELECT COUNT(*) FROM `{table}`
+    """
+    SELECT_NONE = """\
+    SELECT * FROM `{table}` LIMIT 0,0
+    """
+    SHOW_PRIMARY_KEY = """\
+    SHOW INDEXES FROM `{table}`
+    WHERE Key_name = 'PRIMARY'
+    """
 
     base_package = None
     surrogate_key_column = "id"
@@ -105,35 +123,22 @@ class Table(object):
         msg = "Dropping %s (force='%s')" % (self.table_name, str(force))
         self._print_status(msg)
 
-        query = 'DROP TABLE IF EXISTS `%s`' % self.table_name
-
         if force:
-            query = """
-                SET foreign_key_checks = 0;
-                %s;
-                SET foreign_key_checks = 1;
-                """ % query
+            sql = self.DROP_TABLE_FORCE.format(table=self.table_name)
+        else:
+            sql = self.DROP_TABLE.format(table=self.table_name)
         try:
-            self.connection.execute(query)
+            self.connection.execute(sql)
         except IntegrityError:
             self._print_status("Table could not be deleted due to foreign "
                                "key constraints. Try removing the fact "
                                "tables first.")
 
-        if self.class_name == 'Fact':
-            # Try and drop the corresponding view.
-            query = 'DROP VIEW IF EXISTS `vw_%s' % self.table_name
-            try:
-                self.connection.execute(query)
-            except IntegrityError:
-                self._print_status("Unable to drop view for %s" % (
-                                                            self.table_name))
-
     def exists(self):
         """ Determine whether or not the table exists and return a boolean
         to indicate which.
         """
-        statement = "SELECT * FROM `%s` LIMIT 0,0" % self.table_name
+        statement = self.SELECT_NONE.format(table=self.table_name)
         try:
             self.connection.execute(statement)
         except NoSuchTableError:
@@ -144,15 +149,14 @@ class Table(object):
     def count(self):
         """ Return a count of the number of rows present in this table.
         """
-        return self.connection.execute("SELECT COUNT(*) "
-                                       "FROM `%s`" % self.table_name)[0][0]
+        sql = self.SELECT_COUNT.format(table=self.table_name)
+        return self.connection.execute(sql)[0][0]
 
     def primary_key(self):
         """ Fetch the name of the primary key column for this table.
         """
-        statement = ("SHOW INDEXES FROM `{}` "
-                     "WHERE Key_name = 'PRIMARY'".format(self.table_name))
-        rows, columns, _ = self.connection.execute(statement, get_cols=True)
+        sql = self.SHOW_PRIMARY_KEY.format(table=self.table_name)
+        rows, columns, _ = self.connection.execute(sql, get_cols=True)
         if rows:
             return rows[0][columns.index("Column_name")]
         else:
