@@ -16,6 +16,16 @@ class Fact(Table):
     
     """
 
+    DELETE_FROM_STAGING = "DELETE FROM staging WHERE id in ({ids})"
+    INTEGER = "INT(11)"
+    REPLACE = "REPLACE INTO `{table}` VALUES (NULL, {values}, NULL)"
+    SELECT_FROM_STAGING = """\
+    SELECT id, value_map FROM staging
+    WHERE fact_table = '{table}'
+    ORDER BY created, id
+    """
+    SELECT_NONE = "SELECT * FROM `{table}` LIMIT 0,0"
+
     dim_names = None
     metric_names = None
 
@@ -92,7 +102,8 @@ class Fact(Table):
         > self.dim_classes[1].get_dictionary('short_code')
 
         """
-        for dim_name, dim_class, dim_field in zip(self.dim_names, self.dim_classes, self.dim_fields):
+        zipped = zip(self.dim_names, self.dim_classes, self.dim_fields)
+        for dim_name, dim_class, dim_field in zipped:
             # Get the dictionary for each dimension.
             self.dim_map[dim_name] = dim_class.get_dictionary(dim_field)
 
@@ -145,7 +156,7 @@ class Fact(Table):
 
         self._print_status("Building table from auto-generated DDL")
         column_types = dict(data.column_types)
-        column_types.update({name: 'INT(11)' for name in self.dim_names})
+        column_types.update({name: self.INTEGER for name in self.dim_names})
         sql = SQLBuilder(
             table_name=self.table_name,
             cols_names=data.column_names,
@@ -164,9 +175,9 @@ class Fact(Table):
         return self.surrogate_key_column, "created"
 
     def _get_cols_from_sql(self):
+        sql = self.SELECT_NONE.format(table=self.table_name)
         try:
-            result = self.connection.execute(
-                "SELECT * FROM `%s` LIMIT 0,0" % self.table_name, get_cols=True)
+            result = self.connection.execute(sql, get_cols=True)
         except NoSuchTableError:
             self._print_status("Unable to ascertain columns for "
                                "non-existent table {}".format(self.table_name))
@@ -239,11 +250,7 @@ class Fact(Table):
         Should return a `SourceData` instance or raise a RuntimeError if the
         staging table cannot be found.
         """
-        sql = """\
-        SELECT id, value_map FROM staging
-        WHERE fact_table = '{}'
-        ORDER BY created, id
-        """.format(self.table_name)
+        sql = self.SELECT_FROM_STAGING.format(table=self.table_name)
         results = self.connection.execute(sql)
 
         column_names = self.dim_names + self.metric_names
@@ -259,10 +266,8 @@ class Fact(Table):
 
         # Remove the rows we've processed, if any.
         if recycling:
-            sql = """\
-            DELETE FROM staging
-            WHERE id in ({})
-            """.format(",".join(map(str, recycling)))
+            sql = self.DELETE_FROM_STAGING.format(
+                ids=",".join(map(str, recycling)))
             self.connection.execute(sql)
 
         return source_data
@@ -282,11 +287,8 @@ class Fact(Table):
             destination_tuple, not_matching = self._map_tuple(
                 self._transform_tuple(row))
 
-            query = """\
-            REPLACE INTO `%s` VALUES (NULL, %s, NULL)
-            """ % (self.table_name,
-                   self._values_placeholder(len(destination_tuple)))
-
+            values = self._values_placeholder(len(destination_tuple))
+            query = self.REPLACE.format(table=self.table_name, values=values)
             try:
                 self.connection.execute(query, destination_tuple)
             except Exception as e:
