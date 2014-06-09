@@ -116,6 +116,15 @@ class DB(object):
             self.connection.close()
 
     def execute(self, query, values=None, many=False, get_cols=False):
+        """ Executes the given `query` through the currently open connection.
+
+        There must be a connection established before calling this method.
+
+        `values` should contain the data to be inserted when issuing `INSERT`
+        or `REPLACE` queries. If the `many` flag is set to `True`, `values` is
+        expected to be an iterable of iterables. Otherwise, `values` should
+        contain the data directly.
+        """
         cursor = None
         data = None
         cols_names = None
