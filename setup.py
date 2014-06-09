@@ -54,7 +54,14 @@ setup(
     long_description=open(make_abs('README.rst')).read(),
     name='pylytics',
     packages=find_packages(),
-    scripts = ['pylytics/bin/pylytics-admin.py'],
+    entry_points={
+        'console_scripts': [
+            'init_pylytics_staging_table = pylytics.library.collection:initialise_staging_table',
+        ]
+    },
+    scripts=[
+        'pylytics/bin/pylytics-admin.py',
+    ],
     url='https://github.com/onefinestay/pylytics',
     version='0.6.1',
     zip_safe=False,
