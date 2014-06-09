@@ -20,16 +20,6 @@ except ImportError:
     settings = Settings()
 
 
-class UnknownColumnTypeError(Exception):
-    def __init__(self, error):
-        self.error = error
-    
-    def __str__(self):
-        return "The type code {}, which has been retrieved from " \
-               "a SELECT query, doesn't exist in the " \
-               "'field_types' dictionary.".format(self.error)
-
-
 def run_query(database, query):
     """
     Very high level interface for running database queries.
@@ -92,8 +82,8 @@ class DB(object):
     
     def __init__(self, database):
         if database not in (settings.DATABASES.keys()):
-            raise Exception("The Database %s isn't recognised! Check your \
-                             settings in settings.py" % database)
+            raise ValueError("The database {} isn't recognised - check "
+                             "your settings in settings.py".format(database))
         else:
             self.database = database
             self.connection = None
@@ -117,7 +107,7 @@ class DB(object):
 
     def execute(self, query, values=None, many=False, get_cols=False):
         if not self.connection:
-            raise Exception('You must connect first!')
+            raise IOError("Cannot execute without a database connection")
 
         data = None
         cols_names = None
@@ -142,12 +132,14 @@ class DB(object):
         if get_cols:
             # Get columns list
             if values:
-                raise Exception("Only works on a SELECT query.")
+                raise ValueError("Cannot return columns if INSERT/REPLACE "
+                                 "values are also specified")
             cols_names, cols_types_ids = zip(*cursor.description)[0:2]
             try:
                 cols_types = [self.field_types[i] for i in cols_types_ids]
-            except Exception as e:
-                raise UnknownColumnTypeError(e)
+            except KeyError as error:
+                raise LookupError("The column type '{}' cannot be found in "
+                                  "the field_types dictionary".format(error))
 
         cursor.close()
 
