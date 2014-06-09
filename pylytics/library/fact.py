@@ -143,8 +143,8 @@ class Fact(Table):
             return
 
         self._print_status("Building table from auto-generated DDL")
-        column_types = dict(data.column_types,
-                            **{name: 'INT(11)' for name in self.dim_names})
+        column_types = dict(data.column_types)
+        column_types.update({name: 'INT(11)' for name in self.dim_names})
         sql = SQLBuilder(
             table_name=self.table_name,
             cols_names=data.column_names,
