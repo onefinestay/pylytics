@@ -2,7 +2,6 @@ import datetime
 from importlib import import_module
 import os
 import sys
-import textwrap
 import warnings
 
 from MySQLdb import IntegrityError
@@ -79,7 +78,7 @@ class Table(object):
 
         """
         return " ".join(['%s,' for i in range(length)])[:-1]
-    
+
     @property
     def frequency(self):
         """

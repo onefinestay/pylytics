@@ -54,18 +54,16 @@ def print_summary(errors):
     else:
         print_status("{0} commands not executed: {1}".format(
                 len(errors),
-                ", ".join(errors.keys())
+                ", ".join(errors.keys()),
                 ),
             timestamp=False,
             indent=False
             )
-        template = "- {0}: {1} {2}"
-        items = [template.format(key, type(value).__name__, value) for key, value in errors.items()]
-        print_status(
-            "\n".join(items),
-            timestamp=False,
-            indent=False
-            )
+        items = [
+            "- {}: {} {}".format(key, type(value).__name__,
+                                 value) for key, value in errors.items()]
+
+        print_status("\n".join(items), timestamp=False, indent=False)
 
 
 def _process_scripts(scripts):
@@ -74,7 +72,7 @@ def _process_scripts(scripts):
     pylytics project, and runs them.
 
     """
-    print 'Running scripts.'
+    print_status('Running scripts.')
     for script in scripts:
         try:
             script = importlib.import_module('scripts.{}'.format(script))
@@ -189,7 +187,7 @@ def load_settings(settings_path):
 def main():
     """This is called by the manage.py created in the project directory."""
     from fact import Fact
-    
+
     parser = argparse.ArgumentParser(
         description = "Run fact scripts.")
     parser.add_argument(

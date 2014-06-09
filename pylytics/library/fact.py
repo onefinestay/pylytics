@@ -13,7 +13,7 @@ from table import Table, SourceData
 class Fact(Table):
     """
     Fact base class.
-    
+
     """
 
     DELETE_FROM_STAGING = "DELETE FROM staging WHERE id in ({ids})"
@@ -51,35 +51,35 @@ class Fact(Table):
             for dim_link in self.dim_links
         ]
         self.input_cols_names = self._get_cols_from_sql()
-        
+
     def _transform_tuple(self, src_tuple):
         """
         Overwrite if needed while extending the class.
         Given a tuple representing a row of the source table (queried with
         self.source_query), returns a tuple representing a row of the fact
         table to insert.
-        
+
         NB: - This function should be implemented when extending the fact
               object.
             - The columns in the returned tuple must be in the same order as in
               the fact table.
             - The first field (auto_increment `id`) and the last field
               (`created` automatic timestamp) must be omitted in the result.
-        
+
         Example usage for a fact table like (id, name, attrib, created):
         > _transform_tuple(('name_val_in', 'attrib_val_in', 'unused value'))
         Returns :
         > ('name_val_out', 'attrib_val_out')
-        
+
         """
         return src_tuple
-    
+
     def _import_dimensions(self):
         """
         Sets self.dim_map to a dictionary of dictionaries - each of them
         gives the mapping for all the dimensions linked to the fact.
         Sets self.dim_classes to a list of classes - one for each dimension.
-        
+
         Example usage:
         > _import_dimensions()
         Example of self.dim_map :
@@ -111,12 +111,12 @@ class Fact(Table):
         """
         Given a tuple of values, returns a new tuple (and an error code),
         where each value has been replaced by its corresponding dimension id.
-        
+
         Example usage:
         > _map_tuple(('1223', 'LON', 'Live'))
         Returns:
         > (235, 1, 4)
-        
+
         """
         result = []
         error = False
@@ -141,6 +141,7 @@ class Fact(Table):
     def _build_dimensions(self):
         """ Build (and update) the dimension tables related to this fact.
         """
+
         for dim_class in self.dim_classes:
             dim_class.build()
             dim_class.update()
@@ -217,14 +218,14 @@ class Fact(Table):
             output_table=self.table_name,
             cols=self.input_cols_names,
             types=self.types,
-            verbose=True
+            verbose=True,
             )
-        
+
         # Getting main data
         tb.add_main_source()
-        
+
         # Joining extra data if required
-        if hasattr(self, 'extra_queries') :
+        if hasattr(self, 'extra_queries'):
             for (extra_query, query_dict) in self.extra_queries.items():
                 tb.add_source(name=extra_query, **query_dict)
         tb.join()

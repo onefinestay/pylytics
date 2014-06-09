@@ -48,7 +48,7 @@ class DB(object):
     example.close()
 
     """
-    
+
     # List of SQL types
     field_types = {
          0: 'DECIMAL',
@@ -77,9 +77,9 @@ class DB(object):
          252: 'BLOB',
          253: 'VARCHAR(255)',
          254: 'VARCHAR(255)',
-         255: 'VARCHAR(255)'
-    }
-    
+         255: 'VARCHAR(255)',
+         }
+
     def __init__(self, database):
         if database not in (settings.DATABASES.keys()):
             raise ValueError("The database {} isn't recognised - check "
@@ -106,6 +106,15 @@ class DB(object):
             self.connection.close()
 
     def execute(self, query, values=None, many=False, get_cols=False):
+        """ Executes the given `query` through the currently open connection.
+
+        There must be a connection established before calling this method.
+
+        `values` should contain the data to be inserted when issuing `INSERT`
+        or `REPLACE` queries. If the `many` flag is set to `True`, `values` is
+        expected to be an iterable of iterables. Otherwise, `values` should
+        contain the data directly.
+        """
         if not self.connection:
             raise IOError("Cannot execute without a database connection")
 

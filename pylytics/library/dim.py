@@ -18,12 +18,12 @@ class Dim(Table):
 
     def get_dictionary(self, field_name):
         """
-        Returns a dictionary of the dimension.
+        Returns a mapping of field values to their id.
 
         For example:
         {
-            'field value 1':id1
-            'field value 2':id2
+            'field value 1': id_1,
+            'field value 2': id_2,
             ...
         }
 
@@ -46,7 +46,7 @@ class Dim(Table):
 
         Example usage for a dimension table like (id, name, attrib, created):
         > _transform_tuple(('name_val_in', 'attrib_val_in', 'unused value'))
-        Returns :
+        Returns:
         > ('name_val_out', 'attrib_val_out')
 
         """
