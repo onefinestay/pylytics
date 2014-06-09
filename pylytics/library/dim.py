@@ -5,6 +5,13 @@ from table import Table, SourceData
 class Dim(Table):
     """Dimension base class."""
 
+    INSERT = "INSERT IGNORE INTO `{table}` VALUES (NULL, {values}, NULL)"
+    SELECT_DICT = """\
+    SELECT `{field}`, `{surrogate_key}`
+    FROM `{table}`
+    ORDER BY `{surrogate_key}`
+    """
+
     def __init__(self, *args, **kwargs):
         super(Dim, self).__init__(*args, **kwargs)
         self.dim_or_fact = 'dim'
@@ -21,12 +28,8 @@ class Dim(Table):
         }
 
         """
-        sql = """\
-        SELECT {field_name}, {surrogate_key_column}
-        FROM {table_name}
-        ORDER BY {surrogate_key_column}
-        """.format(field_name=field_name, table_name=self.table_name,
-                   surrogate_key_column=self.surrogate_key_column)
+        sql = self.SELECT_DICT.format(field=field_name, table=self.table_name,
+                                      surrogate_key=self.surrogate_key_column)
         return dict(self.connection.execute(sql))
 
     def _transform_tuple(self, src_tuple):
@@ -64,11 +67,9 @@ class Dim(Table):
         assert isinstance(data, SourceData), "Expected SourceData instance"
 
         connection = self.connection
-        insert_statement = ("INSERT IGNORE INTO `{table}` "
-                            "VALUES (NULL, {values}, NULL)")
         for row in data.rows:
             destination_tuple = self._transform_tuple(row)
             values = self._values_placeholder(len(destination_tuple))
-            connection.execute(insert_statement.format(
+            connection.execute(self.INSERT.format(
                 table=self.table_name, values=values), destination_tuple)
         connection.commit()
