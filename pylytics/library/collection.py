@@ -1,4 +1,4 @@
-CREATE_STAGING_TABLE = """
+CREATE_STAGING_TABLE = """\
 CREATE TABLE `staging` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `collector_type` varchar(127) NOT NULL,

@@ -1,5 +1,7 @@
 import pytest
 
+from pylytics.library.collection import CREATE_STAGING_TABLE
+
 from test.helpers import db_fixture
 
 
@@ -50,17 +52,5 @@ def empty_warehouse(warehouse):
 @pytest.fixture
 def staging(warehouse):
     warehouse.execute("DROP TABLE IF EXISTS staging")
-    warehouse.execute("""\
-    CREATE TABLE `staging` (
-      `id` int(11) NOT NULL AUTO_INCREMENT,
-      `collector_type` varchar(127) NOT NULL,
-      `fact_table` varchar(255) NOT NULL,
-      `value_map` text NOT NULL,
-      `created` timestamp NOT NULL default now(),
-      PRIMARY KEY (`id`),
-      KEY `collector_type` (`collector_type`),
-      KEY `fact_table` (`fact_table`),
-      KEY `created` (`created`)
-    ) CHARSET=utf8;
-    """)
+    warehouse.execute(CREATE_STAGING_TABLE)
     warehouse.commit()
