@@ -269,7 +269,7 @@ class Fact(Table):
 
     def _insert(self, data):
         self._print_status("Inserting into {}".format(self.table_name))
-        
+
         not_matching_count = 0
         error_count = 0
         success_count = 0
@@ -286,7 +286,6 @@ class Fact(Table):
             REPLACE INTO `%s` VALUES (NULL, %s, NULL)
             """ % (self.table_name,
                    self._values_placeholder(len(destination_tuple)))
-            print destination_tuple
 
             try:
                 self.connection.execute(query, destination_tuple)
