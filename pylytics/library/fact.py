@@ -269,8 +269,7 @@ class Fact(Table):
 
     def _insert(self, data):
         self._print_status("Inserting into {}".format(self.table_name))
-        assert isinstance(data, SourceData), "Expected SourceData instance"
-
+        
         not_matching_count = 0
         error_count = 0
         success_count = 0
