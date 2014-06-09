@@ -31,6 +31,14 @@ class TestDimension(object):
         # then
         assert dimension.count() == len(self.expected_dict)
 
+    def test_can_drop(self, dimension):
+        # given
+        dimension.build()
+        # when
+        dimension.drop()
+        # then
+        assert not dimension.exists()
+
     def test_can_get_dictionary(self, dimension):
         # given
         dimension.build()
@@ -42,7 +50,10 @@ class TestDimension(object):
 
 
 @pytest.mark.usefixtures("middle_earth")
-class TestDimensionWithAlternativeSurrogateKeyColumn(TestDimension):
+class TestDimensionWithAlternativeSurrogateKeyColumn(object):
+
+    key = "name"
+    expected_dict = dict(zip(*reversed(zip(*RINGS_OF_POWER))))
 
     @pytest.fixture
     def dimension(self, empty_warehouse, fixture_package):
@@ -52,6 +63,34 @@ class TestDimensionWithAlternativeSurrogateKeyColumn(TestDimension):
 
     def test_has_stored_surrogate_key_column(self, dimension):
         assert dimension.surrogate_key_column == "pk"
+
+    def modified(self, sql):
+        return sql.replace("`id`", "`pk`")
+
+    def test_can_build(self, dimension):
+        # given
+        sql = dimension.load_ddl()
+        # when
+        dimension.build(self.modified(sql))
+        # then
+        assert dimension.exists()
+
+    def test_for_expected_surrogate_key_name(self, dimension):
+        # given
+        sql = dimension.load_ddl()
+        # when
+        dimension.build(self.modified(sql))
+        # then
+        assert dimension.primary_key() == "pk"
+
+    def test_can_update(self, dimension):
+        # given
+        sql = dimension.load_ddl()
+        dimension.build(self.modified(sql))
+        # when
+        dimension.update()
+        # then
+        assert dimension.count() == len(self.expected_dict)
 
 
 @pytest.mark.usefixtures("middle_earth")

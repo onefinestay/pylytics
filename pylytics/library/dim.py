@@ -1,9 +1,17 @@
 from connection import DB
-from table import Table
+from table import Table, SourceData
 
 
 class Dim(Table):
     """Dimension base class."""
+
+    INSERT = """\
+    INSERT IGNORE INTO `{table}` VALUES (NULL, {values}, NULL)
+    """
+    SELECT_DICT = """\
+    SELECT `{field}`, `{surrogate_key}` FROM `{table}`
+    ORDER BY `{surrogate_key}`
+    """
 
     def __init__(self, *args, **kwargs):
         super(Dim, self).__init__(*args, **kwargs)
@@ -21,12 +29,8 @@ class Dim(Table):
         }
 
         """
-        sql = """\
-        SELECT {field_name}, {surrogate_key_column}
-        FROM {table_name}
-        ORDER BY {surrogate_key_column}
-        """.format(field_name=field_name, table_name=self.table_name,
-                   surrogate_key_column=self.surrogate_key_column)
+        sql = self.SELECT_DICT.format(field=field_name, table=self.table_name,
+                                      surrogate_key=self.surrogate_key_column)
         return dict(self.connection.execute(sql))
 
     def _transform_tuple(self, src_tuple):
@@ -49,24 +53,24 @@ class Dim(Table):
         """
         return src_tuple
 
-    def update(self):
-        """Updates the dimension table."""
-        # Status.
-        msg = "Populating %s" % self.table_name
-        self._print_status(msg)
-
-        # Get the full source list.
-        data = []
+    def _fetch_from_source(self):
+        """ Fetch data from a SQL data source as described by the `source_db`
+        and `source_query` attributes.
+        """
+        self._print_status("Fetching from {}".format(self.source_db))
         with DB(self.source_db) as database:
-            data = database.execute(self.source_query)
+            return SourceData(rows=database.execute(self.source_query))
 
-        # Update the dim table.
-        for row in data:
+    def _insert(self, data):
+        """ Insert rows from the supplied `SourceData` instance into the table.
+        """
+        self._print_status("Inserting into {}".format(self.table_name))
+        assert isinstance(data, SourceData), "Expected SourceData instance"
+
+        connection = self.connection
+        for row in data.rows:
             destination_tuple = self._transform_tuple(row)
-            query = "INSERT IGNORE INTO `{}` VALUES (NULL, {}, NULL)".format(
-                self.table_name,
-                self._values_placeholder(len(destination_tuple)),
-                )
-            self.connection.execute(query, destination_tuple)
-
-        self.connection.commit()
+            values = self._values_placeholder(len(destination_tuple))
+            connection.execute(self.INSERT.format(
+                table=self.table_name, values=values), destination_tuple)
+        connection.commit()

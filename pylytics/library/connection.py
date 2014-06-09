@@ -5,6 +5,7 @@ Utilities for making database connections easier.
 import warnings
 
 import MySQLdb
+from pylytics.library.exceptions import classify_error
 
 try:
     import settings
@@ -17,17 +18,6 @@ except ImportError:
         DATABASES = {}
 
     settings = Settings()
-
-
-class UnknownColumnTypeError(Exception):
-
-    def __init__(self, error):
-        self.error = error
-
-    def __str__(self):
-        return "The type code {}, which has been retrieved from " \
-               "a SELECT query, doesn't exist in the " \
-               "'field_types' dictionary.".format(self.error)
 
 
 def run_query(database, query):
@@ -92,8 +82,8 @@ class DB(object):
 
     def __init__(self, database):
         if database not in (settings.DATABASES.keys()):
-            raise Exception("The database {} isn't recognised! Check your "
-                            "settings in settings.py.".format(database))
+            raise ValueError("The database {} isn't recognised - check "
+                             "your settings in settings.py".format(database))
         else:
             self.database = database
             self.connection = None
@@ -125,42 +115,45 @@ class DB(object):
         expected to be an iterable of iterables. Otherwise, `values` should
         contain the data directly.
         """
-        cursor = None
+        if not self.connection:
+            raise IOError("Cannot execute without a database connection")
+
         data = None
         cols_names = None
         cols_types = None
+        cursor = self.connection.cursor()
 
-        if not self.connection:
-            raise Exception('You must connect first!')
-        else:
-            cursor = self.connection.cursor()
-
+        try:
             if not values:
                 # SELECT query
                 cursor.execute(query)
                 data = cursor.fetchall()
-
             else:
                 # INSERT or REPLACE query
                 if many:
                     cursor.executemany(query, values)
                 else:
                     cursor.execute(query, values)
-
-            if get_cols:
-                # Get columns list
-                if values:
-                    raise Exception("Only works on a SELECT query.")
-                cols_names, cols_types_ids = zip(*cursor.description)[0:2]
-                try:
-                    cols_types = [self.field_types[i] for i in cols_types_ids]
-                except Exception as e:
-                    raise UnknownColumnTypeError(e)
-
-            cursor.close()
+        except MySQLdb.ProgrammingError as error:
+            classify_error(error)
+            raise
 
         if get_cols:
-            return (data, cols_names, cols_types)
+            # Get columns list
+            if values:
+                raise ValueError("Cannot return columns if INSERT/REPLACE "
+                                 "values are also specified")
+            cols_names, cols_types_ids = zip(*cursor.description)[0:2]
+            try:
+                cols_types = [self.field_types[i] for i in cols_types_ids]
+            except KeyError as error:
+                raise LookupError("The column type '{}' cannot be found in "
+                                  "the field_types dictionary".format(error))
+
+        cursor.close()
+
+        if get_cols:
+            return data, cols_names, cols_types
         else:
             return data
 

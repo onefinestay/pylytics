@@ -1,5 +1,7 @@
 import pytest
 
+from pylytics.library.collection import CREATE_STAGING_TABLE
+
 from test.helpers import db_fixture
 
 
@@ -45,3 +47,10 @@ def empty_warehouse(warehouse):
             if table.startswith(prefix):
                 warehouse.execute("DROP TABLE {}".format(table))
     return warehouse
+
+
+@pytest.fixture
+def staging(warehouse):
+    warehouse.execute("DROP TABLE IF EXISTS staging")
+    warehouse.execute(CREATE_STAGING_TABLE)
+    warehouse.commit()
