@@ -21,7 +21,7 @@ settings = Settings()
 # narrower scope.
 #
 # The order of settings modules listed below is therefore important and
-# should be maintained.
+# should be maintained. None, some or all of these modules may exist.
 #
 module_names = [
     "default_settings",       # default application settings
