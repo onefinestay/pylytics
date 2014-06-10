@@ -13,5 +13,5 @@ DATABASES = {
     }
 }
 
-# Only used for pylitics.plugins.nameko
+# Only used for pylytics.plugins.nameko
 NAMEKO_AMQP_URI = 'amqp://guest:guest@localhost:5672//services'

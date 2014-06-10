@@ -37,10 +37,10 @@ def fixture_package():
 
 
 @pytest.fixture(scope="session")
-def middle_earth(request, local_mysql_credentials):
+def middle_earth():
     """ Source database fixture.
     """
-    db = db_fixture(request, db="middle_earth", **local_mysql_credentials)
+    db = db_fixture("middle_earth")
 
     # Rings
     db.execute("DROP TABLE IF EXISTS rings_of_power")

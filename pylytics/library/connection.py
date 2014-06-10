@@ -2,22 +2,40 @@
 Utilities for making database connections easier.
 """
 
-import warnings
 
 import MySQLdb
+
 from pylytics.library.exceptions import classify_error
+from pylytics.library.settings import Settings
 
-try:
-    import settings
-except ImportError:
-    # Fall back to empty settings to make testing easier.
-    warnings.warn("No settings defined")
 
-    class Settings(object):
-        pylytics_db = None
-        DATABASES = {}
-
-    settings = Settings()
+# Load settings from one or more settings modules.
+#
+settings = Settings()
+#
+# Each settings module will be loaded in turn and applied over the top of
+# those previously loaded. There can be 'settings' modules (which should
+# not be committed to the code repository) and 'default_settings' modules
+# (which should). The former provides local overrides for those within the
+# latter and settings with a broader scope are loaded before those with a
+# narrower scope.
+#
+# The order of settings modules listed below is therefore important and
+# should be maintained.
+#
+module_names = [
+    "default_settings",       # default application settings
+    "settings",               # local application settings
+    "test.default_settings",  # default test settings
+    "test.settings",          # local test settings
+]
+for module_name in module_names:
+    try:
+        more_settings = Settings.from_module(module_name)
+    except ImportError:
+        pass
+    else:
+        settings.update(more_settings)
 
 
 def run_query(database, query):
@@ -51,34 +69,34 @@ class DB(object):
 
     # List of SQL types
     field_types = {
-         0: 'DECIMAL',
-         1: 'INT(11)',
-         2: 'INT(11)',
-         3: 'INT(11)',
-         4: 'FLOAT',
-         5: 'DOUBLE',
-         6: 'TEXT',
-         7: 'TIMESTAMP',
-         8: 'INT(11)',
-         9: 'INT(11)',
-         10: 'DATE',
-         11: 'TIME',
-         12: 'DATETIME',
-         13: 'YEAR',
-         14: 'DATE',
-         15: 'VARCHAR(255)',
-         16: 'BIT',
-         246: 'DECIMAL',
-         247: 'VARCHAR(255)',
-         248: 'SET',
-         249: 'TINYBLOB',
-         250: 'MEDIUMBLOB',
-         251: 'LONGBLOB',
-         252: 'BLOB',
-         253: 'VARCHAR(255)',
-         254: 'VARCHAR(255)',
-         255: 'VARCHAR(255)',
-         }
+        0: 'DECIMAL',
+        1: 'INT(11)',
+        2: 'INT(11)',
+        3: 'INT(11)',
+        4: 'FLOAT',
+        5: 'DOUBLE',
+        6: 'TEXT',
+        7: 'TIMESTAMP',
+        8: 'INT(11)',
+        9: 'INT(11)',
+        10: 'DATE',
+        11: 'TIME',
+        12: 'DATETIME',
+        13: 'YEAR',
+        14: 'DATE',
+        15: 'VARCHAR(255)',
+        16: 'BIT',
+        246: 'DECIMAL',
+        247: 'VARCHAR(255)',
+        248: 'SET',
+        249: 'TINYBLOB',
+        250: 'MEDIUMBLOB',
+        251: 'LONGBLOB',
+        252: 'BLOB',
+        253: 'VARCHAR(255)',
+        254: 'VARCHAR(255)',
+        255: 'VARCHAR(255)',
+    }
 
     def __init__(self, database):
         if database not in (settings.DATABASES.keys()):
@@ -90,8 +108,8 @@ class DB(object):
 
     def connect(self):
         if not self.connection:
-            self.connection = MySQLdb.connect(
-                    **settings.DATABASES[self.database])
+            db_settings = settings.DATABASES[self.database]
+            self.connection = MySQLdb.connect(**db_settings)
 
     def commit(self):
         self.connection.commit()

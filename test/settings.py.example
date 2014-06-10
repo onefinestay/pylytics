@@ -1,8 +1,0 @@
-test_settings = {
-
-    "local_mysql_credentials": {
-        "user": "local_mysql_user",
-        "passwd": "local_mysql_password",
-    }
-
-}
