@@ -24,10 +24,8 @@ from nameko.rpc import rpc
 from nameko.runners import ServiceRunner
 
 from pylytics.library.connection import DB
-from pylytics.library.settings import Settings
+from pylytics.library.settings import settings
 
-
-settings = Settings.load_all()
 
 _log = logging.getLogger(__name__)
 

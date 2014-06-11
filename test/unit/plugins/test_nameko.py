@@ -6,11 +6,8 @@ from nameko.runners import ServiceRunner
 from nameko.testing.utils import get_container
 from nameko.testing.services import entrypoint_hook
 
-from pylytics.library.settings import Settings
+from pylytics.library.settings import settings
 from pylytics.plugins.nameko import NamekoCollectionService
-
-
-settings = Settings.load_all()
 
 
 @pytest.yield_fixture

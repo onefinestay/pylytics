@@ -1,5 +1,3 @@
-import pytest
-
 from pylytics.library.settings import Settings
 
 from test.unit.library.fixtures import fake_settings
@@ -43,11 +41,20 @@ class TestSettings(object):
         assert settings.pylytics_db == fake_settings.pylytics_db
         assert settings.databases == fake_settings.DATABASES
 
-    def test_early_loaded_beats_late_loaded(self):
+    def test_can_append_settings(self):
         # given
         settings = Settings(king="Arthur", queen="Guinevere")
         settings.append(Settings(king="Arthur Pendragon", table="round"))
         # then
         assert settings.king == "Arthur"
+        assert settings.queen == "Guinevere"
+        assert settings.table == "round"
+
+    def test_can_prepend_settings(self):
+        # given
+        settings = Settings(king="Arthur", queen="Guinevere")
+        settings.prepend(Settings(king="Arthur Pendragon", table="round"))
+        # then
+        assert settings.king == "Arthur Pendragon"
         assert settings.queen == "Guinevere"
         assert settings.table == "round"

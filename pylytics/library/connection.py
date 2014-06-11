@@ -6,10 +6,7 @@ Utilities for making database connections easier.
 import MySQLdb
 
 from pylytics.library.exceptions import classify_error
-from pylytics.library.settings import Settings
-
-
-settings = Settings.load_all()
+from pylytics.library.settings import settings
 
 
 def run_query(database, query):

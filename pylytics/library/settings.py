@@ -26,11 +26,18 @@ class Settings(object):
         "default_settings",       # default application settings
     ]
 
+    # Singleton instance.
+    __instance = None
+
     @classmethod
-    def load_all(cls):
-        """ Load settings from all modules listed in `modules`.
+    def get_instance(cls):
+        """ Get singleton instance of Settings class. This is
+        lazily instantiated and will attempt to load all modules
+        listed in `modules`.
         """
-        return cls.load(*cls.modules)
+        if cls.__instance is None:
+            cls.__instance = cls.load(*cls.modules)
+        return cls.__instance
 
     @classmethod
     def load(cls, *modules):
@@ -43,7 +50,7 @@ class Settings(object):
         a single Settings object.
 
         """
-        settings = cls()
+        inst = cls()
         for module_name in modules:
             try:
                 module = import_module(module_name)
@@ -53,8 +60,8 @@ class Settings(object):
                 members = {name.lower(): value
                            for name, value in getmembers(module)
                            if not name.startswith("_")}
-                settings.append(Settings(**members))
-        return settings
+                inst.append(Settings(**members))
+        return inst
 
     def __init__(self, **settings):
         self.__chain = []
@@ -86,3 +93,7 @@ class Settings(object):
         """ Add settings to the start of the chain.
         """
         self.__chain = other.__chain + self.__chain
+
+
+# Export singleton Settings instance.
+settings = Settings.get_instance()
