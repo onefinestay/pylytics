@@ -6,15 +6,11 @@ from nameko.runners import ServiceRunner
 from nameko.testing.utils import get_container
 from nameko.testing.services import entrypoint_hook
 
+from pylytics.library.settings import Settings
+from pylytics.plugins.nameko import NamekoCollectionService
 
-# TODO: fix this properly with overhauled settings
-try:
-    from pylytics.plugins.nameko import NamekoCollectionService
-    import settings
-except ImportError:
-    has_settings = False
-else:
-    has_settings = True
+
+settings = Settings.load()
 
 
 @pytest.yield_fixture
@@ -36,7 +32,6 @@ def service_container(patched_db):
     runner.stop()
 
 
-@pytest.mark.skipif(not has_settings, reason="requires settings")
 def test_db_connection(patched_db, service_container):
 
     assert patched_db.called
@@ -54,7 +49,7 @@ def test_db_connection(patched_db, service_container):
 
         expected_call = call(
             query=ANY,
-            values=('fact_foo', '{"foo": "bar"}'),
+            values=('nameko', 'fact_foo', '{"foo": "bar"}', ANY),
             many=False,
             get_cols=False,
         )
@@ -62,7 +57,6 @@ def test_db_connection(patched_db, service_container):
         assert database.execute.call_args == expected_call
 
 
-@pytest.mark.skipif(not has_settings, reason="requires settings")
 def test_multiple_requests(patched_db, service_container):
 
     assert patched_db.called

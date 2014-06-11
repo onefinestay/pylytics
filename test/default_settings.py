@@ -1,4 +1,4 @@
-pylytics_db = "test_warehouse"
+PYLYTICS_DB = "test_warehouse"
 
 DATABASES = {
     "test_warehouse": {
@@ -14,3 +14,6 @@ DATABASES = {
         "db": "middle_earth",
     },
 }
+
+# Only used for pylytics.plugins.nameko
+NAMEKO_AMQP_URI = 'amqp://pylytics:pylytics@localhost:5672/pylytics'
