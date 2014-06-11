@@ -18,14 +18,14 @@ def db_fixture(database):
     global database settings.
     """
     db_settings = dict(connection.settings.DATABASES[database])
-    db = db_settings.pop("db")
 
-    conn = mysql.connect(**db_settings)
+    conn = mysql.connect(host=db_settings["host"], user=db_settings["user"],
+                         passwd=db_settings["passwd"])
     with warnings.catch_warnings():
         # Hide warnings
         warnings.simplefilter("ignore")
-        execute(conn, "DROP DATABASE IF EXISTS {}".format(db))
-    execute(conn, "CREATE DATABASE {}".format(db))
+        execute(conn, "DROP DATABASE IF EXISTS {}".format(db_settings["db"]))
+    execute(conn, "CREATE DATABASE {}".format(db_settings["db"]))
     conn.commit()
     conn.close()
 
