@@ -9,33 +9,7 @@ from pylytics.library.exceptions import classify_error
 from pylytics.library.settings import Settings
 
 
-# Load settings from one or more settings modules.
-#
-settings = Settings()
-#
-# Each settings module will be loaded in turn and applied over the top of
-# those previously loaded. There can be 'settings' modules (which should
-# not be committed to the code repository) and 'default_settings' modules
-# (which should). The former provides local overrides for those within the
-# latter and settings with a broader scope are loaded before those with a
-# narrower scope.
-#
-# The order of settings modules listed below is therefore important and
-# should be maintained. None, some or all of these modules may exist.
-#
-module_names = [
-    "default_settings",       # default application settings
-    "settings",               # local application settings
-    "test.default_settings",  # default test settings
-    "test.settings",          # local test settings
-]
-for module_name in module_names:
-    try:
-        more_settings = Settings.from_module(module_name)
-    except ImportError:
-        pass
-    else:
-        settings.update(more_settings)
+settings = Settings.load()
 
 
 def run_query(database, query):
