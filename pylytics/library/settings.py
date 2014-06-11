@@ -12,65 +12,77 @@ class Settings(object):
     # (which should not be committed to the code repository)
     # and 'default_settings' modules (which should). The former
     # provides local overrides for settings within the latter
-    # and modules with a broader scope are loaded before
-    # those with a narrower scope.
+    # and modules with a broader scope are additionally inserted
+    # after those with a narrower scope.
     #
-    # The order of settings modules listed below is therefore
-    # important and should be maintained. None, some or all
-    # of these modules may exist.
+    # The order of settings modules listed below is important
+    # and should be maintained. None, some or all of these
+    # modules may exist.
     #
     modules = [
-        "default_settings",       # default application settings
-        "settings",               # local application settings
-        "test.default_settings",  # default test settings
         "test.settings",          # local test settings
+        "test.default_settings",  # default test settings
+        "settings",               # local application settings
+        "default_settings",       # default application settings
     ]
 
     @classmethod
-    def load(cls):
+    def load_all(cls):
+        """ Load settings from all modules listed in `modules`.
+        """
+        return cls.load(*cls.modules)
+
+    @classmethod
+    def load(cls, *modules):
         """ Load settings from one or more settings modules.
 
         This routine will attempt to load each settings module
-        listed in `modules` in order, skipping those that
-        cannot be imported. Each settings module will be loaded
-        in turn and applied over the top of those previously
-        loaded.
+        passed in as an argument, skipping those that cannot
+        be imported. Each settings module will be loaded in
+        turn and appended to a chain before being returned as
+        a single Settings object.
 
         """
         settings = cls()
-        for module in cls.modules:
+        for module_name in modules:
             try:
-                more_settings = Settings.from_module(module)
+                module = import_module(module_name)
             except ImportError:
                 pass
             else:
-                settings.update(more_settings)
+                members = {name.lower(): value
+                           for name, value in getmembers(module)
+                           if not name.startswith("_")}
+                settings.append(Settings(**members))
         return settings
 
-    @classmethod
-    def from_module(cls, name, package=None):
-        """ Import settings from a module.
-        """
-        module = import_module(name, package)
-        members = {name: value for name, value in getmembers(module)
-                   if not name.startswith("_")}
-        return cls(**members)
-
     def __init__(self, **settings):
-        self.__settings = {}
-        for key, value in settings.items():
-            key = key.lower()
-            self.__settings[key] = value
+        self.__chain = []
+        if settings:
+            self.__chain.append({key.lower(): value
+                                 for key, value in settings.items()})
 
     def __getitem__(self, key):
-        return self.__settings.get(key.lower())
+        key = key.lower()
+        for item in self.__chain:
+            try:
+                value = item[key]
+            except KeyError:
+                continue
+            else:
+                return value
+        else:
+            return None
 
     def __getattr__(self, key):
         return self.__getitem__(key)
 
-    def update(self, settings):
-        """ Update settings with other settings
+    def append(self, other):
+        """ Add settings to the end of the chain.
         """
-        if not isinstance(settings, Settings):
-            raise TypeError("Can only update Settings with other Settings")
-        self.__settings.update(settings.__settings)
+        self.__chain = self.__chain + other.__chain
+
+    def prepend(self, other):
+        """ Add settings to the start of the chain.
+        """
+        self.__chain = other.__chain + self.__chain

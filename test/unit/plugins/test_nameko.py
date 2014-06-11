@@ -10,7 +10,7 @@ from pylytics.library.settings import Settings
 from pylytics.plugins.nameko import NamekoCollectionService
 
 
-settings = Settings.load()
+settings = Settings.load_all()
 
 
 @pytest.yield_fixture

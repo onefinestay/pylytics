@@ -38,26 +38,16 @@ class TestSettings(object):
         # given
         module_name = "test.unit.library.fixtures.fake_settings"
         # when
-        settings = Settings.from_module(module_name)
+        settings = Settings.load(module_name)
         # then
         assert settings.pylytics_db == fake_settings.pylytics_db
         assert settings.databases == fake_settings.DATABASES
 
-    def test_can_update_settings_with_other_settings(self):
+    def test_early_loaded_beats_late_loaded(self):
         # given
         settings = Settings(king="Arthur", queen="Guinevere")
-        other_settings = Settings(king="Arthur Pendragon", table="round")
-        # when
-        settings.update(other_settings)
+        settings.append(Settings(king="Arthur Pendragon", table="round"))
         # then
-        assert settings.king == "Arthur Pendragon"
+        assert settings.king == "Arthur"
         assert settings.queen == "Guinevere"
         assert settings.table == "round"
-
-    def test_cannot_update_settings_with_something_else(self):
-        # given
-        settings = Settings(king="Arthur", queen="Guinevere")
-        other_settings = Settings(king="Arthur Pendragon", table="round")
-        # when/then
-        with pytest.raises(TypeError):
-            settings.update("Trying to update with a string is a silly idea")

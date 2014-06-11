@@ -9,7 +9,7 @@ from pylytics.library.exceptions import classify_error
 from pylytics.library.settings import Settings
 
 
-settings = Settings.load()
+settings = Settings.load_all()
 
 
 def run_query(database, query):

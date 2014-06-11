@@ -27,7 +27,7 @@ from pylytics.library.connection import DB
 from pylytics.library.settings import Settings
 
 
-settings = Settings.load()
+settings = Settings.load_all()
 
 _log = logging.getLogger(__name__)
 
