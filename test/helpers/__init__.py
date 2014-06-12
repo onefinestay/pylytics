@@ -13,33 +13,22 @@ def execute(conn, statement):
     cursor.close()
 
 
-def db_fixture(request, **kwargs):
-    """ Create and return a database fixture.
+def db_fixture(database):
+    """ Create and return a database fixture based on details from the
+    global database settings.
     """
-    host = kwargs.get("host", "localhost")
-    user = kwargs["user"]
-    passwd = kwargs["passwd"]
-    db = kwargs["db"]
+    db_settings = dict(connection.settings.DATABASES[database])
 
-    credentials = {
-        'host': host,
-        'user': user,
-        'passwd': passwd,
-        'db': db,
-    }
-
-    conn = mysql.connect(host=host, user=user, passwd=passwd)
+    conn = mysql.connect(host=db_settings["host"], user=db_settings["user"],
+                         passwd=db_settings["passwd"])
     with warnings.catch_warnings():
         # Hide warnings
         warnings.simplefilter("ignore")
-        execute(conn, "DROP DATABASE IF EXISTS {}".format(db))
-    execute(conn, "CREATE DATABASE IF NOT EXISTS {}".format(db))
+        execute(conn, "DROP DATABASE IF EXISTS {}".format(db_settings["db"]))
+    execute(conn, "CREATE DATABASE {}".format(db_settings["db"]))
     conn.commit()
     conn.close()
 
-    connection.settings.DATABASES.update({db: credentials})
-    connection.settings.pylytics_db = db
-
-    fixture = connection.DB(db)
+    fixture = connection.DB(database)
     fixture.connect()
     return fixture
