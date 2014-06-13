@@ -1,7 +1,6 @@
 from pylytics.library.collection import CREATE_STAGING_TABLE
 from pylytics.library.connection import DB
-
-import settings
+from pylytics.library.settings import settings
 
 
 def init_tables():
