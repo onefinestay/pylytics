@@ -1,9 +1,10 @@
 """Provides a consistent interface for terminal output across the project."""
 
-from contextlib import contextmanager
 import datetime
-import sys
+import logging
 
+
+log = logging.getLogger("pylytics")
 
 MAP = {
     'red': '\033[31m',
@@ -15,14 +16,11 @@ MAP = {
 }
 
 
-@contextmanager
-def format_text(format):
+def format_text(text, format):
     if format not in MAP.keys():
         raise ValueError('Not a valid format option - pick:' \
                          ' {}'.format(', '.join(MAP.keys())))
-    sys.stdout.write(MAP[format])
-    yield
-    sys.stdout.write(MAP['reset'])
+    return MAP[format] + text + MAP['reset']
 
 
 def print_status(message, timestamp=True, format=None, indent=True,
@@ -30,19 +28,19 @@ def print_status(message, timestamp=True, format=None, indent=True,
     """
     Printing output with simple formatting options.
     """
+    s = []
     if space:
-        sys.stdout.write('\n')
+        s.append("\n")
     
     if indent:
-        sys.stdout.write('   ')
+        s.append("  ")
     
     if timestamp:
-        sys.stdout.write('{}: '.format(datetime.datetime.now()))
+        s.append('{}: '.format(datetime.datetime.now()))
     
     if format:
-        with format_text(format):
-            sys.stdout.write(message)
+        s.append(format_text(message, format))
     else:
-        sys.stdout.write(message)
-    
-    sys.stdout.write('\n')
+        s.append(message)
+
+    log.info("".join(s))

@@ -1,5 +1,14 @@
+# -*- encoding: utf-8 -*-
+
+
+from __future__ import unicode_literals
+
+import logging
 from importlib import import_module
 from inspect import getmembers
+
+
+log = logging.getLogger("pylytics")
 
 
 class Settings(object):
@@ -50,17 +59,19 @@ class Settings(object):
         a single Settings object.
 
         """
+        log.info("Attempting to load settings from %s", ", ".join(modules))
         inst = cls()
         for module_name in modules:
             try:
                 module = import_module(module_name)
             except ImportError:
-                pass
+                log.info("✗ Cannot load settings from %s", module_name)
             else:
                 members = {name.lower(): value
                            for name, value in getmembers(module)
                            if not name.startswith("_")}
                 inst.append(Settings(**members))
+                log.info("✓ Loaded settings from %s", module.__file__)
         return inst
 
     def __init__(self, **settings):

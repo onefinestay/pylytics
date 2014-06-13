@@ -1,12 +1,18 @@
-# Add the project settings module to the namespace.
+import logging
+import sys
+
+log = logging.getLogger("pylytics")
+log.addHandler(logging.StreamHandler(sys.stdout))
+log.setLevel(logging.INFO)
 
 import argparse
 import importlib
 import os
-import sys
 
 from utils.text_conversion import underscore_to_camelcase
 from utils.terminal import print_status
+
+from pylytics.library.settings import Settings, settings
 
 
 def all_facts():
@@ -176,16 +182,9 @@ def run_command(facts, command):
     print_summary(errors)
 
 
-def load_settings(settings_path):
-    if settings_path:
-        if settings_path[0]:
-            sys.path.insert(0, settings_path)
-    global settings
-    import settings
-
-
 def main():
-    """This is called by the manage.py created in the project directory."""
+    """ Main function called by the manage.py from the project directory.
+    """
     from fact import Fact
 
     parser = argparse.ArgumentParser(
@@ -220,7 +219,9 @@ def main():
                      timestamp=False, format='reverse', space=True)
         facts = all_facts()
 
-    # Import settings:
-    load_settings(args['settings'])
+    # Prepend an extra settings file if one is specified.
+    settings_module = args["settings"]
+    if settings_module:
+        settings.prepend(Settings.load(settings_module))
 
     run_command(facts, command)
