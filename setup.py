@@ -53,7 +53,7 @@ setup(
     install_requires=requirements,
     long_description=open(make_abs('README.rst')).read(),
     name='pylytics',
-    packages=find_packages(),
+    packages=find_packages(exclude=("test",)),
     entry_points={
         'console_scripts': [
             'init_pylytics_staging_table = pylytics.library.collection:initialise_staging_table',
