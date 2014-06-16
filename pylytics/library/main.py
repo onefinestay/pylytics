@@ -142,8 +142,9 @@ def run_command(facts, command):
         for fact in facts:
             try:
                 FactClass = get_class(fact)(connection=database_connection)
-            except Exception, e:
-                print 'Unable to find fact - {}.'.format(fact)
+            except Exception as error:
+                log.error("Unable to load fact '{}' due to {}: "
+                          "{}".format(fact, error.__class__.__name__, error))
             else:
                 fact_classes.append(FactClass)
 

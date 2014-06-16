@@ -4,7 +4,10 @@ import os
 import warnings
 
 from MySQLdb import IntegrityError
+
+from pylytics.library.connection import DB
 from pylytics.library.exceptions import NoSuchTableError
+from pylytics.library.settings import settings
 
 from utils.text_conversion import camelcase_to_underscore
 from utils.terminal import print_status
@@ -44,6 +47,7 @@ class Table(object):
     def __init__(self, *args, **kwargs):
         if 'connection' in kwargs:
             self.connection = kwargs['connection']
+        self.warehouse_connection = DB(settings.pylytics_db)
         self.class_name = self.__class__.__name__
         self.table_name = camelcase_to_underscore(self.class_name)
         self.dim_or_fact = None
