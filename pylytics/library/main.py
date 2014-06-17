@@ -7,7 +7,6 @@ import os
 
 from utils.text_conversion import underscore_to_camelcase
 from utils.terminal import print_status
-from fact import Fact
 
 
 def all_facts():
@@ -184,6 +183,8 @@ def run_command(db_name, facts, command):
 def main():
     """ Main function called by the manage.py from the project directory.
     """
+    from fact import Fact
+
     # Enable log output before loading settings so we have visibility
     # of any load errors.
     log = logging.getLogger("pylytics")
