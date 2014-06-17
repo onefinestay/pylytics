@@ -1,18 +1,13 @@
 import logging
 import sys
 
-log = logging.getLogger("pylytics")
-log.addHandler(logging.StreamHandler(sys.stdout))
-log.setLevel(logging.INFO)
-
 import argparse
 import importlib
 import os
 
 from utils.text_conversion import underscore_to_camelcase
 from utils.terminal import print_status
-
-from pylytics.library.settings import Settings, settings
+from fact import Fact
 
 
 def all_facts():
@@ -127,7 +122,7 @@ def _extract_scripts(command, fact_classes, script_type='setup_scripts'):
     return list(set(scripts))
 
 
-def run_command(facts, command):
+def run_command(db_name, facts, command):
     """
     Run command for each fact in facts.
 
@@ -135,7 +130,7 @@ def run_command(facts, command):
     from connection import DB
     errors = {}
 
-    with DB(settings.pylytics_db) as database_connection:
+    with DB(db_name) as database_connection:
 
         # Get all the fact classes.
         fact_classes = []
@@ -143,6 +138,9 @@ def run_command(facts, command):
             try:
                 FactClass = get_class(fact)(connection=database_connection)
             except Exception as error:
+                # Inline import as we're not making log object global.
+                ##
+                log = logging.getLogger("pylytics")
                 log.error("Unable to load fact '{}' due to {}: "
                           "{}".format(fact, error.__class__.__name__, error))
             else:
@@ -186,7 +184,13 @@ def run_command(facts, command):
 def main():
     """ Main function called by the manage.py from the project directory.
     """
-    from fact import Fact
+    # Enable log output before loading settings so we have visibility
+    # of any load errors.
+    log = logging.getLogger("pylytics")
+    log.addHandler(logging.StreamHandler(sys.stdout))
+    log.setLevel(logging.INFO)
+
+    from pylytics.library.settings import Settings, settings
 
     parser = argparse.ArgumentParser(
         description = "Run fact scripts.")
@@ -225,4 +229,4 @@ def main():
     if settings_module:
         settings.prepend(Settings.load(settings_module))
 
-    run_command(facts, command)
+    run_command(settings.pylytics_db, facts, command)
