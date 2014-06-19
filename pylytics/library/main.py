@@ -1,9 +1,9 @@
-# Add the project settings module to the namespace.
+import logging
+import sys
 
 import argparse
 import importlib
 import os
-import sys
 
 from utils.text_conversion import underscore_to_camelcase
 from utils.terminal import print_status
@@ -121,7 +121,7 @@ def _extract_scripts(command, fact_classes, script_type='setup_scripts'):
     return list(set(scripts))
 
 
-def run_command(facts, command):
+def run_command(db_name, facts, command):
     """
     Run command for each fact in facts.
 
@@ -129,15 +129,19 @@ def run_command(facts, command):
     from connection import DB
     errors = {}
 
-    with DB(settings.pylytics_db) as database_connection:
+    with DB(db_name) as database_connection:
 
         # Get all the fact classes.
         fact_classes = []
         for fact in facts:
             try:
                 FactClass = get_class(fact)(connection=database_connection)
-            except Exception, e:
-                print 'Unable to find fact - {}.'.format(fact)
+            except Exception as error:
+                # Inline import as we're not making log object global.
+                ##
+                log = logging.getLogger("pylytics")
+                log.error("Unable to load fact '{}' due to {}: "
+                          "{}".format(fact, error.__class__.__name__, error))
             else:
                 fact_classes.append(FactClass)
 
@@ -176,17 +180,18 @@ def run_command(facts, command):
     print_summary(errors)
 
 
-def load_settings(settings_path):
-    if settings_path:
-        if settings_path[0]:
-            sys.path.insert(0, settings_path)
-    global settings
-    import settings
-
-
 def main():
-    """This is called by the manage.py created in the project directory."""
+    """ Main function called by the manage.py from the project directory.
+    """
     from fact import Fact
+
+    # Enable log output before loading settings so we have visibility
+    # of any load errors.
+    log = logging.getLogger("pylytics")
+    log.addHandler(logging.StreamHandler(sys.stdout))
+    log.setLevel(logging.INFO)
+
+    from pylytics.library.settings import Settings, settings
 
     parser = argparse.ArgumentParser(
         description = "Run fact scripts.")
@@ -220,7 +225,9 @@ def main():
                      timestamp=False, format='reverse', space=True)
         facts = all_facts()
 
-    # Import settings:
-    load_settings(args['settings'])
+    # Prepend an extra settings file if one is specified.
+    settings_module = args["settings"]
+    if settings_module:
+        settings.prepend(Settings.load(settings_module))
 
-    run_command(facts, command)
+    run_command(settings.pylytics_db, facts, command)

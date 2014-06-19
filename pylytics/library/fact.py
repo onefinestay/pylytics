@@ -1,5 +1,6 @@
 import inspect
 import json
+import logging
 import warnings
 
 from MySQLdb import IntegrityError
@@ -10,6 +11,9 @@ from join import TableBuilder
 from main import get_class
 from pylytics.library.exceptions import NoSuchTableError
 from table import Table, SourceData
+
+
+log = logging.getLogger("pylytics")
 
 
 class Fact(Table):
@@ -216,8 +220,8 @@ class Fact(Table):
         returned as a `SourceData` instance that contains `column_names`,
         `column_types` and `rows`.
         """
-        self._print_status("Fetching data from source "
-                           "database for {}".format(self.table_name))
+        log.info("Fetching data from source database "
+                 "for '{}'".format(self.table_name))
         
         # Initializing the table builder
         tb = TableBuilder(
@@ -260,27 +264,31 @@ class Fact(Table):
         Should return a `SourceData` instance or raise a RuntimeError if the
         staging table cannot be found.
         """
-        sql = self.SELECT_FROM_STAGING.format(table=self.table_name)
-        results = self.connection.execute(sql)
+        with self.warehouse_connection as connection:
+            log.info("Fetching data from staging table "
+                     "for '{}'".format(self.table_name))
 
-        column_names = self.dim_names + self.metric_names
-        rows = []
-        recycling = []
-        for id_, value_map in results:
-            data = json.loads(value_map)
-            row = [data[key] for key in column_names]
-            rows.append(row)
-            recycling.append(id_)
+            sql = self.SELECT_FROM_STAGING.format(table=self.table_name)
+            results = connection.execute(sql)
 
-        source_data = SourceData(column_names=column_names, rows=rows)
+            column_names = self.dim_names + self.metric_names
+            rows = []
+            recycling = []
+            for id_, value_map in results:
+                data = json.loads(value_map)
+                row = [data[key] for key in column_names]
+                rows.append(row)
+                recycling.append(id_)
 
-        # Remove the rows we've processed, if any.
-        if recycling:
-            sql = self.DELETE_FROM_STAGING.format(
-                ids=",".join(map(str, recycling)))
-            self.connection.execute(sql)
+            source_data = SourceData(column_names=column_names, rows=rows)
 
-        return source_data
+            # Remove the rows we've processed, if any.
+            if recycling:
+                sql = self.DELETE_FROM_STAGING.format(
+                    ids=",".join(map(str, recycling)))
+                connection.execute(sql)
+
+            return source_data
 
     def _insert(self, data):
         self._print_status("Inserting into {}".format(self.table_name))
