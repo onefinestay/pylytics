@@ -39,6 +39,13 @@ class Fact(Table):
 
     INTEGER = "INT(11)"
 
+    # Load routine used for hydrating serialised data taken
+    # from the staging table. This should be overridden if
+    # required for more complex transformations, etc. This
+    # function should take a string and return a dictionary.
+    def load(self, s):
+        return json.loads(s)
+
     dim_names = None
     metric_names = None
 
@@ -275,7 +282,7 @@ class Fact(Table):
             rows = []
             recycling = []
             for id_, value_map in results:
-                data = json.loads(value_map)
+                data = self.load(value_map)
                 row = [data[key] for key in column_names]
                 rows.append(row)
                 recycling.append(id_)
