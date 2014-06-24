@@ -1,5 +1,6 @@
 import datetime
 from importlib import import_module
+import logging
 import os
 import warnings
 
@@ -12,6 +13,8 @@ from pylytics.library.settings import settings
 from utils.text_conversion import camelcase_to_underscore
 from utils.terminal import print_status
 
+
+log = logging.getLogger("pylytics")
 
 STAGING = "__staging__"
 
@@ -73,12 +76,12 @@ class Table(object):
         """ Load DDL from SQL file associated with this table.
         """
         path = self.ddl_file_path
-        self._print_status("Loading SQL from {}".format(path))
+        log.info("Loading SQL from {}".format(path))
         try:
             with open(path) as f:
                 sql = f.read()
         except IOError as error:
-            self._print_status("Unable to load DDL from file {}".format(error))
+            log.error("Unable to load DDL from file {}".format(error))
             raise
         else:
             return sql.strip()
@@ -123,20 +126,17 @@ class Table(object):
         table to be deleted.
 
         """
-        # Status.
-        msg = "Dropping %s (force='%s')" % (self.table_name, str(force))
-        self._print_status(msg)
-
         if force:
+            log.info("Dropping table {} (with force)".format(self.table_name))
             sql = self.DROP_TABLE_FORCE.format(table=self.table_name)
         else:
+            log.info("Dropping table {}".format(self.table_name))
             sql = self.DROP_TABLE.format(table=self.table_name)
         try:
             self.connection.execute(sql)
         except IntegrityError:
-            self._print_status("Table could not be deleted due to foreign "
-                               "key constraints. Try removing the fact "
-                               "tables first.")
+            log.error("Table could not be deleted due to foreign key "
+                      "constraints, try removing the fact tables first")
 
     def exists(self):
         """ Determine whether or not the table exists and return a boolean
@@ -173,13 +173,13 @@ class Table(object):
                  built, `False` otherwise.
 
         """
-        self._print_status("Ensuring table is built `{}`.`{}`".format(
+        log.info("Ensuring table is built `{}`.`{}`".format(
             self.connection.database, self.table_name))
         
         # If the table already exists, exit as successful.
         if self.exists():
-            self._print_status("Table already exists - {0} on {1}".format(
-                               self.table_name, self.connection.database))
+            log.info("Table already exists - {0} on {1}".format(
+                self.table_name, self.connection.database))
             return True
 
         # Load SQL from file if none is supplied.
@@ -189,16 +189,16 @@ class Table(object):
             except IOError:
                 return False
 
-        self._print_status("Executing SQL")
+        log.info("Executing SQL")
         try:
             self.connection.execute(sql)
         except Exception as e:
-            self._print_status("SQL execution error: {}".format(e))
+            log.error("SQL execution error: {}".format(e))
             self.connection.rollback()
             return False
         else:
             self.connection.commit()
-            self._print_status("Table successfully built")
+            log.info("Table successfully built")
             return True
 
     def _fetch(self, *args, **kwargs):
@@ -232,14 +232,14 @@ class Table(object):
         """ Update the table by fetching data from its designated origin and
         inserting it into the table.
         """
-        self._print_status("Updating table {}".format(self.table_name))
+        log.info("Updating table {}".format(self.table_name))
         rows = self._fetch()
         # Insert data
         if rows:
             self._insert(rows)
         else:
-            self._print_status("Nothing to insert")
-        self._print_status("Table updated")
+            log.info("Nothing to insert")
+        log.info("Table updated")
 
 
 class SourceData(object):

@@ -1,8 +1,11 @@
 import datetime
 from datetime import date
+import logging
 
 from pylytics.library.dim import Dim
 
+
+log = logging.getLogger("pylytics")
 
 START_DATE = date(2000, 01, 01)
 END_DATE = datetime.datetime.now().date() + datetime.timedelta(
@@ -18,8 +21,7 @@ class DimDate(Dim):
 
         """
         # Status.
-        msg = "Populating {0}".format(self.table_name)
-        self._print_status(msg)
+        log.info("Populating dimension table {}".format(self.table_name))
 
         # Get the last inserted date
         cur_date = self.connection.execute(

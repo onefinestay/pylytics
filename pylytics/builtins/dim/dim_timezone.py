@@ -1,8 +1,12 @@
 import datetime
+import logging
 
 from iso8601.iso8601 import UTC
 from pylytics.library.dim import Dim
 import pytz
+
+
+log = logging.getLogger("pylytics")
 
 
 def get_utc_offsets():
@@ -85,6 +89,8 @@ class DimTimezone(Dim):
         Overriding the base update to populate timezone data programatically
         rather than through a SQL query.
         """
+        log.info("Populating dimension table {}".format(self.table_name))
+
         utc_offsets = get_utc_offsets()
 
         query = """

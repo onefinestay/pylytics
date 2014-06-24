@@ -1,5 +1,10 @@
+import logging
+
 from connection import DB
 from table import Table, SourceData
+
+
+log = logging.getLogger("pylytics")
 
 
 class Dim(Table):
@@ -57,14 +62,14 @@ class Dim(Table):
         """ Fetch data from a SQL data source as described by the `source_db`
         and `source_query` attributes.
         """
-        self._print_status("Fetching from {}".format(self.source_db))
+        log.info("Fetching from {}".format(self.source_db))
         with DB(self.source_db) as database:
             return SourceData(rows=database.execute(self.source_query))
 
     def _insert(self, data):
         """ Insert rows from the supplied `SourceData` instance into the table.
         """
-        self._print_status("Inserting into {}".format(self.table_name))
+        log.info("Inserting into {}".format(self.table_name))
         assert isinstance(data, SourceData), "Expected SourceData instance"
 
         connection = self.connection

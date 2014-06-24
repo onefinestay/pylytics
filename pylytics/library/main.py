@@ -1,12 +1,28 @@
+from datetime import datetime
 import logging
 import sys
 
 import argparse
 import importlib
 import os
+from pylytics.library.log import ColourFormatter, bright_white
 
 from utils.text_conversion import underscore_to_camelcase
-from utils.terminal import print_status
+
+
+log = logging.getLogger("pylytics")
+
+TITLE = r"""
+  _____       _       _   _
+ |  __ \     | |     | | (_)
+ | |__) |   _| |_   _| |_ _  ___ ___
+ |  ___/ | | | | | | | __| |/ __/ __|
+ | |   | |_| | | |_| | |_| | (__\__ \
+ |_|    \__, |_|\__, |\__|_|\___|___/
+         __/ |   __/ |
+        |___/   |___/
+
+"""
 
 
 def all_facts():
@@ -46,24 +62,17 @@ def get_class(module_name, dimension=False, package=None):
 
 def print_summary(errors):
     """Print out a summary of the errors which happened during run_command."""
-    print_status("Summary", format='reverse', space=True, timestamp=False,
-                 indent=False)
+    log.info("Summary of run_command execution follows")
     if len(errors) == 0:
-        print_status("Everything went fine!", format='green', timestamp=False,
-                     indent=False)
+        log.info("No errors raised")
     else:
-        print_status("{0} commands not executed: {1}".format(
-                len(errors),
-                ", ".join(errors.keys()),
-                ),
-            timestamp=False,
-            indent=False
-            )
+        log.info("{0} commands not executed: {1}".format(
+                 len(errors), ", ".join(errors.keys())))
         items = [
             "- {}: {} {}".format(key, type(value).__name__,
                                  value) for key, value in errors.items()]
 
-        print_status("\n".join(items), timestamp=False, indent=False)
+        log.info("\n".join(items))
 
 
 def _process_scripts(scripts):
@@ -72,21 +81,21 @@ def _process_scripts(scripts):
     pylytics project, and runs them.
 
     """
-    print_status('Running scripts.')
+    log.info('Running scripts.')
     for script in scripts:
         try:
             script = importlib.import_module('scripts.{}'.format(script))
         except ImportError as exception:
-            print_status('Unable to import the script `{}`. '
-                         'Traceback - {}.'.format(script, str(exception)))
+            log.error('Unable to import the script `{}`. '
+                      'Traceback - {}.'.format(script, str(exception)))
             continue
 
-        print_status('Running {}'.format(script))
+        log.info('Running {}'.format(script))
 
         try:
             script.main()
         except Exception, e:
-            print_status(repr(e))
+            log.info(repr(e))
 
 
 def _extract_scripts(command, fact_classes, script_type='setup_scripts'):
@@ -104,18 +113,19 @@ def _extract_scripts(command, fact_classes, script_type='setup_scripts'):
         try:
             script_dict = getattr(fact_class, script_type)
         except AttributeError:
-            print_status('Unable to find {} in {}.'.format(
-                    script_type, fact_class.__class__.__name__))
+            log.warning('Unable to find {} in {}.'.format(
+                        script_type, fact_class.__class__.__name__))
             continue
 
         if isinstance(script_dict, dict):
             if command in script_dict:
                 scripts.extend(script_dict[command])
             else:
-                print_status("No {} found for {}.".format(
-                        script_type, fact_class.__class__.__name__))
+                log.warning("No {} found for {}.".format(
+                            script_type, fact_class.__class__.__name__))
         else:
-            print_status('Setup_scripts must be a dictionary - ignoring.')
+            # Setup_scripts must be a dictionary - ignoring.
+            pass
 
     # Remove duplicates.
     return list(set(scripts))
@@ -139,43 +149,38 @@ def run_command(db_name, facts, command):
             except Exception as error:
                 # Inline import as we're not making log object global.
                 ##
-                log = logging.getLogger("pylytics")
                 log.error("Unable to load fact '{}' due to {}: "
                           "{}".format(fact, error.__class__.__name__, error))
             else:
                 fact_classes.append(FactClass)
 
         # Execute any setup scripts that need to be run.
-        print_status("Checking setup scripts.", indent=False, space=True,
-                     format='blue', timestamp=False)
+        log.info("Checking setup scripts")
         setup_scripts = _extract_scripts(command, fact_classes)
         if setup_scripts:
             _process_scripts(setup_scripts)
         else:
-            print_status('No setup scripts to run.')
+            log.info('No setup scripts to run')
 
         # Execute the command on each fact class.
         for fact_class in fact_classes:
             fact_class_name = fact_class.__class__.__name__
-            print_status("Running {0} {1}".format(
-                    fact_class_name, command),
-                    format='blue', indent=False, space=True, timestamp=False)
+            log.info("Running {0} {1}".format(fact_class_name, command))
             try:
                 getattr(fact_class, command)()
             except Exception as e:
-                print_status("Running {0} {1} failed!".format(fact_class_name,
-                        command), format='red')
+                log.error("Running {} {} failed with error {}".format(
+                    fact_class_name, command, e))
                 errors['.'.join([fact_class_name, command])] = e
 
         # Execute any exit scripts that need to be run.
-        print_status("Checking exit scripts.", indent=False, space=True,
-                     format='blue', timestamp=False)
+        log.info("Checking exit scripts")
         exit_scripts = _extract_scripts(command, fact_classes,
                                         script_type='exit_scripts')
         if exit_scripts:
             _process_scripts(exit_scripts)
         else:
-            print_status('No exit scripts to run.')
+            log.info('No exit scripts to run')
 
     print_summary(errors)
 
@@ -185,10 +190,16 @@ def main():
     """
     from fact import Fact
 
+    sys.stdout.write(bright_white(TITLE))
+    sys.stdout.write(bright_white("\nStarting at {}\n\n".format(
+        datetime.now())))
+
     # Enable log output before loading settings so we have visibility
     # of any load errors.
     log = logging.getLogger("pylytics")
-    log.addHandler(logging.StreamHandler(sys.stdout))
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(ColourFormatter())
+    log.addHandler(handler)
     log.setLevel(logging.INFO)
 
     from pylytics.library.settings import Settings, settings
@@ -221,8 +232,7 @@ def main():
     command = args['command'][0]
 
     if 'all' in facts:
-        print_status('Running all fact scripts:', indent=False,
-                     timestamp=False, format='reverse', space=True)
+        log.info('Running all fact scripts')
         facts = all_facts()
 
     # Prepend an extra settings file if one is specified.
@@ -231,3 +241,6 @@ def main():
         settings.prepend(Settings.load(settings_module))
 
     run_command(settings.pylytics_db, facts, command)
+
+    sys.stdout.write(bright_white("\nCompleted at {}\n\n".format(
+        datetime.now())))
