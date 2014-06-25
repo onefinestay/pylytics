@@ -21,7 +21,8 @@ class DimDate(Dim):
 
         """
         # Status.
-        log.debug("%s | Populating dimension table", self.table_name)
+        log.info("%s | Fetching data from the mysterious depths of "
+                 "time itself", self.table_name)
 
         # Get the last inserted date
         cur_date = self.connection.execute(
