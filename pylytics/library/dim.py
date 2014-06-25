@@ -62,16 +62,15 @@ class Dim(Table):
         """ Fetch data from a SQL data source as described by the `source_db`
         and `source_query` attributes.
         """
-        log.info("Fetching from {}".format(self.source_db))
+        log.info("%s | Fetching rows from data source '%s'",
+                 self.table_name, self.source_db)
         with DB(self.source_db) as database:
             return SourceData(rows=database.execute(self.source_query))
 
     def _insert(self, data):
         """ Insert rows from the supplied `SourceData` instance into the table.
         """
-        log.info("Inserting into {}".format(self.table_name))
-        assert isinstance(data, SourceData), "Expected SourceData instance"
-
+        log.info("%s | Inserting %s rows", self.table_name, len(data))
         connection = self.connection
         for row in data.rows:
             destination_tuple = self._transform_tuple(row)

@@ -62,12 +62,11 @@ def get_class(module_name, dimension=False, package=None):
 
 def print_summary(errors):
     """Print out a summary of the errors which happened during run_command."""
-    log.info("Summary of run_command execution follows")
     if len(errors) == 0:
-        log.info("No errors raised")
+        log.debug("No errors raised")
     else:
-        log.info("{0} commands not executed: {1}".format(
-                 len(errors), ", ".join(errors.keys())))
+        log.error("{0} commands not executed: {1}".format(
+                  len(errors), ", ".join(errors.keys())))
         items = [
             "- {}: {} {}".format(key, type(value).__name__,
                                  value) for key, value in errors.items()]
@@ -75,14 +74,14 @@ def print_summary(errors):
         log.info("\n".join(items))
 
 
-def _process_scripts(scripts):
+def run_scripts(scripts):
     """
     Looks for the scripts in the folder 'scripts' at the root of the
     pylytics project, and runs them.
 
     """
-    log.info('Running scripts.')
     for script in scripts:
+        log.info("Running setup script: %s", script)
         try:
             script = importlib.import_module('scripts.{}'.format(script))
         except ImportError as exception:
@@ -94,11 +93,11 @@ def _process_scripts(scripts):
 
         try:
             script.main()
-        except Exception, e:
-            log.info(repr(e))
+        except Exception as error:
+            log.error("Error occurred while running script: %s", error)
 
 
-def _extract_scripts(command, fact_classes, script_type='setup_scripts'):
+def find_scripts(command, fact_classes, script_type):
     """
     Introspects the list of fact_classes and returns a list of script names
     that need to be run.
@@ -107,82 +106,83 @@ def _extract_scripts(command, fact_classes, script_type='setup_scripts'):
     only appear once in the list.
 
     """
-    scripts = []
+    scripts = set()
     for fact_class in fact_classes:
-
         try:
             script_dict = getattr(fact_class, script_type)
         except AttributeError:
             log.warning('Unable to find {} in {}.'.format(
                         script_type, fact_class.__class__.__name__))
-            continue
+        else:
+            if isinstance(script_dict, dict) and command in script_dict:
+                scripts.update(script_dict[command])
+    return scripts
 
-        if isinstance(script_dict, dict):
-            if command in script_dict:
-                scripts.extend(script_dict[command])
+
+class Commander(object):
+
+    def __init__(self, db_name):
+        self.db_name = db_name
+
+    def run(self, command, *facts):
+        """ Run command for each fact in facts.
+        """
+        from connection import DB
+        errors = {}
+
+        # Normalise the collection of facts supplied to remove duplicates,
+        # expand "all" and report unknown facts.
+        if "all" in facts:
+            facts = all_facts()
+        else:
+            facts = set(facts)
+            unknown_facts = facts - set(all_facts())
+            for fact in unknown_facts:
+                log.error("%s | Unknown fact", fact)
+                facts.remove(fact)
+
+        with DB(self.db_name) as database_connection:
+
+            # Get all the fact classes.
+            fact_classes = []
+            for fact in facts:
+                try:
+                    FactClass = get_class(fact)(connection=database_connection)
+                except Exception as error:
+                    # Inline import as we're not making log object global.
+                    log.error("Unable to load fact '{}' due to {}: {}"
+                              .format(fact, error.__class__.__name__, error))
+                else:
+                    fact_classes.append(FactClass)
+
+            # Execute any setup scripts that need to be run.
+            setup_scripts = find_scripts(command, fact_classes, "setup_scripts")
+            if setup_scripts:
+                log.debug("Running setup scripts")
+                run_scripts(setup_scripts)
             else:
-                log.warning("No {} found for {}.".format(
-                            script_type, fact_class.__class__.__name__))
-        else:
-            # Setup_scripts must be a dictionary - ignoring.
-            pass
+                log.debug('No setup scripts to run')
 
-    # Remove duplicates.
-    return list(set(scripts))
+            # Execute the command on each fact class.
+            for fact_class in fact_classes:
+                fact_class_name = fact_class.__class__.__name__
+                log.debug("Calling {0}.{1}".format(fact_class_name, command))
+                try:
+                    getattr(fact_class, command)()
+                except Exception as e:
+                    log.error("Running {} {} failed with error {}".format(
+                        fact_class_name, command, e))
+                    errors['.'.join([fact_class_name, command])] = e
 
-
-def run_command(db_name, facts, command):
-    """
-    Run command for each fact in facts.
-
-    """
-    from connection import DB
-    errors = {}
-
-    with DB(db_name) as database_connection:
-
-        # Get all the fact classes.
-        fact_classes = []
-        for fact in facts:
-            try:
-                FactClass = get_class(fact)(connection=database_connection)
-            except Exception as error:
-                # Inline import as we're not making log object global.
-                ##
-                log.error("Unable to load fact '{}' due to {}: "
-                          "{}".format(fact, error.__class__.__name__, error))
+            # Execute any exit scripts that need to be run.
+            exit_scripts = find_scripts(command, fact_classes, "exit_scripts")
+            if exit_scripts:
+                log.debug("Running exit scripts")
+                run_scripts(exit_scripts)
             else:
-                fact_classes.append(FactClass)
+                log.debug('No exit scripts to run')
 
-        # Execute any setup scripts that need to be run.
-        log.info("Checking setup scripts")
-        setup_scripts = _extract_scripts(command, fact_classes)
-        if setup_scripts:
-            _process_scripts(setup_scripts)
-        else:
-            log.info('No setup scripts to run')
-
-        # Execute the command on each fact class.
-        for fact_class in fact_classes:
-            fact_class_name = fact_class.__class__.__name__
-            log.info("Running {0} {1}".format(fact_class_name, command))
-            try:
-                getattr(fact_class, command)()
-            except Exception as e:
-                log.error("Running {} {} failed with error {}".format(
-                    fact_class_name, command, e))
-                errors['.'.join([fact_class_name, command])] = e
-
-        # Execute any exit scripts that need to be run.
-        log.info("Checking exit scripts")
-        exit_scripts = _extract_scripts(command, fact_classes,
-                                        script_type='exit_scripts')
-        if exit_scripts:
-            _process_scripts(exit_scripts)
-        else:
-            log.info('No exit scripts to run')
-
-    print_summary(errors)
+        print_summary(errors)
 
 
 def main():
@@ -190,57 +190,54 @@ def main():
     """
     from fact import Fact
 
-    sys.stdout.write(bright_white(TITLE))
-    sys.stdout.write(bright_white("\nStarting at {}\n\n".format(
-        datetime.now())))
-
-    # Enable log output before loading settings so we have visibility
-    # of any load errors.
-    log = logging.getLogger("pylytics")
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(ColourFormatter())
-    log.addHandler(handler)
-    log.setLevel(logging.INFO)
-
-    from pylytics.library.settings import Settings, settings
-
     parser = argparse.ArgumentParser(
         description = "Run fact scripts.")
-    parser.add_argument(
-        'fact',
-        choices = ['all'] + all_facts(),
-        help = 'The name(s) of the fact(s) to run e.g. fact_example.',
-        nargs = '+',
-        type = str,
-        )
-    parser.add_argument(
-        'command',
-        choices = Fact.public_methods(),
-        help = 'The command you want to run.',
-        nargs = 1,
-        type = str,
-        )
     parser.add_argument(
         '--settings',
         help = 'The path to the settings module e.g /etc/foo/bar',
         type = str,
         nargs = 1,
         )
-
+    parser.add_argument(
+        'command',
+        #choices = Fact.public_methods(),
+        help = 'The command you want to run.',
+        nargs = 1,
+        type = str,
+        )
+    parser.add_argument(
+        'fact',
+        #choices = ['all'] + all_facts(),
+        help = 'The name(s) of the fact(s) to run e.g. fact_example.',
+        nargs = '*',
+        type = str,
+        )
     args = parser.parse_args().__dict__
-    facts = set(args['fact'])
-    command = args['command'][0]
 
-    if 'all' in facts:
-        log.info('Running all fact scripts')
-        facts = all_facts()
+    sys.stdout.write(bright_white(TITLE))
+    sys.stdout.write(bright_white("\nStarting at {}\n\n".format(
+        datetime.now())))
+
+    # Enable log output before loading settings so we have visibility
+    # of any load errors.
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(ColourFormatter())
+    log.addHandler(handler)
+    log.setLevel(logging.DEBUG if __debug__ else logging.INFO)
+
+    from pylytics.library.settings import Settings, settings
 
     # Prepend an extra settings file if one is specified.
     settings_module = args["settings"]
     if settings_module:
         settings.prepend(Settings.load(settings_module))
 
-    run_command(settings.pylytics_db, facts, command)
+    command = args['command'][0]
+    commander = Commander(settings.pylytics_db)
+    if command in Fact.public_methods():
+        commander.run(command, *args['fact'])
+    else:
+        log.error("Unknown command: %s", command)
 
     sys.stdout.write(bright_white("\nCompleted at {}\n\n".format(
         datetime.now())))

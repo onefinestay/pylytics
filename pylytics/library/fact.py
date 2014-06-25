@@ -171,11 +171,11 @@ class Fact(Table):
         file exists).
         """
         if data.column_types is None:
-            self._print_status("Cannot auto-build table: "
-                               "No column definitions available")
+            log.warning("%s | Cannot auto-build table as no column "
+                        "definitions available", self.table_name)
             return
 
-        self._print_status("Building table from auto-generated DDL")
+        log.info("%s | Building table from auto-generated DDL", self.table_name)
         column_types = dict(data.column_types)
         column_types.update({name: self.INTEGER for name in self.dim_names})
         sql = SQLBuilder(
@@ -186,7 +186,7 @@ class Fact(Table):
             foreign_keys=zip(self.dim_names, self.dim_links)
         ).query
         self.connection.execute(sql)
-        self._print_status("Table successfully built")
+        log.debug("%s | Table successfully built", self.table_name)
 
     @property
     def fixed_columns(self):
@@ -200,8 +200,8 @@ class Fact(Table):
         try:
             result = self.connection.execute(sql, get_cols=True)
         except NoSuchTableError:
-            self._print_status("Unable to ascertain columns for "
-                               "non-existent table {}".format(self.table_name))
+            log.warning("%s | Unable to ascertain columns for "
+                        "non-existent table", self.table_name)
         else:
             columns = result[1]
             return [_ for _ in columns if _ not in self.fixed_columns]
@@ -211,7 +211,8 @@ class Fact(Table):
             query = self.source_query
         else:
             if not hasattr(self, 'historical_source_query'):
-                warnings.warn('There is no historical_source_query defined!')
+                log.warning('%s | No historical_source_query defined',
+                            self.table_name)
                 return 0
             else:
                 query = self.historical_source_query.format(index)
@@ -227,8 +228,7 @@ class Fact(Table):
         returned as a `SourceData` instance that contains `column_names`,
         `column_types` and `rows`.
         """
-        log.info("Fetching data from source database "
-                 "for '{}'".format(self.table_name))
+        log.info("%s | Fetching rows from source database", self.table_name)
         
         # Initializing the table builder
         tb = TableBuilder(
@@ -272,8 +272,7 @@ class Fact(Table):
         staging table cannot be found.
         """
         with self.warehouse_connection as connection:
-            log.info("Fetching data from staging table "
-                     "for table '{}'".format(self.table_name))
+            log.info("%s | Fetching rows from staging table", self.table_name)
 
             sql = self.SELECT_FROM_STAGING.format(table=self.table_name)
             results = connection.execute(sql)
@@ -281,7 +280,8 @@ class Fact(Table):
             column_names = self.dim_names + self.metric_names
             rows = []
             recycling = []
-            log.info("Extracting data for columns {}".format(column_names))
+            log.info("%s | Extracting data for columns %s",
+                     self.table_name, ", ".join(column_names))
             for id_, value_map in results:
                 data = self.load(value_map)
                 row = [data.get(key) for key in column_names]
@@ -299,7 +299,7 @@ class Fact(Table):
             return source_data
 
     def _insert(self, data):
-        self._print_status("Inserting into {}".format(self.table_name))
+        log.info("%s | Inserting %s rows", self.table_name, len(data))
 
         not_matching_count = 0
         error_count = 0
@@ -308,21 +308,21 @@ class Fact(Table):
         self._import_dimensions()
         self._generate_dim_dict(data)
 
-        for row in data.rows:
-
-            destination_tuple, not_matching = self._map_tuple(
-                self._transform_tuple(row))
-
-            values = self._values_placeholder(len(destination_tuple))
-            query = self.REPLACE.format(table=self.table_name, values=values)
+        for source_values in data.rows:
+            num_values = len(source_values)
+            fact_values = self._transform_tuple(source_values)
+            identity_values, not_matching = self._map_tuple(fact_values)
+            placeholder_values = self._values_placeholder(num_values)
+            query = self.REPLACE.format(table=self.table_name,
+                                        values=placeholder_values)
             try:
-                self.connection.execute(query, destination_tuple)
-            except Exception as e:
-                self._print_status("MySQL error: {}".format(destination_tuple))
-                self._print_status("Row after _transform_tuple(): %s" % (
-                                        str(self._transform_tuple(row))))
-                self._print_status("Raw row from DB: %s" % str(row))
-                self._print_status(repr(e))
+                self.connection.execute(query, identity_values)
+            except Exception as error:
+                log.error("%s | Error occurred while inserting data: %s", self.table_name, error)
+                log.debug("%s | Source values   = %s", self.table_name, source_values)
+                log.debug("%s | Fact values     = %s", self.table_name, fact_values)
+                log.debug("%s | Identity values = %s", self.table_name, identity_values)
+                log.debug("%s | SQL query       = %s", self.table_name, query.strip())
                 error_count += 1
             else:
                 success_count += 1
@@ -332,11 +332,14 @@ class Fact(Table):
 
         self.connection.commit()
 
-        msg = "{0} rows inserted, {1} of which don't match the dimensions. " \
-              "{2} errors happened.".format(success_count, not_matching_count,
-                                            error_count)
-        self._print_status(msg, format='green')
-        
+        log.info("%s | %s rows inserted", self.table_name, success_count)
+        if not_matching_count:
+            log.error("%s | %s of the rows inserted did not match dimensions",
+                      self.table_name, not_matching_count)
+        if error_count:
+            log.error("%s | %s errors during insert",
+                      self.table_name, error_count)
+
     def build(self, sql=None):
         """ Ensure the table is built.
         """
@@ -383,6 +386,4 @@ class Fact(Table):
         try:
             self.connection.execute(sql)
         except IntegrityError:
-            self._print_status("Unable to drop view for %s" % (
-                                                        self.table_name))
-
+            log.error("%s | Unable to drop view", self.table_name)

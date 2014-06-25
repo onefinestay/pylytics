@@ -21,7 +21,7 @@ class DimDate(Dim):
 
         """
         # Status.
-        log.info("Populating dimension table {}".format(self.table_name))
+        log.debug("%s | Populating dimension table", self.table_name)
 
         # Get the last inserted date
         cur_date = self.connection.execute(
@@ -32,6 +32,7 @@ class DimDate(Dim):
             cur_date = START_DATE
 
         today = date.today()
+        count = 0
         while cur_date <= END_DATE:
             quarter = (cur_date.month - 1)/3 + 1
             date_field = (
@@ -58,3 +59,10 @@ class DimDate(Dim):
                 )
 
             cur_date = cur_date + datetime.timedelta(days=1)
+
+            count += 1
+
+        if count == 1:
+            log.info("%s | Inserted %s date", self.table_name, count)
+        elif count > 1:
+            log.info("%s | Inserted %s dates", self.table_name, count)

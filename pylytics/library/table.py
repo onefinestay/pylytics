@@ -11,7 +11,6 @@ from pylytics.library.exceptions import NoSuchTableError
 from pylytics.library.settings import settings
 
 from utils.text_conversion import camelcase_to_underscore
-from utils.terminal import print_status
 
 
 log = logging.getLogger("pylytics")
@@ -87,10 +86,6 @@ class Table(object):
             return sql.strip()
 
     @classmethod
-    def _print_status(cls, message, **kwargs):
-        print_status(message, **kwargs)
-
-    @classmethod
     def _values_placeholder(cls, length):
         """
         Returns a placeholder string of the specified length (to use within a
@@ -102,7 +97,7 @@ class Table(object):
         > '%s, %s, %s'
 
         """
-        return " ".join(['%s,' for i in range(length)])[:-1]
+        return ", ".join(["%s"] * length)
 
     @property
     def frequency(self):
@@ -173,13 +168,9 @@ class Table(object):
                  built, `False` otherwise.
 
         """
-        log.info("Ensuring table is built `{}`.`{}`".format(
-            self.connection.database, self.table_name))
-        
         # If the table already exists, exit as successful.
         if self.exists():
-            log.info("Table already exists - {0} on {1}".format(
-                self.table_name, self.connection.database))
+            log.debug("%s | Table already exists", self.table_name)
             return True
 
         # Load SQL from file if none is supplied.
@@ -189,16 +180,16 @@ class Table(object):
             except IOError:
                 return False
 
-        log.info("Executing SQL")
+        log.debug("%s | Executing SQL: %s", self.table_name, sql)
         try:
             self.connection.execute(sql)
-        except Exception as e:
-            log.error("SQL execution error: {}".format(e))
+        except Exception as error:
+            log.error("%s | SQL execution error: %s", self.table_name, error)
             self.connection.rollback()
             return False
         else:
             self.connection.commit()
-            log.info("Table successfully built")
+            log.info("%s | Table successfully built", self.table_name)
             return True
 
     def _fetch(self, *args, **kwargs):
@@ -215,31 +206,33 @@ class Table(object):
         """ Fetch data from a SQL data source as described by the `source_db`
         and `source_query` attributes. Should return a `SourceData` instance.
         """
-        raise NotImplementedError("Cannot fetch rows from source database")
+        log.error("%s | Cannot fetch rows from source database",
+                  self.table_name)
 
     def _fetch_from_staging(self):
         """ Fetch data from staging table and inflate it ready for insertion.
         Should return a `SourceData` instance.
         """
-        raise NotImplementedError("Cannot fetch rows from staging table")
+        log.error("%s | Cannot fetch rows from staging table", self.table_name)
 
     def _insert(self, data):
         """ Insert rows from the supplied `SourceData` instance into the table.
         """
-        raise NotImplementedError("Cannot insert rows into table")
+        log.error("%s | Cannot insert rows into table", self.table_name)
 
     def update(self):
         """ Update the table by fetching data from its designated origin and
         inserting it into the table.
         """
-        log.info("Updating table {}".format(self.table_name))
         rows = self._fetch()
         # Insert data
         if rows:
+            log.debug("%s | Updating table", self.table_name)
             self._insert(rows)
+            log.debug("%s | Update complete", self.table_name)
         else:
-            log.info("Nothing to insert")
-        log.info("Table updated")
+            log.debug("%s | No update required - nothing "
+                      "to insert", self.table_name)
 
 
 class SourceData(object):
@@ -248,3 +241,6 @@ class SourceData(object):
         self.column_names = kwargs.get("column_names")
         self.column_types = kwargs.get("column_types")
         self.rows = kwargs.get("rows")
+
+    def __len__(self):
+        return len(self.rows)
