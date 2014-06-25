@@ -72,14 +72,16 @@ class TestExtractScripts(object):
     def test_response(self):
         fact_classes = [self._get_mock_fact()]
         for command in self.test_commands:
-            script_list = main.find_scripts(command, fact_classes)
-            assert script_list == ['test_{}'.format(command)]
+            script_list = main.find_scripts(command, fact_classes,
+                                            "setup_scripts")
+            assert set(script_list) == {'test_{}'.format(command)}
 
     def test_no_duplicates(self):
         fact_classes = [self._get_mock_fact(), self._get_mock_fact()]
         for command in self.test_commands:
-            script_list = main.find_scripts(command, fact_classes)
-            assert script_list == ['test_{}'.format(command)]
+            script_list = main.find_scripts(command, fact_classes,
+                                            "setup_scripts")
+            assert set(script_list) == {'test_{}'.format(command)}
 
 
 # TODO - tests for run_command. Will probably have to refactor run_command
