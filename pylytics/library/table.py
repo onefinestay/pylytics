@@ -72,11 +72,11 @@ class Table(object):
         # Grab everything after the underscore, e.g. log_info -> info
         level = name[4:]
 
-        # Create closure around level and self.table_name
+        # Close over the level and self.table_name variables
         def log_closure(msg, *args, **kwargs):
-            log_x = getattr(log, level)                  # find log function
+            log_x = getattr(log, level)                   # find log function
             msg = "**[" + self.table_name + "]** " + msg  # prepend table name
-            log_x(msg, *args, **kwargs)                  # call log function
+            log_x(msg, *args, **kwargs)                   # call log function
 
         return log_closure
 
