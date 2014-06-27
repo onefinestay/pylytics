@@ -54,6 +54,10 @@ def bright_blue(s):
     return "\x1b[34;1m{}\x1b[0m".format(s)
 
 
+def bright_cyan(s):
+    return "\x1b[36;1m{}\x1b[0m".format(s)
+
+
 def bright_white(s):
     return "\x1b[37;1m{}\x1b[0m".format(s)
 
@@ -69,9 +73,9 @@ message_colours = {
 highlight_colours = {
     logging.DEBUG: cyan,
     logging.INFO: cyan,
-    logging.WARNING: red,
-    logging.ERROR: bright_yellow,
-    logging.CRITICAL: bright_red,
+    logging.WARNING: cyan,
+    logging.ERROR: bright_cyan,
+    logging.CRITICAL: bright_cyan,
 }
 
 
