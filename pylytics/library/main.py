@@ -6,6 +6,7 @@ import argparse
 import importlib
 import os
 from pylytics.library.log import ColourFormatter, bright_white
+from pylytics.library.table import Table
 
 from utils.text_conversion import underscore_to_camelcase
 
@@ -140,6 +141,8 @@ class Commander(object):
             for fact in unknown_facts:
                 log.error("%s | Unknown fact", fact)
                 facts.remove(fact)
+
+        Table.max_table_name_length = max(map(len, facts))
 
         with DB(self.db_name) as database_connection:
 

@@ -89,7 +89,7 @@ class DimTimezone(Dim):
         Overriding the base update to populate timezone data programatically
         rather than through a SQL query.
         """
-        log.info("Populating dimension table {}".format(self.table_name))
+        self.log_info("Populating dimension table")
 
         utc_offsets = get_utc_offsets()
 

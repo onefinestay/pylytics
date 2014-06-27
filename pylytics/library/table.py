@@ -39,12 +39,17 @@ class Table(object):
     SHOW INDEXES FROM `{table}`
     WHERE Key_name = 'PRIMARY'
     """
+    SHOW_TABLES = """\
+    SHOW TABLES
+    """
 
     base_package = None
     surrogate_key_column = "id"
     natural_key_column = None
     source_db = None
     source_query = None
+
+    max_table_name_length = 0
 
     def __init__(self, *args, **kwargs):
         if 'connection' in kwargs:
@@ -59,6 +64,21 @@ class Table(object):
             self.surrogate_key_column = kwargs["surrogate_key_column"]
         if "natural_key_column" in kwargs:
             self.natural_key_column = kwargs["natural_key_column"]
+
+    def __getattr__(self, name):
+        if not name.startswith("log_"):
+            raise AttributeError(name)
+
+        # Grab everything after the underscore, e.g. log_info -> info
+        level = name[4:]
+
+        # Create closure around level and self.table_name
+        def log_closure(msg, *args, **kwargs):
+            log_x = getattr(log, level)                  # find log function
+            msg = "**[" + self.table_name + "]** " + msg  # prepend table name
+            log_x(msg, *args, **kwargs)                  # call log function
+
+        return log_closure
 
     @property
     def ddl_file_path(self):
@@ -75,12 +95,12 @@ class Table(object):
         """ Load DDL from SQL file associated with this table.
         """
         path = self.ddl_file_path
-        log.info("Loading SQL from {}".format(path))
+        self.log_info("Loading SQL from %s", path)
         try:
             with open(path) as f:
                 sql = f.read()
         except IOError as error:
-            log.error("Unable to load DDL from file {}".format(error))
+            self.log_error("Unable to load DDL from file %s", error)
             raise
         else:
             return sql.strip()
@@ -122,16 +142,16 @@ class Table(object):
 
         """
         if force:
-            log.info("Dropping table {} (with force)".format(self.table_name))
+            self.log_info("Dropping table (with force)")
             sql = self.DROP_TABLE_FORCE.format(table=self.table_name)
         else:
-            log.info("Dropping table {}".format(self.table_name))
+            self.log_info("Dropping table")
             sql = self.DROP_TABLE.format(table=self.table_name)
         try:
             self.connection.execute(sql)
         except IntegrityError:
-            log.error("Table could not be deleted due to foreign key "
-                      "constraints, try removing the fact tables first")
+            self.log_error("Table could not be deleted due to foreign key "
+                           "constraints, try removing the fact tables first")
 
     def exists(self):
         """ Determine whether or not the table exists and return a boolean
@@ -170,7 +190,7 @@ class Table(object):
         """
         # If the table already exists, exit as successful.
         if self.exists():
-            log.debug("%s | Table already exists", self.table_name)
+            self.log_debug("Table already exists")
             return True
 
         # Load SQL from file if none is supplied.
@@ -180,16 +200,16 @@ class Table(object):
             except IOError:
                 return False
 
-        log.debug("%s | Executing SQL: %s", self.table_name, sql)
+        self.log_debug("Executing SQL: %s", sql)
         try:
             self.connection.execute(sql)
         except Exception as error:
-            log.error("%s | SQL execution error: %s", self.table_name, error)
+            self.log_error("SQL execution error: %s", error)
             self.connection.rollback()
             return False
         else:
             self.connection.commit()
-            log.info("%s | Table successfully built", self.table_name)
+            self.log_info("Table successfully built")
             return True
 
     def _fetch(self, *args, **kwargs):
@@ -206,19 +226,18 @@ class Table(object):
         """ Fetch data from a SQL data source as described by the `source_db`
         and `source_query` attributes. Should return a `SourceData` instance.
         """
-        log.error("%s | Cannot fetch rows from source database",
-                  self.table_name)
+        self.log_error("Cannot fetch rows from source database")
 
     def _fetch_from_staging(self):
         """ Fetch data from staging table and inflate it ready for insertion.
         Should return a `SourceData` instance.
         """
-        log.error("%s | Cannot fetch rows from staging table", self.table_name)
+        self.log_error("Cannot fetch rows from staging table")
 
     def _insert(self, data):
         """ Insert rows from the supplied `SourceData` instance into the table.
         """
-        log.error("%s | Cannot insert rows into table", self.table_name)
+        self.log_error("Cannot insert rows into table")
 
     def update(self):
         """ Update the table by fetching data from its designated origin and
@@ -227,12 +246,11 @@ class Table(object):
         rows = self._fetch()
         # Insert data
         if rows:
-            log.debug("%s | Updating table", self.table_name)
+            self.log_debug("Updating table")
             self._insert(rows)
-            log.debug("%s | Update complete", self.table_name)
+            self.log_debug("Update complete")
         else:
-            log.debug("%s | No update required - nothing "
-                      "to insert", self.table_name)
+            self.log_debug("No update required - nothing to insert")
 
 
 class SourceData(object):

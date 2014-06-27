@@ -21,8 +21,7 @@ class DimDate(Dim):
 
         """
         # Status.
-        log.info("%s | Fetching data from the mysterious depths of "
-                 "time itself", self.table_name)
+        self.log_info("Fetching data from the depths of time itself")
 
         # Get the last inserted date
         cur_date = self.connection.execute(
@@ -32,7 +31,6 @@ class DimDate(Dim):
             # Build history.
             cur_date = START_DATE
 
-        today = date.today()
         count = 0
         while cur_date <= END_DATE:
             quarter = (cur_date.month - 1)/3 + 1
@@ -64,6 +62,6 @@ class DimDate(Dim):
             count += 1
 
         if count == 1:
-            log.info("%s | Inserted %s date", self.table_name, count)
+            self.log_info("Inserted %s date", count)
         elif count > 1:
-            log.info("%s | Inserted %s dates", self.table_name, count)
+            self.log_info("Inserted %s dates", count)
