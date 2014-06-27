@@ -142,8 +142,6 @@ class Commander(object):
                 log.error("%s | Unknown fact", fact)
                 facts.remove(fact)
 
-        Table.max_table_name_length = max(map(len, facts))
-
         with DB(self.db_name) as database_connection:
 
             # Get all the fact classes.

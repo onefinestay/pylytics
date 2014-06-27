@@ -49,8 +49,6 @@ class Table(object):
     source_db = None
     source_query = None
 
-    max_table_name_length = 0
-
     def __init__(self, *args, **kwargs):
         if 'connection' in kwargs:
             self.connection = kwargs['connection']
