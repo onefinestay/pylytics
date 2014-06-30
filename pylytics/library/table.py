@@ -215,18 +215,18 @@ class Table(object):
         the `source_db` attribute.
         """
         if self.source_db == STAGING:
-            rows = self._fetch_from_staging()
+            rows = self._fetch_from_staging(*args, **kwargs)
         else:
-            rows = self._fetch_from_source()
+            rows = self._fetch_from_source(*args, **kwargs)
         return rows
 
-    def _fetch_from_source(self):
+    def _fetch_from_source(self, *args, **kwargs):
         """ Fetch data from a SQL data source as described by the `source_db`
         and `source_query` attributes. Should return a `SourceData` instance.
         """
         self.log_error("Cannot fetch rows from source database")
 
-    def _fetch_from_staging(self):
+    def _fetch_from_staging(self, *args, **kwargs):
         """ Fetch data from staging table and inflate it ready for insertion.
         Should return a `SourceData` instance.
         """
@@ -241,7 +241,7 @@ class Table(object):
         """ Update the table by fetching data from its designated origin and
         inserting it into the table.
         """
-        rows = self._fetch()
+        rows = self._fetch(delete=True)
         # Insert data
         if rows:
             self.log_debug("Updating table")

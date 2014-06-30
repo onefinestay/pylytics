@@ -53,7 +53,7 @@ class Dim(Table):
         """
         return src_tuple
 
-    def _fetch_from_source(self):
+    def _fetch_from_source(self, *args, **kwargs):
         """ Fetch data from a SQL data source as described by the `source_db`
         and `source_query` attributes.
         """

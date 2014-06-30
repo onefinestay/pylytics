@@ -169,11 +169,12 @@ class Commander(object):
                 fact_class_name = fact_class.__class__.__name__
                 log.debug("Calling {0}.{1}".format(fact_class_name, command))
                 try:
-                    getattr(fact_class, command)()
-                except Exception as e:
-                    log.error("Running {} {} failed with error {}".format(
-                        fact_class_name, command, e))
-                    errors['.'.join([fact_class_name, command])] = e
+                    command_function = getattr(fact_class, command)
+                except AttributeError:
+                    log.error("Cannot find command %s for fact class %s",
+                              command, fact_class)
+                else:
+                    command_function()
 
             # Execute any exit scripts that need to be run.
             exit_scripts = find_scripts(command, fact_classes, "exit_scripts")

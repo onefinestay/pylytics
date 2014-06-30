@@ -262,7 +262,7 @@ class Fact(Table):
 
         return data
 
-    def _fetch_from_staging(self):
+    def _fetch_from_staging(self, delete=False):
         """ Fetch data from staging table and inflate it ready for insertion.
         Should return a `SourceData` instance or raise a RuntimeError if the
         staging table cannot be found.
@@ -279,15 +279,21 @@ class Fact(Table):
             self.log_info("Extracting data for columns %s",
                           ", ".join(column_names))
             for id_, value_map in results:
-                data = self.load(value_map)
-                row = [data.get(key) for key in column_names]
-                rows.append(row)
-                recycling.append(id_)
+                try:
+                    data = self.load(value_map)
+                except Exception as error:
+                    self.log_error("Broken record (%s: %s) -- %s",
+                                   error.__class__.__name__, error, value_map)
+                else:
+                    row = [data.get(key) for key in column_names]
+                    rows.append(row)
+                finally:
+                    recycling.append(id_)
 
             source_data = SourceData(column_names=column_names, rows=rows)
 
             # Remove the rows we've processed, if any.
-            if recycling:
+            if delete and recycling:
                 sql = self.DELETE_FROM_STAGING.format(
                     ids=",".join(map(str, recycling)))
                 connection.execute(sql)
@@ -347,7 +353,7 @@ class Fact(Table):
         """ Update the fact table with the newest rows, first building the
         table if it doesn't already exist.
         """
-        data = self._fetch()
+        data = self._fetch(delete=True)
         self._build_dimensions()
         if not Table.build(self):
             self._auto_build(data)
