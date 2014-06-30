@@ -219,7 +219,7 @@ class Fact(Table):
                          for i, column_name in enumerate(data.column_names)
                          if column_name in self.dim_names}
 
-    def _fetch_from_source(self, historical=False, index=0):
+    def _fetch_from_source(self, historical=False, index=0, **kwargs):
         """ Get, joins and group the source data for this table. The data is
         returned as a `SourceData` instance that contains `column_names`,
         `column_types` and `rows`.
