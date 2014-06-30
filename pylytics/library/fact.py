@@ -276,7 +276,7 @@ class Fact(Table):
             except NoSuchTableError:
                 self.log_error("No staging table available, "
                                "cannot fetch records")
-                return
+                return None
 
             column_names = self.dim_names + self.metric_names
             rows = []
@@ -359,10 +359,12 @@ class Fact(Table):
         table if it doesn't already exist.
         """
         data = self._fetch(delete=True)
-        self._build_dimensions()
-        if not Table.build(self):
-            self._auto_build(data)
-        self._insert(data)
+        if data is not None:
+            # Data will be `None` if no staging table exists.
+            self._build_dimensions()
+            if not Table.build(self):
+                self._auto_build(data)
+            self._insert(data)
 
     def historical(self):
         """
