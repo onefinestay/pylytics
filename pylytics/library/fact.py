@@ -271,7 +271,12 @@ class Fact(Table):
             self.log_info("Fetching rows from staging table")
 
             sql = self.SELECT_FROM_STAGING.format(table=self.table_name)
-            results = connection.execute(sql)
+            try:
+                results = connection.execute(sql)
+            except NoSuchTableError:
+                self.log_error("No staging table available, "
+                               "cannot fetch records")
+                return
 
             column_names = self.dim_names + self.metric_names
             rows = []
