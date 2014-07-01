@@ -4,7 +4,7 @@ CREATE TABLE `staging` (
   `collector_type` varchar(127) NOT NULL,
   `fact_table` varchar(255) NOT NULL,
   `value_map` text NOT NULL,
-  `created` datetime NOT NULL,
+  `created` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `collector_type` (`collector_type`),
   KEY `fact_table` (`fact_table`),

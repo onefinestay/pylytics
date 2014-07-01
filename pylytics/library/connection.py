@@ -3,10 +3,16 @@ Utilities for making database connections easier.
 """
 
 
+import logging
+import warnings
+
 import MySQLdb
 
 from pylytics.library.exceptions import classify_error
 from pylytics.library.settings import settings
+
+
+log = logging.getLogger("pylytics")
 
 
 def run_query(database, query):
@@ -112,20 +118,25 @@ class DB(object):
         cols_types = None
         cursor = self.connection.cursor()
 
-        try:
-            if not values:
-                # SELECT query
-                cursor.execute(query)
-                data = cursor.fetchall()
-            else:
-                # INSERT or REPLACE query
-                if many:
-                    cursor.executemany(query, values)
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            try:
+                if not values:
+                    # SELECT query
+                    cursor.execute(query)
+                    data = cursor.fetchall()
                 else:
-                    cursor.execute(query, values)
-        except MySQLdb.ProgrammingError as error:
-            classify_error(error)
-            raise
+                    # INSERT or REPLACE query
+                    if many:
+                        cursor.executemany(query, values)
+                    else:
+                        cursor.execute(query, values)
+            except MySQLdb.ProgrammingError as error:
+                classify_error(error)
+                raise
+            finally:
+                for w in caught:
+                    log.warning(w.message)
 
         if get_cols:
             # Get columns list

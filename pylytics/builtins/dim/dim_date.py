@@ -1,8 +1,11 @@
 import datetime
 from datetime import date
+import logging
 
 from pylytics.library.dim import Dim
 
+
+log = logging.getLogger("pylytics")
 
 START_DATE = date(2000, 01, 01)
 END_DATE = datetime.datetime.now().date() + datetime.timedelta(
@@ -18,8 +21,7 @@ class DimDate(Dim):
 
         """
         # Status.
-        msg = "Populating {0}".format(self.table_name)
-        self._print_status(msg)
+        self.log_info("Fetching data from the depths of time itself")
 
         # Get the last inserted date
         cur_date = self.connection.execute(
@@ -29,7 +31,7 @@ class DimDate(Dim):
             # Build history.
             cur_date = START_DATE
 
-        today = date.today()
+        count = 0
         while cur_date <= END_DATE:
             quarter = (cur_date.month - 1)/3 + 1
             date_field = (
@@ -56,3 +58,10 @@ class DimDate(Dim):
                 )
 
             cur_date = cur_date + datetime.timedelta(days=1)
+
+            count += 1
+
+        if count == 1:
+            self.log_info("Inserted %s date", count)
+        elif count > 1:
+            self.log_info("Inserted %s dates", count)

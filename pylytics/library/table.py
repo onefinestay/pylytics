@@ -1,5 +1,6 @@
 import datetime
 from importlib import import_module
+import logging
 import os
 import warnings
 
@@ -10,10 +11,16 @@ from pylytics.library.exceptions import NoSuchTableError
 from pylytics.library.settings import settings
 
 from utils.text_conversion import camelcase_to_underscore
-from utils.terminal import print_status
 
+
+log = logging.getLogger("pylytics")
 
 STAGING = "__staging__"
+
+
+def filter_dict(d, prefix):
+    len_prefix = len(prefix)
+    return {k[len_prefix:]: v for k, v in d.items() if k.startswith(prefix)}
 
 
 class Table(object):
@@ -37,6 +44,9 @@ class Table(object):
     SHOW INDEXES FROM `{table}`
     WHERE Key_name = 'PRIMARY'
     """
+    SHOW_TABLES = """\
+    SHOW TABLES
+    """
 
     base_package = None
     surrogate_key_column = "id"
@@ -58,6 +68,21 @@ class Table(object):
         if "natural_key_column" in kwargs:
             self.natural_key_column = kwargs["natural_key_column"]
 
+    def __getattr__(self, name):
+        if not name.startswith("log_"):
+            raise AttributeError(name)
+
+        # Grab everything after the underscore, e.g. log_info -> info
+        level = name[4:]
+
+        # Close over the level and self.table_name variables
+        def log_closure(msg, *args, **kwargs):
+            log_x = getattr(log, level)                   # find log function
+            msg = "**[" + self.table_name + "]** " + msg  # prepend table name
+            log_x(msg, *args, **kwargs)                   # call log function
+
+        return log_closure
+
     @property
     def ddl_file_path(self):
         """ The expected absolute file path of the SQL file containing the
@@ -73,19 +98,15 @@ class Table(object):
         """ Load DDL from SQL file associated with this table.
         """
         path = self.ddl_file_path
-        self._print_status("Loading SQL from {}".format(path))
+        self.log_info("Loading SQL from %s", path)
         try:
             with open(path) as f:
                 sql = f.read()
         except IOError as error:
-            self._print_status("Unable to load DDL from file {}".format(error))
+            self.log_error("Unable to load DDL from file %s", error)
             raise
         else:
             return sql.strip()
-
-    @classmethod
-    def _print_status(cls, message, **kwargs):
-        print_status(message, **kwargs)
 
     @classmethod
     def _values_placeholder(cls, length):
@@ -99,7 +120,7 @@ class Table(object):
         > '%s, %s, %s'
 
         """
-        return " ".join(['%s,' for i in range(length)])[:-1]
+        return ", ".join(["%s"] * length)
 
     @property
     def frequency(self):
@@ -123,20 +144,17 @@ class Table(object):
         table to be deleted.
 
         """
-        # Status.
-        msg = "Dropping %s (force='%s')" % (self.table_name, str(force))
-        self._print_status(msg)
-
         if force:
+            self.log_info("Dropping table (with force)")
             sql = self.DROP_TABLE_FORCE.format(table=self.table_name)
         else:
+            self.log_info("Dropping table")
             sql = self.DROP_TABLE.format(table=self.table_name)
         try:
             self.connection.execute(sql)
         except IntegrityError:
-            self._print_status("Table could not be deleted due to foreign "
-                               "key constraints. Try removing the fact "
-                               "tables first.")
+            self.log_error("Table could not be deleted due to foreign key "
+                           "constraints, try removing the fact tables first")
 
     def exists(self):
         """ Determine whether or not the table exists and return a boolean
@@ -173,13 +191,9 @@ class Table(object):
                  built, `False` otherwise.
 
         """
-        self._print_status("Ensuring table is built `{}`.`{}`".format(
-            self.connection.database, self.table_name))
-        
         # If the table already exists, exit as successful.
         if self.exists():
-            self._print_status("Table already exists - {0} on {1}".format(
-                               self.table_name, self.connection.database))
+            self.log_debug("Table already exists")
             return True
 
         # Load SQL from file if none is supplied.
@@ -189,16 +203,16 @@ class Table(object):
             except IOError:
                 return False
 
-        self._print_status("Executing SQL")
+        self.log_debug("Executing SQL: %s", sql)
         try:
             self.connection.execute(sql)
-        except Exception as e:
-            self._print_status("SQL execution error: {}".format(e))
+        except Exception as error:
+            self.log_error("SQL execution error: %s", error)
             self.connection.rollback()
             return False
         else:
             self.connection.commit()
-            self._print_status("Table successfully built")
+            self.log_info("Table successfully built")
             return True
 
     def _fetch(self, *args, **kwargs):
@@ -206,40 +220,42 @@ class Table(object):
         the `source_db` attribute.
         """
         if self.source_db == STAGING:
-            rows = self._fetch_from_staging()
+            staging_kwargs = filter_dict(kwargs, "staging_")
+            rows = self._fetch_from_staging(*args, **staging_kwargs)
         else:
-            rows = self._fetch_from_source()
+            source_kwargs = filter_dict(kwargs, "source_")
+            rows = self._fetch_from_source(*args, **source_kwargs)
         return rows
 
-    def _fetch_from_source(self):
+    def _fetch_from_source(self, *args, **kwargs):
         """ Fetch data from a SQL data source as described by the `source_db`
         and `source_query` attributes. Should return a `SourceData` instance.
         """
-        raise NotImplementedError("Cannot fetch rows from source database")
+        self.log_error("Cannot fetch rows from source database")
 
-    def _fetch_from_staging(self):
+    def _fetch_from_staging(self, *args, **kwargs):
         """ Fetch data from staging table and inflate it ready for insertion.
         Should return a `SourceData` instance.
         """
-        raise NotImplementedError("Cannot fetch rows from staging table")
+        self.log_error("Cannot fetch rows from staging table")
 
     def _insert(self, data):
         """ Insert rows from the supplied `SourceData` instance into the table.
         """
-        raise NotImplementedError("Cannot insert rows into table")
+        self.log_error("Cannot insert rows into table")
 
     def update(self):
         """ Update the table by fetching data from its designated origin and
         inserting it into the table.
         """
-        self._print_status("Updating table {}".format(self.table_name))
-        rows = self._fetch()
+        rows = self._fetch(staging_delete=True)
         # Insert data
         if rows:
+            self.log_debug("Updating table")
             self._insert(rows)
+            self.log_debug("Update complete")
         else:
-            self._print_status("Nothing to insert")
-        self._print_status("Table updated")
+            self.log_debug("No update required - nothing to insert")
 
 
 class SourceData(object):
@@ -248,3 +264,6 @@ class SourceData(object):
         self.column_names = kwargs.get("column_names")
         self.column_types = kwargs.get("column_types")
         self.rows = kwargs.get("rows")
+
+    def __len__(self):
+        return len(self.rows)

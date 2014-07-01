@@ -1,7 +1,5 @@
 import inspect
 import json
-import logging
-import warnings
 
 from MySQLdb import IntegrityError
 
@@ -11,9 +9,6 @@ from join import TableBuilder
 from main import get_class
 from pylytics.library.exceptions import NoSuchTableError
 from table import Table, SourceData
-
-
-log = logging.getLogger("pylytics")
 
 
 class Fact(Table):
@@ -67,7 +62,9 @@ class Fact(Table):
             self.dim_links = self.dim_names
 
         self.dim_classes = [
-            get_class(dim_link, dimension=True, package=self.base_package)(connection=self.connection, base_package=self.base_package)
+            get_class(dim_link, dimension=True,
+                      package=self.base_package)(connection=self.connection,
+                                                 base_package=self.base_package)
             for dim_link in self.dim_links
         ]
         self.input_cols_names = self._get_cols_from_sql()
@@ -171,11 +168,11 @@ class Fact(Table):
         file exists).
         """
         if data.column_types is None:
-            self._print_status("Cannot auto-build table: "
-                               "No column definitions available")
+            self.log_warning("Cannot auto-build table as no column "
+                             "definitions available")
             return
 
-        self._print_status("Building table from auto-generated DDL")
+        self.log_info("Building table from auto-generated DDL")
         column_types = dict(data.column_types)
         column_types.update({name: self.INTEGER for name in self.dim_names})
         sql = SQLBuilder(
@@ -186,7 +183,7 @@ class Fact(Table):
             foreign_keys=zip(self.dim_names, self.dim_links)
         ).query
         self.connection.execute(sql)
-        self._print_status("Table successfully built")
+        self.log_debug("Table successfully built")
 
     @property
     def fixed_columns(self):
@@ -200,8 +197,8 @@ class Fact(Table):
         try:
             result = self.connection.execute(sql, get_cols=True)
         except NoSuchTableError:
-            self._print_status("Unable to ascertain columns for "
-                               "non-existent table {}".format(self.table_name))
+            self.log_warning("Unable to ascertain columns for "
+                             "non-existent table")
         else:
             columns = result[1]
             return [_ for _ in columns if _ not in self.fixed_columns]
@@ -211,7 +208,7 @@ class Fact(Table):
             query = self.source_query
         else:
             if not hasattr(self, 'historical_source_query'):
-                warnings.warn('There is no historical_source_query defined!')
+                self.log_warning('No historical_source_query defined')
                 return 0
             else:
                 query = self.historical_source_query.format(index)
@@ -222,13 +219,12 @@ class Fact(Table):
                          for i, column_name in enumerate(data.column_names)
                          if column_name in self.dim_names}
 
-    def _fetch_from_source(self, historical=False, index=0):
+    def _fetch_from_source(self, historical=False, index=0, **kwargs):
         """ Get, joins and group the source data for this table. The data is
         returned as a `SourceData` instance that contains `column_names`,
         `column_types` and `rows`.
         """
-        log.info("Fetching data from source database "
-                 "for '{}'".format(self.table_name))
+        self.log_info("Fetching rows from source database")
         
         # Initializing the table builder
         tb = TableBuilder(
@@ -266,32 +262,43 @@ class Fact(Table):
 
         return data
 
-    def _fetch_from_staging(self):
+    def _fetch_from_staging(self, delete=False):
         """ Fetch data from staging table and inflate it ready for insertion.
         Should return a `SourceData` instance or raise a RuntimeError if the
         staging table cannot be found.
         """
         with self.warehouse_connection as connection:
-            log.info("Fetching data from staging table "
-                     "for table '{}'".format(self.table_name))
+            self.log_info("Fetching rows from staging table")
 
             sql = self.SELECT_FROM_STAGING.format(table=self.table_name)
-            results = connection.execute(sql)
+            try:
+                results = connection.execute(sql)
+            except NoSuchTableError:
+                self.log_error("No staging table available, "
+                               "cannot fetch records")
+                return None
 
             column_names = self.dim_names + self.metric_names
             rows = []
             recycling = []
-            log.info("Extracting data for columns {}".format(column_names))
+            self.log_info("Extracting data for columns %s",
+                          ", ".join(column_names))
             for id_, value_map in results:
-                data = self.load(value_map)
-                row = [data.get(key) for key in column_names]
-                rows.append(row)
-                recycling.append(id_)
+                try:
+                    data = self.load(value_map)
+                except Exception as error:
+                    self.log_error("Broken record (%s: %s) -- %s",
+                                   error.__class__.__name__, error, value_map)
+                else:
+                    row = [data.get(key) for key in column_names]
+                    rows.append(row)
+                finally:
+                    recycling.append(id_)
 
             source_data = SourceData(column_names=column_names, rows=rows)
 
             # Remove the rows we've processed, if any.
-            if recycling:
+            if delete and recycling:
                 sql = self.DELETE_FROM_STAGING.format(
                     ids=",".join(map(str, recycling)))
                 connection.execute(sql)
@@ -299,7 +306,7 @@ class Fact(Table):
             return source_data
 
     def _insert(self, data):
-        self._print_status("Inserting into {}".format(self.table_name))
+        self.log_info("Inserting %s rows", len(data))
 
         not_matching_count = 0
         error_count = 0
@@ -308,21 +315,21 @@ class Fact(Table):
         self._import_dimensions()
         self._generate_dim_dict(data)
 
-        for row in data.rows:
-
-            destination_tuple, not_matching = self._map_tuple(
-                self._transform_tuple(row))
-
-            values = self._values_placeholder(len(destination_tuple))
-            query = self.REPLACE.format(table=self.table_name, values=values)
+        for source_values in data.rows:
+            num_values = len(source_values)
+            fact_values = self._transform_tuple(source_values)
+            identity_values, not_matching = self._map_tuple(fact_values)
+            placeholder_values = self._values_placeholder(num_values)
+            query = self.REPLACE.format(table=self.table_name,
+                                        values=placeholder_values)
             try:
-                self.connection.execute(query, destination_tuple)
-            except Exception as e:
-                self._print_status("MySQL error: {}".format(destination_tuple))
-                self._print_status("Row after _transform_tuple(): %s" % (
-                                        str(self._transform_tuple(row))))
-                self._print_status("Raw row from DB: %s" % str(row))
-                self._print_status(repr(e))
+                self.connection.execute(query, identity_values)
+            except Exception as error:
+                self.log_error("Error occurred while inserting data: %s", error)
+                self.log_debug("Source values   = %s", source_values)
+                self.log_debug("Fact values     = %s", fact_values)
+                self.log_debug("Identity values = %s", identity_values)
+                self.log_debug("SQL query       = %s", query.strip())
                 error_count += 1
             else:
                 success_count += 1
@@ -332,11 +339,13 @@ class Fact(Table):
 
         self.connection.commit()
 
-        msg = "{0} rows inserted, {1} of which don't match the dimensions. " \
-              "{2} errors happened.".format(success_count, not_matching_count,
-                                            error_count)
-        self._print_status(msg, format='green')
-        
+        self.log_info("%s rows inserted", success_count)
+        if not_matching_count:
+            self.log_error("%s of the rows inserted did not match dimensions",
+                           not_matching_count)
+        if error_count:
+            self.log_error("%s errors during insert", error_count)
+
     def build(self, sql=None):
         """ Ensure the table is built.
         """
@@ -349,11 +358,13 @@ class Fact(Table):
         """ Update the fact table with the newest rows, first building the
         table if it doesn't already exist.
         """
-        data = self._fetch()
-        self._build_dimensions()
-        if not Table.build(self):
-            self._auto_build(data)
-        self._insert(data)
+        data = self._fetch(staging_delete=True)
+        if data is not None:
+            # Data will be `None` if no staging table exists.
+            self._build_dimensions()
+            if not Table.build(self):
+                self._auto_build(data)
+            self._insert(data)
 
     def historical(self):
         """
@@ -383,6 +394,4 @@ class Fact(Table):
         try:
             self.connection.execute(sql)
         except IntegrityError:
-            self._print_status("Unable to drop view for %s" % (
-                                                        self.table_name))
-
+            self.log_error("Unable to drop view")
