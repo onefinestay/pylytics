@@ -193,6 +193,16 @@ def main():
 
     from pylytics.library.settings import Settings, settings
 
+    try:
+        sentry_dsn = settings.sentry_dsn
+    except AttributeError:
+        # No Sentry DSN configured. As you were.
+        pass
+    else:
+        # Only import raven if we're actually going to use it.
+        from raven.handlers.logging import SentryHandler
+        log.addHandler(SentryHandler(sentry_dsn))
+
     parser = argparse.ArgumentParser(
         description = "Run fact scripts.")
     parser.add_argument(
