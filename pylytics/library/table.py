@@ -18,6 +18,11 @@ log = logging.getLogger("pylytics")
 STAGING = "__staging__"
 
 
+def filter_dict(d, prefix):
+    len_prefix = len(prefix)
+    return {k[len_prefix:]: v for k, v in d.items() if k.startswith(prefix)}
+
+
 class Table(object):
     """Base class."""
 
@@ -215,9 +220,11 @@ class Table(object):
         the `source_db` attribute.
         """
         if self.source_db == STAGING:
-            rows = self._fetch_from_staging(*args, **kwargs)
+            staging_kwargs = filter_dict(kwargs, "staging_")
+            rows = self._fetch_from_staging(*args, **staging_kwargs)
         else:
-            rows = self._fetch_from_source(*args, **kwargs)
+            source_kwargs = filter_dict(kwargs, "source_")
+            rows = self._fetch_from_source(*args, **source_kwargs)
         return rows
 
     def _fetch_from_source(self, *args, **kwargs):
@@ -241,7 +248,7 @@ class Table(object):
         """ Update the table by fetching data from its designated origin and
         inserting it into the table.
         """
-        rows = self._fetch(delete=True)
+        rows = self._fetch(staging_delete=True)
         # Insert data
         if rows:
             self.log_debug("Updating table")
