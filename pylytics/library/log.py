@@ -1,9 +1,5 @@
 from datetime import datetime
 import logging
-import re
-
-
-highlighted = re.compile(r"\*\*(.*?)\*\*")
 
 
 def natural(s):
@@ -95,4 +91,5 @@ class ColourFormatter(logging.Formatter):
         except AttributeError:
             return "%s  %s" % (time, message_colour(message))
         else:
-            return "%s  %s %s" % (time, highlight_colour(table), message_colour(message))
+            return "%s  %s %s" % (
+                time, highlight_colour(table), message_colour(message))
