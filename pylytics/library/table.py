@@ -88,7 +88,7 @@ class Table(object):
             file_name = "".join(code.co_filename.partition("pylytics")[1:])
             extra = {
                 "culprit": "%s in %s" % (func_name, file_name),
-                "stack": [frame[0:3][0::2] for frame in stack[1:]],
+                "stack": [(frame[0], frame[2]) for frame in stack[1:]],
                 "table": self.table_name,
             }
 
