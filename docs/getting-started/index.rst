@@ -13,3 +13,4 @@ Getting Started
    connection-library
    setup-exit-scripts
    timezone-support
+   logging

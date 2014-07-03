@@ -231,7 +231,7 @@ def main():
 
     # Attempt to configure Sentry logging.
     try:
-        sentry_dsn = settings.sentry_dsn
+        sentry_dsn = settings.SENTRY_DSN
     except AttributeError:
         # No Sentry DSN configured. As you were.
         pass
