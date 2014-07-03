@@ -411,10 +411,13 @@ class Fact(Table):
             stem=stem, table=self.table_name, columns=",\n    ".join(columns))
         self.connection.execute(sql)
 
-        # Create midnight view
-        midnight_view_name = "%s_midnight_view" % stem
-        self.log_info(midnight_view_name)
-        import ipdb; ipdb.set_trace()
+        # Create midnight view (assumes we have a column called `date`).
+        sql = """\
+        CREATE OR REPLACE VIEW `{stem}_midnight_view` AS
+        SELECT * FROM `{stem}_rolling_view`
+        WHERE date(`date`) < CURRENT_DATE
+        """.format(stem=stem)
+        self.connection.execute(sql)
 
     def historical(self):
         """
