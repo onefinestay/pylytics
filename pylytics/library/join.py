@@ -64,10 +64,14 @@ you added the sources.
 """
 
 import datetime
+import logging
 
 from connection import DB
 from build_sql import SQLBuilder
-from utils.terminal import print_status
+
+
+log = logging.getLogger("pylytics")
+
 
 ###############################################################################
 
@@ -170,15 +174,12 @@ class TableBuilder(object):
         self.foreign_keys = foreign_keys
         self.keys = keys
 
-    def _print_status(self, message, **kwargs):
-        print_status(message, **kwargs)
-
     def _rebuild_sql(self):
         """
         Drops and rebuilds the output table.
 
         """
-        self._print_status("(Re)-creating the output table.")
+        log.info("(Re)-creating the output table.")
 
         if self.create_query is None:
             self.create_query = SQLBuilder(
@@ -238,16 +239,15 @@ class TableBuilder(object):
         None to get data from the main source.
 
         """
-        self._print_status("Getting data from '{}' source.".format(
-                                                        source_name or 'main'))
+        log.info("Getting data from source '%s'", source_name or 'main')
 
-        if source_name == None:
+        if source_name is None:
             source = self.main_source
         else:
             source = self.sources[source_name]
 
         with DB(source['db']) as db:
-            if self.preliminary_query != None:
+            if self.preliminary_query is not None:
                 db.execute(self.preliminary_query)
 
             data, cols_names, cols_types = db.execute(source['query'],
@@ -343,7 +343,7 @@ class TableBuilder(object):
         'self.result_cols_names' and 'self.result_cols_types').
 
         """
-        self._print_status("Joining sources.")
+        log.info("Joining main source to secondary sources")
 
         self._get_cols_info()
 
@@ -388,7 +388,7 @@ class TableBuilder(object):
         if rebuild:
             self._rebuild_sql()
 
-        self._print_status("Writing the data into the datawarehouse.")
+        log.info("Writing data into the data warehouse")
 
         if len(self.result) > 0:
             with DB(self.output_db) as dw:
@@ -412,15 +412,10 @@ class TableBuilder(object):
                        the main source) that doesn't match.
 
         """
-        self._print_status(
-            "- Main source (from '{}'): {} rows".format(
-                self.main_source['db'],
-                len(self.main_source['data']),
-                )
-            )
+        log.info("- Main source (from '{}'): {} rows".format(self.main_source['db'], len(self.main_source['data'])))
 
         for s_name, s in self.sources.items():
-            self._print_status(
+            log.info(
                 "- Source '{}': {} rows {} matches {} errors".format(
                     s_name,
                     len(s['data']),
@@ -430,12 +425,12 @@ class TableBuilder(object):
                 )
 
             if s['errors_count'] > 0:
-                self._print_status("* Keys not found: {}.".format(s['errors']))
+                log.info("* Keys not found: {}.".format(s['errors']))
 
-        self._print_status(
+        log.info(
             "(Execution started at: {})".format(self.start_time)
             )
-        self._print_status(
+        log.info(
             "(Execution time: {})".format(datetime.datetime.now() -
                                           self.start_time)
             )
