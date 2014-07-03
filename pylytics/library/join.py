@@ -179,7 +179,7 @@ class TableBuilder(object):
         Drops and rebuilds the output table.
 
         """
-        log.info("(Re)-creating the output table.")
+        log.debug("(Re)-creating the output table.")
 
         if self.create_query is None:
             self.create_query = SQLBuilder(
@@ -239,7 +239,7 @@ class TableBuilder(object):
         None to get data from the main source.
 
         """
-        log.info("Getting data from source '%s'", source_name or 'main')
+        log.debug("Getting data from source '%s'", source_name or 'main')
 
         if source_name is None:
             source = self.main_source
@@ -343,7 +343,7 @@ class TableBuilder(object):
         'self.result_cols_names' and 'self.result_cols_types').
 
         """
-        log.info("Joining main source to secondary sources")
+        log.debug("Joining main source to secondary sources")
 
         self._get_cols_info()
 
@@ -388,7 +388,7 @@ class TableBuilder(object):
         if rebuild:
             self._rebuild_sql()
 
-        log.info("Writing data into the data warehouse")
+        log.debug("Writing data into the data warehouse")
 
         if len(self.result) > 0:
             with DB(self.output_db) as dw:
@@ -412,11 +412,11 @@ class TableBuilder(object):
                        the main source) that doesn't match.
 
         """
-        log.info("- Main source (from '{}'): {} rows".format(self.main_source['db'], len(self.main_source['data'])))
+        log.debug("Main source (from '{}'): {} rows".format(self.main_source['db'], len(self.main_source['data'])))
 
         for s_name, s in self.sources.items():
-            log.info(
-                "- Source '{}': {} rows {} matches {} errors".format(
+            log.debug(
+                "Source '{}': {} rows {} matches {} errors".format(
                     s_name,
                     len(s['data']),
                     len(s['matches_count']),
@@ -425,12 +425,12 @@ class TableBuilder(object):
                 )
 
             if s['errors_count'] > 0:
-                log.info("* Keys not found: {}.".format(s['errors']))
+                log.error("Keys not found: {}.".format(s['errors']))
 
-        log.info(
+        log.debug(
             "(Execution started at: {})".format(self.start_time)
             )
-        log.info(
+        log.debug(
             "(Execution time: {})".format(datetime.datetime.now() -
                                           self.start_time)
             )
