@@ -1,5 +1,6 @@
 import datetime
 from importlib import import_module
+import inspect
 import logging
 import os
 import warnings
@@ -16,6 +17,11 @@ from utils.text_conversion import camelcase_to_underscore
 log = logging.getLogger("pylytics")
 
 STAGING = "__staging__"
+
+
+def filter_dict(d, prefix):
+    len_prefix = len(prefix)
+    return {k[len_prefix:]: v for k, v in d.items() if k.startswith(prefix)}
 
 
 class Table(object):
@@ -72,9 +78,24 @@ class Table(object):
 
         # Close over the level and self.table_name variables
         def log_closure(msg, *args, **kwargs):
-            log_x = getattr(log, level)                   # find log function
-            msg = "**[" + self.table_name + "]** " + msg  # prepend table name
-            log_x(msg, *args, **kwargs)                   # call log function
+            __traceback_hide__ = True
+
+            # Collect extra metadata to attach to log record.
+            stack = inspect.stack()
+            top_frame = stack[1][0]
+            code = top_frame.f_code
+            func_name = code.co_name
+            file_name = "".join(code.co_filename.partition("pylytics")[1:])
+            extra = {
+                "culprit": "%s in %s" % (func_name, file_name),
+                "stack": [(frame[0], frame[2]) for frame in stack[1:]],
+                "table": self.table_name,
+            }
+
+            # Look up the appropriate log function and call it
+            # with the extra metadata attached.
+            log_x = getattr(log, level)
+            log_x(msg, *args, extra=extra, **kwargs)
 
         return log_closure
 
@@ -215,9 +236,11 @@ class Table(object):
         the `source_db` attribute.
         """
         if self.source_db == STAGING:
-            rows = self._fetch_from_staging(*args, **kwargs)
+            staging_kwargs = filter_dict(kwargs, "staging_")
+            rows = self._fetch_from_staging(*args, **staging_kwargs)
         else:
-            rows = self._fetch_from_source(*args, **kwargs)
+            source_kwargs = filter_dict(kwargs, "source_")
+            rows = self._fetch_from_source(*args, **source_kwargs)
         return rows
 
     def _fetch_from_source(self, *args, **kwargs):
@@ -241,7 +264,7 @@ class Table(object):
         """ Update the table by fetching data from its designated origin and
         inserting it into the table.
         """
-        rows = self._fetch(delete=True)
+        rows = self._fetch(staging_delete=True)
         # Insert data
         if rows:
             self.log_debug("Updating table")

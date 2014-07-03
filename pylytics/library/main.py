@@ -229,6 +229,17 @@ def main():
 
     from pylytics.library.settings import Settings, settings
 
+    # Attempt to configure Sentry logging.
+    try:
+        sentry_dsn = settings.sentry_dsn
+    except AttributeError:
+        # No Sentry DSN configured. As you were.
+        pass
+    else:
+        # Only import raven if we're actually going to use it.
+        from raven.handlers.logging import SentryHandler
+        log.addHandler(SentryHandler(sentry_dsn))
+
     # Prepend an extra settings file if one is specified.
     settings_module = args["settings"]
     if settings_module:

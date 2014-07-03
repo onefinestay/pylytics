@@ -358,7 +358,7 @@ class Fact(Table):
         """ Update the fact table with the newest rows, first building the
         table if it doesn't already exist.
         """
-        data = self._fetch(delete=True)
+        data = self._fetch(staging_delete=True)
         if data is not None:
             # Data will be `None` if no staging table exists.
             self._build_dimensions()
