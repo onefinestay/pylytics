@@ -45,4 +45,4 @@ However, when several pylytics projects are on a single server it sometimes make
 
 In this case, use::
 
-    ./manage.py all {update,build,test,historical} --settings='/etc/pylytics'
+    ./manage.py --settings='/etc/pylytics' {update,build,test,historical} fact_1 [fact_2]
