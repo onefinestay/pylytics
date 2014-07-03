@@ -4,11 +4,11 @@ The manage.py file in the project directory is used for building and updating th
 
 You can specify the facts to run. For example::
 
-    ./manage.py fact_count_example_1 [fact_count_example_2] {update,build,test,historical}
+    ./manage.py {update,build,test,historical} fact_1 [fact_2]
 
 Or run the command for all facts::
 
-    ./manage.py all {update,build,test,historical}
+    ./manage.py {update,build,test,historical} all
 
 
 build
