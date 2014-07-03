@@ -1,9 +1,5 @@
 from datetime import datetime
 import logging
-import re
-
-
-highlighted = re.compile(r"\*\*(.*?)\*\*")
 
 
 def natural(s):
@@ -82,13 +78,18 @@ highlight_colours = {
 class ColourFormatter(logging.Formatter):
 
     def format(self, record):
-        s = super(ColourFormatter, self).format(record)
+        message = super(ColourFormatter, self).format(record)
         try:
             message_colour = message_colours[record.levelno]
             highlight_colour = highlight_colours[record.levelno]
         except KeyError:
             message_colour = natural
             highlight_colour = bright_white
-        return "{}  {}".format(time_colour(datetime.now().time()), "".join(
-            message_colour(part) if i % 2 == 0 else highlight_colour(part)
-            for i, part in enumerate(highlighted.split(s))))
+        time = time_colour(datetime.now().time())
+        try:
+            table = "[" + record.table + "]"
+        except AttributeError:
+            return "%s  %s" % (time, message_colour(message))
+        else:
+            return "%s  %s %s" % (
+                time, highlight_colour(table), message_colour(message))

@@ -1,5 +1,6 @@
 import datetime
 from importlib import import_module
+import inspect
 import logging
 import os
 import warnings
@@ -77,9 +78,24 @@ class Table(object):
 
         # Close over the level and self.table_name variables
         def log_closure(msg, *args, **kwargs):
-            log_x = getattr(log, level)                   # find log function
-            msg = "**[" + self.table_name + "]** " + msg  # prepend table name
-            log_x(msg, *args, **kwargs)                   # call log function
+            __traceback_hide__ = True
+
+            # Collect extra metadata to attach to log record.
+            stack = inspect.stack()
+            top_frame = stack[1][0]
+            code = top_frame.f_code
+            func_name = code.co_name
+            file_name = "".join(code.co_filename.partition("pylytics")[1:])
+            extra = {
+                "culprit": "%s in %s" % (func_name, file_name),
+                "stack": [(frame[0], frame[2]) for frame in stack[1:]],
+                "table": self.table_name,
+            }
+
+            # Look up the appropriate log function and call it
+            # with the extra metadata attached.
+            log_x = getattr(log, level)
+            log_x(msg, *args, extra=extra, **kwargs)
 
         return log_closure
 

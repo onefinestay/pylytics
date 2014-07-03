@@ -17,3 +17,6 @@ DATABASES = {
 
 # Only used for pylytics.plugins.nameko
 NAMEKO_AMQP_URI = 'amqp://guest:guest@localhost:5672//'
+
+# A Sentry DSN configured to receive log output.
+SENTRY_DSN = 'http://public:secret@example.com/1'
