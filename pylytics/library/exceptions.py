@@ -1,4 +1,8 @@
-from MySQLdb import ProgrammingError
+from MySQLdb import OperationalError, ProgrammingError
+
+
+class BadFieldError(OperationalError):
+    code = 1054
 
 
 class NoSuchTableError(ProgrammingError):
@@ -10,6 +14,9 @@ def classify_error(error):
     generic error raised. This enables errors to be caught more cleanly
     rather than having to inspect and re-raise.
     """
+    if isinstance(error, OperationalError):
+        if error.args[0] == BadFieldError.code:
+            error.__class__ = BadFieldError
     if isinstance(error, ProgrammingError):
         if error.args[0] == NoSuchTableError.code:
             error.__class__ = NoSuchTableError

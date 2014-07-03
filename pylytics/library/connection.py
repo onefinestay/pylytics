@@ -131,7 +131,7 @@ class DB(object):
                         cursor.executemany(query, values)
                     else:
                         cursor.execute(query, values)
-            except MySQLdb.ProgrammingError as error:
+            except MySQLdb.DatabaseError as error:
                 classify_error(error)
                 raise
             finally:

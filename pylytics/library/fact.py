@@ -7,7 +7,7 @@ from build_sql import SQLBuilder
 from group_by import GroupBy
 from join import TableBuilder
 from main import get_class
-from pylytics.library.exceptions import NoSuchTableError
+from pylytics.library.exceptions import BadFieldError, NoSuchTableError
 from table import Table, SourceData
 
 
@@ -410,14 +410,18 @@ class Fact(Table):
         sql = "\n".join(clauses).format(
             stem=stem, table=self.table_name, columns=",\n    ".join(columns))
         self.connection.execute(sql)
-
         # Create midnight view (assumes we have a column called `date`).
         sql = """\
         CREATE OR REPLACE VIEW `{stem}_midnight_view` AS
         SELECT * FROM `{stem}_rolling_view`
         WHERE date(`date`) < CURRENT_DATE
         """.format(stem=stem)
-        self.connection.execute(sql)
+        try:
+            self.connection.execute(sql)
+        except BadFieldError:
+            # It's likely the `date` field isn't defined for this table.
+            # TODO: warn or something
+            pass
 
     def historical(self):
         """
