@@ -27,6 +27,9 @@ def filter_dict(d, prefix):
 class Table(object):
     """Base class."""
 
+    DESCRIBE = """\
+    DESCRIBE `{table}`
+    """
     DROP_TABLE = """\
     DROP TABLE IF EXISTS `{table}`
     """
@@ -54,6 +57,8 @@ class Table(object):
     natural_key_column = None
     source_db = None
     source_query = None
+
+    __description = None
 
     def __init__(self, *args, **kwargs):
         if 'connection' in kwargs:
@@ -98,6 +103,16 @@ class Table(object):
             log_x(msg, *args, extra=extra, **kwargs)
 
         return log_closure
+
+    @property
+    def description(self):
+        """ Lazily fetch and return the current table description
+        from the database.
+        """
+        if self.__description is None:
+            sql = self.DESCRIBE.format(table=self.table_name)
+            self.__description = self.connection.execute(sql)
+        return self.__description
 
     @property
     def ddl_file_path(self):
