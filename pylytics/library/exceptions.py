@@ -2,10 +2,20 @@ from MySQLdb import OperationalError, ProgrammingError
 
 
 class BadFieldError(OperationalError):
+    """ Raised when a reference is made to an unknown column.
+
+    See: https://dev.mysql.com/doc/refman/5.5/en/error-messages-server.html#error_er_bad_field_error
+
+    """
     code = 1054
 
 
 class NoSuchTableError(ProgrammingError):
+    """ Raised when a reference is made to a non-existent table.
+
+    See: https://dev.mysql.com/doc/refman/5.5/en/error-messages-server.html#error_er_no_such_table
+
+    """
     code = 1146
 
 
