@@ -427,8 +427,8 @@ class Fact(Table):
             self.connection.execute(sql)
         except BadFieldError:
             # It's likely the `date` field isn't defined for this table.
-            self.log_warning("Cannot create midnight view as no `date` "
-                             "field found")
+            self.log_warning("Cannot create midnight view as no date "
+                             "dimension exists for this fact")
 
     def historical(self):
         """
