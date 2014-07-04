@@ -71,17 +71,11 @@ class Fact(Table):
 
     @property
     def rolling_view_name(self):
-        stem = self.table_name
-        if stem.startswith("fact_"):
-            stem = stem[5:]
-        return "%s_rolling_view" % stem
+        return "%s_rolling_view" % self.table_stem
 
     @property
     def midnight_view_name(self):
-        stem = self.table_name
-        if stem.startswith("fact_"):
-            stem = stem[5:]
-        return "%s_midnight_view" % stem
+        return "%s_midnight_view" % self.table_stem
 
     def _transform_tuple(self, src_tuple):
         """

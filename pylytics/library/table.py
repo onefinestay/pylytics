@@ -105,6 +105,17 @@ class Table(object):
         return log_closure
 
     @property
+    def table_stem(self):
+        stem = self.table_name
+        for prefix in ("dim_", "fact_"):
+            if stem.startswith(prefix):
+                stem = stem[len(prefix):]
+        for suffix in ("_dim", "_fact"):
+            if stem.endswith(suffix):
+                stem = stem[:-len(suffix)]
+        return stem
+
+    @property
     def description(self):
         """ Lazily fetch and return the current table description
         from the database.
