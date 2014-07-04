@@ -11,6 +11,21 @@ from pylytics.library.exceptions import BadFieldError, NoSuchTableError
 from table import Table, SourceData
 
 
+def raw_name(name):
+    if name.startswith("dim_"):
+        name = name[4:]
+    if name.startswith("fact_"):
+        name = name[5:]
+    return name
+
+
+def column_name(table, column):
+    name = "%s_%s" % (raw_name(table), column)
+    if name == "date_date":
+        name = "date"
+    return name
+
+
 class Fact(Table):
     """
     Fact base class.
@@ -380,22 +395,10 @@ class Fact(Table):
             self.create_or_replace_views()
             self.log_info("Updated fact with %s records", len(data))
 
-    def create_or_replace_views(self):
-
-        def raw_name(name):
-            if name.startswith("dim_"):
-                name = name[4:]
-            if name.startswith("fact_"):
-                name = name[5:]
-            return name
-
-        def column_name(table, column):
-            name = "%s_%s" % (raw_name(table), column)
-            if name == "date_date":
-                name = "date"
-            return name
-
-        # Create rolling view
+    def _create_or_replace_rolling_view(self):
+        """ Build a base level view against the table that explodes all
+        dimension data into one wider set of columns.
+        """
         columns = ["`fact`.`id` AS fact_id"]
         clauses = ["CREATE OR REPLACE VIEW `{view}` AS",
                    "SELECT\n    {columns}",
@@ -417,7 +420,11 @@ class Fact(Table):
             columns=",\n    ".join(columns))
         self.connection.execute(sql)
 
-        # Create midnight view (assumes we have a column called `date`).
+    def _create_or_replace_midnight_view(self):
+        """ Build a view atop the rolling view for this fact which holds
+        everything up until last midnight. This view will only be built if
+        a date dimension exists for this fact.
+        """
         sql = """\
         CREATE OR REPLACE VIEW `{view}` AS
         SELECT * FROM `{source}`
@@ -429,6 +436,10 @@ class Fact(Table):
             # It's likely the `date` field isn't defined for this table.
             self.log_warning("Cannot create midnight view as no date "
                              "dimension exists for this fact")
+
+    def create_or_replace_views(self):
+        self._create_or_replace_rolling_view()
+        self._create_or_replace_midnight_view()
 
     def historical(self):
         """
