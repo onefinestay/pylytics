@@ -69,6 +69,20 @@ class Fact(Table):
         ]
         self.input_cols_names = self._get_cols_from_sql()
 
+    @property
+    def rolling_view_name(self):
+        stem = self.table_name
+        if stem.startswith("fact_"):
+            stem = stem[5:]
+        return "%s_rolling_view" % stem
+
+    @property
+    def midnight_view_name(self):
+        stem = self.table_name
+        if stem.startswith("fact_"):
+            stem = stem[5:]
+        return "%s_midnight_view" % stem
+
     def _transform_tuple(self, src_tuple):
         """
         Overwrite if needed while extending the class.
@@ -373,9 +387,6 @@ class Fact(Table):
             self.log_info("Updated fact with %s records", len(data))
 
     def create_or_replace_views(self):
-        stem = self.table_name
-        if stem.startswith("fact_"):
-            stem = stem[5:]
 
         def raw_name(name):
             if name.startswith("dim_"):
@@ -392,15 +403,15 @@ class Fact(Table):
 
         # Create rolling view
         columns = ["`fact`.`id` AS fact_id"]
-        clauses = ["CREATE OR REPLACE VIEW `{stem}_rolling_view` AS",
+        clauses = ["CREATE OR REPLACE VIEW `{view}` AS",
                    "SELECT\n    {columns}",
-                   "FROM {table} AS fact"]
+                   "FROM `{source}` AS fact"]
         for i, dim_class in enumerate(self.dim_classes):
             dim_table = dim_class.table_name
             columns.extend(
                 "`%s`.`%s` AS %s" % (
-                    dim_table, column[0], column_name(dim_table, column[0]))
-                for column in dim_class.description[1:-1])
+                    dim_table, column, column_name(dim_table, column))
+                for column in dim_class.column_names[1:-1])
             clauses.append("INNER JOIN `%s` ON `%s`.`id` = `fact`.`%s`" % (
                 dim_table, dim_table, self.dim_names[i]))
         columns.extend(
@@ -408,14 +419,16 @@ class Fact(Table):
             for d in self.description[1:-1]
             if not d[0].startswith("dim_"))
         sql = "\n".join(clauses).format(
-            stem=stem, table=self.table_name, columns=",\n    ".join(columns))
+            view=self.rolling_view_name, source=self.table_name,
+            columns=",\n    ".join(columns))
         self.connection.execute(sql)
+
         # Create midnight view (assumes we have a column called `date`).
         sql = """\
-        CREATE OR REPLACE VIEW `{stem}_midnight_view` AS
-        SELECT * FROM `{stem}_rolling_view`
+        CREATE OR REPLACE VIEW `{view}` AS
+        SELECT * FROM `{source}`
         WHERE date(`date`) < CURRENT_DATE
-        """.format(stem=stem)
+        """.format(view=self.midnight_view_name, source=self.rolling_view_name)
         try:
             self.connection.execute(sql)
         except BadFieldError:

@@ -115,6 +115,12 @@ class Table(object):
         return self.__description
 
     @property
+    def column_names(self):
+        """ Tuple of all column names within this table.
+        """
+        return tuple(column[0] for column in self.description)
+
+    @property
     def ddl_file_path(self):
         """ The expected absolute file path of the SQL file containing the
         CREATE TABLE statement for this table.

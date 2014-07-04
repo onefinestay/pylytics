@@ -163,3 +163,10 @@ class DB(object):
 
     def __exit__(self, type, value, traceback):
         self.close()
+
+    @property
+    def table_names(self):
+        """ List of names of all the tables (and views) currently
+        defined within the database.
+        """
+        return [record[0] for record in self.execute("SHOW TABLES")]
