@@ -166,13 +166,15 @@ class Commander(object):
 
             # Execute the command on each fact class.
             for fact_class in fact_classes:
+                extra = {'table': fact_class.table_name}
                 fact_class_name = fact_class.__class__.__name__
-                log.debug("Calling {0}.{1}".format(fact_class_name, command))
+                log.debug("Calling {0}.{1}".format(fact_class_name, command),
+                          extra=extra)
                 try:
                     command_function = getattr(fact_class, command)
                 except AttributeError:
                     log.error("Cannot find command %s for fact class %s",
-                              command, fact_class)
+                              command, fact_class, extra=extra)
                 else:
                     command_function()
 
