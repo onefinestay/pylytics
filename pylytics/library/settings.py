@@ -7,6 +7,8 @@ import logging
 from importlib import import_module
 from inspect import getmembers
 
+from log import bright_black, bright_yellow
+
 
 log = logging.getLogger("pylytics")
 
@@ -65,15 +67,17 @@ class Settings(object):
             try:
                 module = import_module(module_name)
             except ImportError:
-                log.debug("[\033[30;1m✗\033[0m] No settings found "
-                          "for '%s'", module_name)
+                message = "[{}] No settings found for '%s'".format(
+                    bright_black('✗'))
+                log.debug(message, module_name)
             else:
                 members = {name.lower(): value
                            for name, value in getmembers(module)
                            if not name.startswith("_")}
                 inst.append(Settings(**members))
-                log.info("[\033[33;1m✓\033[0m] Settings loaded "
-                         "for '%s' from %s", module_name, module.__file__)
+                message = "[{}] Settings loaded for '%s' from %s").format(
+                    bright_yellow('✓'))
+                log.info(message, module_name, module.__file__)
         return inst
 
     def __init__(self, **settings):
