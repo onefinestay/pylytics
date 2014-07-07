@@ -13,7 +13,7 @@ from utils.text_conversion import underscore_to_camelcase
 
 log = logging.getLogger("pylytics")
 
-TITLE = r"""
+TITLE = R"""
   _____       _       _   _
  |  __ \     | |     | | (_)
  | |__) |   _| |_   _| |_ _  ___ ___
