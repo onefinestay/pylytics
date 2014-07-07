@@ -4,6 +4,7 @@
 from __future__ import unicode_literals
 
 import logging
+import os
 from importlib import import_module
 from inspect import getmembers
 
@@ -31,11 +32,15 @@ class Settings(object):
     # modules may exist.
     #
     modules = [
-        "test.settings",          # local test settings
-        "test.default_settings",  # default test settings
         "settings",               # local application settings
         "default_settings",       # default application settings
     ]
+
+    if os.environ.get('PYLYTICS_TEST', '0') == '1':
+        modules = [
+            "test.settings",          # local test settings
+            "test.default_settings",  # default test settings
+        ].extend(modules)
 
     # Singleton instance.
     __instance = None
@@ -75,7 +80,7 @@ class Settings(object):
                            for name, value in getmembers(module)
                            if not name.startswith("_")}
                 inst.append(Settings(**members))
-                message = "[{}] Settings loaded for '%s' from %s").format(
+                message = "[{}] Settings loaded for '%s' from %s".format(
                     bright_yellow('✓'))
                 log.info(message, module_name, module.__file__)
         return inst
