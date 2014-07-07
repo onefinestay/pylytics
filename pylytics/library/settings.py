@@ -40,7 +40,7 @@ class Settings(object):
         modules = [
             "test.settings",          # local test settings
             "test.default_settings",  # default test settings
-        ].extend(modules)
+        ] + modules
 
     # Singleton instance.
     __instance = None
