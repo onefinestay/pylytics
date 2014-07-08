@@ -44,7 +44,7 @@ def dump(s):
 
 class Column(object):
 
-    __columnblock__ = 4  # TODO: explain
+    __columnblock__ = 5  # TODO: explain
     default_size = 40
 
     def __init__(self, name, type, size=None, optional=False,
@@ -114,9 +114,18 @@ class PrimaryKey(Column):
                 " AUTO_INCREMENT PRIMARY KEY")
 
 
-class DimensionKey(Column):
+class NaturalKey(Column):
 
     __columnblock__ = 2
+
+    @property
+    def __ddl__(self):
+        return super(NaturalKey, self).__ddl__ + " UNIQUE KEY"
+
+
+class DimensionKey(Column):
+
+    __columnblock__ = 3
 
     def __init__(self, name, dimension, order=None, comment=None):
         Column.__init__(self, name, int, order=order, comment=comment)
@@ -132,12 +141,12 @@ class DimensionKey(Column):
 
 class Metric(Column):
 
-    __columnblock__ = 3
+    __columnblock__ = 4
 
 
 class CreatedTimestamp(Column):
 
-    __columnblock__ = 5
+    __columnblock__ = 6
 
     def __init__(self, name="created", order=None, comment=None):
         Column.__init__(self, name, datetime, order=order, comment=comment)

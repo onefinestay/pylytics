@@ -1,6 +1,7 @@
 from datetime import date
 
-from pylytics.declarative import Column, Dimension, Fact, Metric, DimensionKey
+from pylytics.declarative import (
+    Column, Dimension, DimensionKey, Fact, Metric, NaturalKey)
 
 
 DAY_NAMES = ('Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun')
