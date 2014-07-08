@@ -72,17 +72,15 @@ class Settings(object):
             try:
                 module = import_module(module_name)
             except ImportError:
-                message = "[{}] No settings found for '%s'".format(
-                    bright_black('✗'))
-                log.debug(message, module_name)
+                log.debug("[%s] No settings found for '%s'", bright_black('✗'),
+                    module_name)
             else:
                 members = {name.lower(): value
                            for name, value in getmembers(module)
                            if not name.startswith("_")}
                 inst.append(Settings(**members))
-                message = "[{}] Settings loaded for '%s' from %s".format(
-                    bright_yellow('✓'))
-                log.info(message, module_name, module.__file__)
+                message = log.info("[%s] Settings loaded for '%s' from %s",
+                    bright_yellow('✓'), module_name, module.__file__)
         return inst
 
     def __init__(self, **settings):
