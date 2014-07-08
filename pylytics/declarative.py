@@ -135,7 +135,7 @@ class DimensionKey(Column):
     def __ddl__(self):
         dimension = self.dimension
         reference_clause = "REFERENCES %s(`%s`)" % (
-            dimension.__tablename__, dimension.__primary_key)
+            dimension.__tablename__, dimension.__primarykey__)
         return super(DimensionKey, self).__ddl__ + " " + reference_clause
 
 
