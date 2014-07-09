@@ -13,10 +13,11 @@ def warehouse():
 @pytest.fixture
 def empty_warehouse(warehouse):
     tables = [_[0] for _ in warehouse.execute("SHOW TABLES")]
-    for prefix in ("fact_", "dim_"):
-        for table in tables:
-            if table.startswith(prefix):
-                warehouse.execute("DROP TABLE {}".format(table))
+    warehouse.execute("SET foreign_key_checks = 0")
+    for table in tables:
+        warehouse.execute("DROP TABLE {}".format(table))
+    warehouse.execute("SET foreign_key_checks = 1")
+    warehouse.commit()
     return warehouse
 
 

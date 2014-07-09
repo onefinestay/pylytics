@@ -82,3 +82,20 @@ def test_can_create_fact_if_no_dimensions_exist(empty_warehouse):
     assert BoringEventFact.exists(empty_warehouse)
     assert DateDimension.exists(empty_warehouse)
     assert PlaceDimension.exists(empty_warehouse)
+
+
+def test_can_create_fact_if_some_dimensions_exist(empty_warehouse):
+    DateDimension.create(empty_warehouse)
+    BoringEventFact.create(empty_warehouse)
+    assert BoringEventFact.exists(empty_warehouse)
+    assert DateDimension.exists(empty_warehouse)
+    assert PlaceDimension.exists(empty_warehouse)
+
+
+def test_can_create_fact_if_all_dimensions_exist(empty_warehouse):
+    DateDimension.create(empty_warehouse)
+    PlaceDimension.create(empty_warehouse)
+    BoringEventFact.create(empty_warehouse)
+    assert BoringEventFact.exists(empty_warehouse)
+    assert DateDimension.exists(empty_warehouse)
+    assert PlaceDimension.exists(empty_warehouse)
