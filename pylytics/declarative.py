@@ -26,13 +26,6 @@ def _camel_to_snake(s):
     return "_".join(map(string.lower, _camel_words.split(s)[1::2]))
 
 
-def ddl(obj):
-    if obj is None:
-        return None
-    else:
-        return obj.__ddl__
-
-
 def dump(s):
     if s is None:
         return "NULL"
@@ -58,10 +51,10 @@ class Column(object):
         self.comment = comment
 
     def __repr__(self):
-        return self.__ddl__
+        return self.expression
 
     @property
-    def __ddl__(self):
+    def expression(self):
         s = ["`" + self.name + "`", self.type_expression]
         if not self.optional:
             s.append("NOT NULL")
@@ -110,7 +103,7 @@ class PrimaryKey(Column):
 
     @property
     def __ddl__(self):
-        return (super(PrimaryKey, self).__ddl__ +
+        return (super(PrimaryKey, self).expression +
                 " AUTO_INCREMENT PRIMARY KEY")
 
 
@@ -120,7 +113,7 @@ class NaturalKey(Column):
 
     @property
     def __ddl__(self):
-        return super(NaturalKey, self).__ddl__ + " UNIQUE KEY"
+        return super(NaturalKey, self).expression + " UNIQUE KEY"
 
 
 class DimensionKey(Column):
@@ -135,8 +128,8 @@ class DimensionKey(Column):
     def __ddl__(self):
         dimension = self.dimension
         reference_clause = "REFERENCES %s(`%s`)" % (
-            dimension.__tablename__, dimension.__primarykey__)
-        return super(DimensionKey, self).__ddl__ + " " + reference_clause
+            dimension.__tablename__, dimension.__primarykey__.name)
+        return super(DimensionKey, self).expression + " " + reference_clause
 
 
 class Metric(Column):
@@ -156,53 +149,82 @@ class CreatedTimestamp(Column):
         return "DEFAULT CURRENT_TIMESTAMP"
 
 
-class Table(object):
+class _ColumnSet(object):
+    """ Internal class for grouping and ordering column
+    attributes; used by TableMetaclass.
+    """
 
+    def __init__(self):
+        self.__columns = {}
+        self.__primary_key = None
+
+    def update(self, attributes):
+        for key in attributes:
+            if not key.startswith("_"):
+                col = attributes[key]
+                if isinstance(col, Column):
+                    order_key = (col.__columnblock__, col.order)
+                    self.__columns.setdefault(order_key, []).append((key, col))
+                    if isinstance(col, PrimaryKey):
+                        self.__primary_key = col
+
+    @property
+    def columns(self):
+        ordered_columns = []
+        for order_key, column_list in sorted(self.__columns.items()):
+            ordered_columns.extend(sorted(column_list))
+        return [value for key, value in ordered_columns]
+
+    @property
+    def primary_key(self):
+        return self.__primary_key
+
+    @property
+    def dimensions(self):
+        return [c for c in self.columns if isinstance(c, DimensionKey)]
+
+    @property
+    def metrics(self):
+        return [c for c in self.columns if isinstance(c, Metric)]
+
+
+class TableMetaclass(type):
+
+    def __new__(mcs, name, bases, attributes):
+        attributes.setdefault("__tablename__", _camel_to_snake(name))
+
+        column_set = _ColumnSet()
+        for base in bases:
+            column_set.update(base.__dict__)
+        column_set.update(attributes)
+
+        attributes["__columns__"] = column_set.columns
+        attributes["__dimensions__"] = column_set.dimensions
+        attributes["__metrics__"] = column_set.metrics
+        attributes["__primarykey__"] = column_set.primary_key
+
+        return super(TableMetaclass, mcs).__new__(mcs, name, bases, attributes)
+
+
+class Table(object):
+    __metaclass__ = TableMetaclass
+
+    __columns__ = NotImplemented
+    __tablename__ = NotImplemented
     __tableargs__ = {
         "ENGINE": "InnoDB",
         "CHARSET": "utf8",
         "COLLATE": "utf8_bin",
     }
 
-    def __init__(self):
-        pass
-
-    @property
-    def __tablename__(self):
-        return _camel_to_snake(self.__class__.__name__)
-
-    @property
-    def __primarykey__(self):
-        keys = [key for key in dir(self) if not key.startswith("_")]
-        for key in keys:
-            value = getattr(self, key)
-            if isinstance(value, PrimaryKey):
-                return key
-        return None
-
-    @property
-    def __columns__(self):
-        keys = [key for key in dir(self) if not key.startswith("_")]
-        column_dict = {}
-        for key in keys:
-            value = getattr(self, key)
-            if isinstance(value, Column):
-                order_key = (value.__columnblock__, value.order)
-                column_dict.setdefault(order_key, []).append((key, value))
-        ordered = []
-        for order_key, column_list in sorted(column_dict.items()):
-            ordered.extend(sorted(column_list))
-        return ordered
-
-    @property
-    def __ddl__(self):
+    @classmethod
+    def create(cls, connection):
         verb = "CREATE TABLE"
-        columns = ",\n    ".join(
-            ddl(column) for key, column in self.__columns__)
-        sql = "%s %s (\n    %s\n)" % (verb, self.__tablename__, columns)
-        for key, value in self.__tableargs__.items():
+        columns = ",\n    ".join(col.expression for col in cls.__columns__)
+        sql = "%s %s (\n    %s\n)" % (verb, cls.__tablename__, columns)
+        for key, value in cls.__tableargs__.items():
             sql += " %s=%s" % (key, value)
-        return sql
+        print sql
 
 
 class Dimension(Table):
@@ -210,14 +232,8 @@ class Dimension(Table):
     id = PrimaryKey()
     created = CreatedTimestamp()
 
-    def __init__(self):
-        Table.__init__(self)
-
 
 class Fact(Table):
 
     id = PrimaryKey()
     created = CreatedTimestamp()
-
-    def __init__(self):
-        Table.__init__(self)
