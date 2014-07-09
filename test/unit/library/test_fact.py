@@ -26,6 +26,10 @@ class TestFactFromSource(object):
         fact.build()
         # then
         assert fact.exists()
+        table_names = fact.connection.table_names
+        assert fact.rolling_view_name in table_names
+        # we have no `dim_date` so can't build a midnight view
+        assert fact.midnight_view_name not in table_names
 
     def test_can_update_from_source(self, fact):
         # when
