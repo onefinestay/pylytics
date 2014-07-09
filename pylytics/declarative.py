@@ -1,8 +1,12 @@
+import logging
 import re
 import string
 
 from datetime import date, datetime, time
 from decimal import Decimal
+
+
+log = logging.getLogger("pylytics")
 
 
 _camel_words = re.compile(r"([A-Z][a-z0-9_]+)")
@@ -224,7 +228,8 @@ class Table(object):
         sql = "%s %s (\n    %s\n)" % (verb, cls.__tablename__, columns)
         for key, value in cls.__tableargs__.items():
             sql += " %s=%s" % (key, value)
-        print sql
+        log.debug(sql)
+        connection.execute(sql)
 
 
 class Dimension(Table):

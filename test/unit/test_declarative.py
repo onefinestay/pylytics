@@ -39,3 +39,12 @@ class BoringEventFact(Fact):
     people = Metric("num_people", int)
     duration = Metric("duration", float)
     very_boring = Metric("very_boring", bool)
+
+
+def test_can_create_fact(empty_warehouse):
+    DateDimension.create(empty_warehouse)
+
+
+def test_cannot_create_fact_twice(empty_warehouse):
+    DateDimension.create(empty_warehouse)
+    DateDimension.create(empty_warehouse)
