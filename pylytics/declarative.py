@@ -106,7 +106,7 @@ class PrimaryKey(Column):
                         comment=comment)
 
     @property
-    def __ddl__(self):
+    def expression(self):
         return (super(PrimaryKey, self).expression +
                 " AUTO_INCREMENT PRIMARY KEY")
 
@@ -116,7 +116,7 @@ class NaturalKey(Column):
     __columnblock__ = 2
 
     @property
-    def __ddl__(self):
+    def expression(self):
         return super(NaturalKey, self).expression + " UNIQUE KEY"
 
 
@@ -129,11 +129,11 @@ class DimensionKey(Column):
         self.dimension = dimension
 
     @property
-    def __ddl__(self):
+    def expression(self):
         dimension = self.dimension
-        reference_clause = "REFERENCES %s(`%s`)" % (
-            dimension.__tablename__, dimension.__primarykey__.name)
-        return super(DimensionKey, self).expression + " " + reference_clause
+        foreign_key = "FOREIGN KEY (`%s`) REFERENCES `%s` (`%s`)" % (
+            self.name, dimension.__tablename__, dimension.__primarykey__.name)
+        return super(DimensionKey, self).expression + ", " + foreign_key
 
 
 class Metric(Column):
@@ -184,7 +184,7 @@ class _ColumnSet(object):
         return self.__primary_key
 
     @property
-    def dimensions(self):
+    def dimension_keys(self):
         return [c for c in self.columns if isinstance(c, DimensionKey)]
 
     @property
@@ -203,17 +203,28 @@ class TableMetaclass(type):
         column_set.update(attributes)
 
         attributes["__columns__"] = column_set.columns
-        attributes["__dimensions__"] = column_set.dimensions
-        attributes["__metrics__"] = column_set.metrics
         attributes["__primarykey__"] = column_set.primary_key
 
-        return super(TableMetaclass, mcs).__new__(mcs, name, bases, attributes)
+        cls = super(TableMetaclass, mcs).__new__(mcs, name, bases, attributes)
+
+        # These attributes should apply to facts only so only populate them
+        # if an attribute exists with that name. We do this after class
+        # creation as the attribute keys will probably only exist in a
+        # base class, not in the `attributes` dictionary.
+        if "__dimensionkeys__" in dir(cls):
+            cls.__dimensionkeys__ = column_set.dimension_keys
+        if "__metrics__" in dir(cls):
+            cls.__metrics__ = column_set.metrics
+
+        return cls
 
 
 class Table(object):
     __metaclass__ = TableMetaclass
 
+    # All of these properties should get built by the Metaclass.
     __columns__ = NotImplemented
+    __primarykey__ = NotImplemented
     __tablename__ = NotImplemented
     __tableargs__ = {
         "ENGINE": "InnoDB",
@@ -222,14 +233,33 @@ class Table(object):
     }
 
     @classmethod
-    def create(cls, connection):
-        verb = "CREATE TABLE"
+    def create(cls, connection, if_not_exists=False):
+        if if_not_exists:
+            verb = "CREATE TABLE IF NOT EXISTS"
+        else:
+            verb = "CREATE TABLE"
         columns = ",\n    ".join(col.expression for col in cls.__columns__)
         sql = "%s %s (\n    %s\n)" % (verb, cls.__tablename__, columns)
         for key, value in cls.__tableargs__.items():
             sql += " %s=%s" % (key, value)
         log.debug(sql)
         connection.execute(sql)
+        connection.commit()
+
+    @classmethod
+    def drop(cls, connection, if_exists=False):
+        if if_exists:
+            verb = "DROP TABLE IF EXISTS"
+        else:
+            verb = "DROP TABLE"
+        sql = "%s %s" % (verb, cls.__tablename__)
+        log.debug(sql)
+        connection.execute(sql)
+        connection.commit()
+
+    @classmethod
+    def exists(cls, connection):
+        return cls.__tablename__ in connection.table_names
 
 
 class Dimension(Table):
@@ -240,5 +270,16 @@ class Dimension(Table):
 
 class Fact(Table):
 
+    # Attributes specific to facts only. These will be filled
+    # in by the TableMetaclass on creation.
+    __dimensionkeys__ = NotImplemented
+    __metrics__ = NotImplemented
+
     id = PrimaryKey()
     created = CreatedTimestamp()
+
+    @classmethod
+    def create(cls, connection, if_not_exists=False):
+        for dimension_key in cls.__dimensionkeys__:
+            dimension_key.dimension.create(connection, if_not_exists=True)
+        super(Fact, cls).create(connection, if_not_exists=if_not_exists)

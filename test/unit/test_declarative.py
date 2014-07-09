@@ -1,7 +1,10 @@
 from datetime import date
 
+import pytest
+
 from pylytics.declarative import (
     Column, Dimension, DimensionKey, Fact, Metric, NaturalKey)
+from pylytics.library.exceptions import TableExistsError
 
 
 DAY_NAMES = ('Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun')
@@ -28,7 +31,7 @@ class DateDimension(Dimension):
 
 
 class PlaceDimension(Dimension):
-    __tablename__ = "dim_place"
+    pass
 
 
 class BoringEventFact(Fact):
@@ -41,10 +44,41 @@ class BoringEventFact(Fact):
     very_boring = Metric("very_boring", bool)
 
 
-def test_can_create_fact(empty_warehouse):
-    DateDimension.create(empty_warehouse)
+### TESTS ###
 
 
-def test_cannot_create_fact_twice(empty_warehouse):
+def test_can_create_dimension(empty_warehouse):
     DateDimension.create(empty_warehouse)
+    assert DateDimension.exists(empty_warehouse)
+
+
+def test_cannot_create_dimension_twice(empty_warehouse):
     DateDimension.create(empty_warehouse)
+    with pytest.raises(TableExistsError):
+        DateDimension.create(empty_warehouse)
+
+
+def test_can_create_dimension_only_if_not_exists(empty_warehouse):
+    DateDimension.create(empty_warehouse)
+    DateDimension.create(empty_warehouse, if_not_exists=True)
+
+
+def test_dimension_has_sensible_defaults():
+    assert PlaceDimension.__tablename__ == "place_dimension"
+    columns = PlaceDimension.__columns__
+    assert len(columns) == 2
+    assert columns[0].name == "id"
+    assert columns[-1].name == "created"
+
+
+def test_can_drop_dimension(empty_warehouse):
+    DateDimension.create(empty_warehouse)
+    DateDimension.drop(empty_warehouse)
+    assert not DateDimension.exists(empty_warehouse)
+
+
+def test_can_create_fact_if_no_dimensions_exist(empty_warehouse):
+    BoringEventFact.create(empty_warehouse)
+    assert BoringEventFact.exists(empty_warehouse)
+    assert DateDimension.exists(empty_warehouse)
+    assert PlaceDimension.exists(empty_warehouse)
