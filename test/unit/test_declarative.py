@@ -4,7 +4,7 @@ import logging
 import pytest
 
 from pylytics.declarative import (
-    Column, Dimension, DimensionKey, Fact, Metric, NaturalKey, Warehouse, escape,
+    Column, Dimension, DimensionKey, Fact, Metric, NaturalKey, Warehouse, escaped,
     Source)
 from pylytics.library.exceptions import TableExistsError
 
@@ -47,7 +47,7 @@ class Date(Dimension):
                  extra={"table_name": table_name})
 
         # Get the last inserted date
-        sql = "SELECT MAX(`date`) FROM %s" % escape(table_name)
+        sql = "SELECT MAX(`date`) FROM %s" % escaped(table_name)
         cur_date = Warehouse.execute(sql)[0][0]
 
         if cur_date is None:
@@ -91,7 +91,7 @@ class Place(Dimension):
 
 
 class BoringEvent(Fact):
-    __tablename__ = "boring_event_facts"
+    __tablename__ = "boring_event_fact"
 
     date = DimensionKey("when", Date)
     place = DimensionKey("where", Place)
@@ -125,7 +125,6 @@ def test_can_create_dimension_only_if_not_exists(empty_warehouse):
 def test_dimension_has_sensible_defaults():
     assert Place.__tablename__ == "place"
     columns = Place.__columns__
-    assert len(columns) == 3
     assert columns[0].name == "id"
     assert columns[-1].name == "created"
 
@@ -139,7 +138,7 @@ def test_can_drop_dimension(empty_warehouse):
 
 def test_can_create_fact_if_no_dimensions_exist(empty_warehouse):
     Warehouse.use(empty_warehouse)
-    BoringEvent.create_table()
+    BoringEvent.build()
     assert BoringEvent.table_exists()
     assert Date.table_exists()
     assert Place.table_exists()
@@ -148,7 +147,7 @@ def test_can_create_fact_if_no_dimensions_exist(empty_warehouse):
 def test_can_create_fact_if_some_dimensions_exist(empty_warehouse):
     Warehouse.use(empty_warehouse)
     Date.create_table()
-    BoringEvent.create_table()
+    BoringEvent.build()
     assert BoringEvent.table_exists()
     assert Date.table_exists()
     assert Place.table_exists()
@@ -158,7 +157,7 @@ def test_can_create_fact_if_all_dimensions_exist(empty_warehouse):
     Warehouse.use(empty_warehouse)
     Date.create_table()
     Place.create_table()
-    BoringEvent.create_table()
+    BoringEvent.build()
     assert BoringEvent.table_exists()
     assert Date.table_exists()
     assert Place.table_exists()

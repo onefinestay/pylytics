@@ -31,6 +31,23 @@ def _camel_to_snake(s):
     return "_".join(map(string.lower, _camel_words.split(s)[1::2]))
 
 
+def _raw_name(name):
+    for prefix in ("dim_", "fact_"):
+        if name.startswith(prefix):
+            name = name[len(prefix):]
+    for suffix in ("_dim", "_fact"):
+        if name.endswith(suffix):
+            name = name[:-len(suffix)]
+    return name
+
+
+def _column_name(table, column):
+    name = "%s_%s" % (_raw_name(table), column)
+    if name == "date_date":
+        name = "date"
+    return name
+
+
 def dump(value):
     """ Convert the supplied value to a SQL literal.
     """
@@ -48,7 +65,7 @@ def dump(value):
         return unicode(value)
 
 
-def escape(s):
+def escaped(s):
     """ Quote a string in backticks and double all backticks in the
     original string. This is used to ensure that odd characters and
     keywords do not cause a problem within SQL queries.
@@ -79,7 +96,7 @@ class Column(object):
 
     @property
     def expression(self):
-        s = [escape(self.name), self.type_expression]
+        s = [escaped(self.name), self.type_expression]
         if not self.optional:
             s.append("NOT NULL")
         default_expression = self.default_clause
@@ -167,8 +184,8 @@ class DimensionKey(Column):
     def expression(self):
         dimension = self.dimension
         foreign_key = "FOREIGN KEY (%s) REFERENCES %s (%s)" % (
-            escape(self.name), escape(dimension.__tablename__),
-            escape(dimension.__primarykey__.name))
+            escaped(self.name), escaped(dimension.__tablename__),
+            escaped(dimension.__primarykey__.name))
         return super(DimensionKey, self).expression + ", " + foreign_key
 
 
@@ -330,6 +347,13 @@ class Table(object):
     }
 
     @classmethod
+    def build(cls):
+        """ Create this table. Override this method to also create
+        dependent tables and any related views that do not already exist.
+        """
+        cls.create_table(if_not_exists=True)
+
+    @classmethod
     def create_table(cls, if_not_exists=False):
         """ Create this table in the current data warehouse.
         """
@@ -383,8 +407,8 @@ class Table(object):
             columns = [column for column in cls.__columns__
                        if not isinstance(column, AutoColumn)]
             sql = "INSERT INTO %s (\n  %s\n)\n" % (
-                escape(cls.__tablename__),
-                ",\n  ".join(escape(column.name) for column in columns))
+                escaped(cls.__tablename__),
+                ",\n  ".join(escaped(column.name) for column in columns))
             link = "VALUES"
             for instance in instances:
                 values = []
@@ -448,8 +472,8 @@ class Dimension(Table):
         if not natural_keys:
             raise ValueError("Dimension has no natural keys")
         sql = "SELECT %s FROM %s WHERE %s" % (
-            escape(cls.__primarykey__.name), escape(cls.__tablename__),
-            " OR ".join("%s = %s" % (escape(key.name), dump(value))
+            escaped(cls.__primarykey__.name), escaped(cls.__tablename__),
+            " OR ".join("%s = %s" % (escaped(key.name), dump(value))
                         for key in natural_keys))
         return sql
 
@@ -471,14 +495,48 @@ class Fact(Table):
 
     @classmethod
     def build(cls):
-        cls.create_table(if_not_exists=True)
+        for dimension_key in cls.__dimensionkeys__:
+            dimension_key.dimension.build()
+        super(Fact, cls).build()
         # TODO: copy view functionality to here
+        cls.create_or_replace_rolling_view()
+        #cls.create_or_replace_midnight_view() -- only if a date column is defined
 
     @classmethod
-    def create_table(cls, if_not_exists=False):
-        for dimension_key in cls.__dimensionkeys__:
-            dimension_key.dimension.create_table(if_not_exists=True)
-        super(Fact, cls).create_table(if_not_exists=if_not_exists)
+    def create_or_replace_rolling_view(cls):
+        """ Build a base level view against the table that explodes all
+        dimension data into one wider set of columns.
+        """
+        fact_table_name = cls.__tablename__
+        view_name = _raw_name(fact_table_name) + "_rolling_view"
+        columns = ["`fact`.`id` AS fact_id"]
+        clauses = ["CREATE OR REPLACE VIEW {view} AS",
+                   "SELECT\n    {columns}",
+                   "FROM {source} AS fact"]
+        for fact_column in cls.__columns__:
+            if isinstance(fact_column, DimensionKey):
+                dimension = fact_column.dimension
+                table_name = dimension.__tablename__
+                escaped_table_name = escaped(table_name)
+                for dim_column in dimension.__columns__:
+                    column_name = dim_column.name
+                    alias = _column_name(table_name, column_name)
+                    columns.append("%s.%s AS %s" % (
+                        escaped_table_name,
+                        escaped(column_name),
+                        escaped(alias)))
+                clauses.append("INNER JOIN %s ON %s.`id` = `fact`.%s" % (
+                    escaped_table_name, escaped_table_name,
+                    escaped(fact_column.name)))
+            elif isinstance(fact_column, Metric):
+                columns.append("`fact`.%s AS %s" % (
+                    escaped(fact_column.name),
+                    escaped(_raw_name(fact_column.name))))
+        sql = "\n".join(clauses).format(
+            view=escaped(view_name),
+            source=escaped(fact_table_name),
+            columns=",\n    ".join(columns))
+        Warehouse.execute(sql)
 
     @classmethod
     def insert(cls, *instances):
@@ -487,8 +545,8 @@ class Fact(Table):
         if instances:
             columns = cls.__dimensionkeys__ + cls.__metrics__
             sql = "INSERT INTO %s (\n  %s\n)\n" % (
-                escape(cls.__tablename__),
-                ",\n  ".join(escape(column.name) for column in columns))
+                escaped(cls.__tablename__),
+                ",\n  ".join(escaped(column.name) for column in columns))
             link = "VALUES"
             for instance in instances:
                 values = []
