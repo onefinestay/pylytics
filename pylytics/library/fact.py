@@ -7,8 +7,23 @@ from build_sql import SQLBuilder
 from group_by import GroupBy
 from join import TableBuilder
 from main import get_class
-from pylytics.library.exceptions import NoSuchTableError
+from pylytics.library.exceptions import BadFieldError, NoSuchTableError
 from table import Table, SourceData
+
+
+def raw_name(name):
+    if name.startswith("dim_"):
+        name = name[4:]
+    if name.startswith("fact_"):
+        name = name[5:]
+    return name
+
+
+def column_name(table, column):
+    name = "%s_%s" % (raw_name(table), column)
+    if name == "date_date":
+        name = "date"
+    return name
 
 
 class Fact(Table):
@@ -68,6 +83,14 @@ class Fact(Table):
             for dim_link in self.dim_links
         ]
         self.input_cols_names = self._get_cols_from_sql()
+
+    @property
+    def rolling_view_name(self):
+        return "%s_rolling_view" % self.table_stem
+
+    @property
+    def midnight_view_name(self):
+        return "%s_midnight_view" % self.table_stem
 
     def _transform_tuple(self, src_tuple):
         """
@@ -172,7 +195,7 @@ class Fact(Table):
                              "definitions available")
             return
 
-        self.log_info("Building table from auto-generated DDL")
+        self.log_debug("Building table from auto-generated DDL")
         column_types = dict(data.column_types)
         column_types.update({name: self.INTEGER for name in self.dim_names})
         sql = SQLBuilder(
@@ -224,7 +247,7 @@ class Fact(Table):
         returned as a `SourceData` instance that contains `column_names`,
         `column_types` and `rows`.
         """
-        self.log_info("Fetching rows from source database")
+        self.log_debug("Fetching rows from source database")
         
         # Initializing the table builder
         tb = TableBuilder(
@@ -268,7 +291,7 @@ class Fact(Table):
         staging table cannot be found.
         """
         with self.warehouse_connection as connection:
-            self.log_info("Fetching rows from staging table")
+            self.log_debug("Fetching rows from staging table")
 
             sql = self.SELECT_FROM_STAGING.format(table=self.table_name)
             try:
@@ -281,8 +304,8 @@ class Fact(Table):
             column_names = self.dim_names + self.metric_names
             rows = []
             recycling = []
-            self.log_info("Extracting data for columns %s",
-                          ", ".join(column_names))
+            self.log_debug("Extracting data for columns %s",
+                           ", ".join(column_names))
             for id_, value_map in results:
                 try:
                     data = self.load(value_map)
@@ -306,7 +329,7 @@ class Fact(Table):
             return source_data
 
     def _insert(self, data):
-        self.log_info("Inserting %s rows", len(data))
+        self.log_debug("Inserting %s rows", len(data))
 
         not_matching_count = 0
         error_count = 0
@@ -339,7 +362,7 @@ class Fact(Table):
 
         self.connection.commit()
 
-        self.log_info("%s rows inserted", success_count)
+        self.log_debug("%s rows inserted", success_count)
         if not_matching_count:
             self.log_error("%s of the rows inserted did not match dimensions",
                            not_matching_count)
@@ -353,18 +376,70 @@ class Fact(Table):
         self._build_dimensions()
         if not Table.build(self, sql):
             self._auto_build(data)
+        self.create_or_replace_views()
+        self.log_info("Built fact")
 
     def update(self):
         """ Update the fact table with the newest rows, first building the
         table if it doesn't already exist.
         """
         data = self._fetch(staging_delete=True)
-        if data is not None:
+        if data is None:
+            self.log_info("No fact data available")
+        else:
             # Data will be `None` if no staging table exists.
             self._build_dimensions()
             if not Table.build(self):
                 self._auto_build(data)
             self._insert(data)
+            self.create_or_replace_views()
+            self.log_info("Updated fact with %s records", len(data))
+
+    def _create_or_replace_rolling_view(self):
+        """ Build a base level view against the table that explodes all
+        dimension data into one wider set of columns.
+        """
+        columns = ["`fact`.`id` AS fact_id"]
+        clauses = ["CREATE OR REPLACE VIEW `{view}` AS",
+                   "SELECT\n    {columns}",
+                   "FROM `{source}` AS fact"]
+        for i, dim_class in enumerate(self.dim_classes):
+            dim_table = dim_class.table_name
+            columns.extend(
+                "`%s`.`%s` AS %s" % (
+                    dim_table, column, column_name(dim_table, column))
+                for column in dim_class.column_names[1:-1])
+            clauses.append("INNER JOIN `%s` ON `%s`.`id` = `fact`.`%s`" % (
+                dim_table, dim_table, self.dim_names[i]))
+        columns.extend(
+            "`fact`.`%s` AS %s" % (d[0], raw_name(d[0]))
+            for d in self.description[1:-1]
+            if not d[0].startswith("dim_"))
+        sql = "\n".join(clauses).format(
+            view=self.rolling_view_name, source=self.table_name,
+            columns=",\n    ".join(columns))
+        self.connection.execute(sql)
+
+    def _create_or_replace_midnight_view(self):
+        """ Build a view atop the rolling view for this fact which holds
+        everything up until last midnight. This view will only be built if
+        a date dimension exists for this fact.
+        """
+        sql = """\
+        CREATE OR REPLACE VIEW `{view}` AS
+        SELECT * FROM `{source}`
+        WHERE date(`date`) < CURRENT_DATE
+        """.format(view=self.midnight_view_name, source=self.rolling_view_name)
+        try:
+            self.connection.execute(sql)
+        except BadFieldError:
+            # It's likely the `date` field isn't defined for this table.
+            self.log_warning("Cannot create midnight view as no date "
+                             "dimension exists for this fact")
+
+    def create_or_replace_views(self):
+        self._create_or_replace_rolling_view()
+        self._create_or_replace_midnight_view()
 
     def historical(self):
         """
@@ -376,7 +451,9 @@ class Fact(Table):
 
         for i in xrange(1, self.historical_iterations):
             data = self._fetch_from_source(historical=True, index=i)
-            self._insert(data)
+            if data:
+                self._insert(data)
+                self.log_info("Updated fact with %s records", len(data))
 
     @classmethod
     def public_methods(self):
