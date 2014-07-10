@@ -46,6 +46,7 @@ class NoSuchTableError(ProgrammingError):
     code = 1146
 
 
+# TODO: tidy up this function
 def classify_error(error):
     """ Alter the class of an error to something specific instead of the
     generic error raised. This enables errors to be caught more cleanly

@@ -1,3 +1,4 @@
+from MySQLdb import OperationalError
 import pytest
 
 from pylytics.library.collection import CREATE_STAGING_TABLE
@@ -15,7 +16,10 @@ def empty_warehouse(warehouse):
     tables = [_[0] for _ in warehouse.execute("SHOW TABLES")]
     warehouse.execute("SET foreign_key_checks = 0")
     for table in tables:
-        warehouse.execute("DROP TABLE {}".format(table))
+        try:
+            warehouse.execute("DROP TABLE {}".format(table))
+        except OperationalError:
+            warehouse.execute("DROP VIEW {}".format(table))
     warehouse.execute("SET foreign_key_checks = 1")
     warehouse.commit()
     return warehouse

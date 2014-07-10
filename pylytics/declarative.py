@@ -4,6 +4,7 @@ import string
 
 from datetime import date, datetime, time
 from decimal import Decimal
+from pylytics.library.connection import run_query, DB
 
 
 log = logging.getLogger("pylytics")
@@ -362,10 +363,15 @@ class Table(object):
 
     @classmethod
     def fetch(cls, since=None):
-        """ Fetch records from the data source defined for this table.
+        """ Fetch records from the data source defined for this table and
+        yield each as an instance.
         """
         if cls.__source__:
-            return cls.__source__.fetch(since=since)
+            for data in cls.__source__.fetch(since=since):
+                inst = cls()
+                for key, value in data.items():
+                    inst[key] = value
+                yield inst
         else:
             raise NotImplementedError("No data source defined")
 
@@ -373,26 +379,27 @@ class Table(object):
     def insert(cls, *instances):
         """ Insert one or more instances into the table as records.
         """
-        if not instances:
-            return
-        columns = [column for column in cls.__columns__
-                   if not isinstance(column, AutoColumn)]
-        sql = "INSERT INTO %s (\n  %s\n)\n" % (
-            escape(cls.__tablename__),
-            ",\n  ".join(escape(column.name) for column in columns))
-        link = "VALUES"
-        for instance in instances:
-            values = []
-            for column in columns:
-                value = instance[column.name]
-                values.append(dump(value))
-            sql += link + (" (\n  %s\n)" % ",\n  ".join(values))
-            link = ","
-        Warehouse.execute(sql, commit=True)
+        if instances:
+            columns = [column for column in cls.__columns__
+                       if not isinstance(column, AutoColumn)]
+            sql = "INSERT INTO %s (\n  %s\n)\n" % (
+                escape(cls.__tablename__),
+                ",\n  ".join(escape(column.name) for column in columns))
+            link = "VALUES"
+            for instance in instances:
+                values = []
+                for column in columns:
+                    value = instance[column.name]
+                    values.append(dump(value))
+                sql += link + (" (\n  %s\n)" % ",\n  ".join(values))
+                link = ","
+            Warehouse.execute(sql, commit=True)
 
     @classmethod
-    def pull(cls, since=None):
-        instances = cls.fetch(since=since)
+    def update(cls, since=None):
+        """ Fetch some data from source and insert it directly into the table.
+        """
+        instances = list(cls.fetch(since=since))
         count = len(instances)
         log.info("Fetched %s record%s", count, "" if count == 1 else "s",
                  extra={"table_name": cls.__tablename__})
@@ -419,12 +426,6 @@ class Table(object):
                     setattr(self, key, value)
                     return
         raise KeyError("No such table column '%s'" % column_name)
-
-    def __iter__(self):
-        """ Iterate through column-value pairs in order.
-        """
-        for column in self.__columns__:
-            yield column, self[column.name]
 
 
 class Dimension(Table):
@@ -483,24 +484,24 @@ class Fact(Table):
     def insert(cls, *instances):
         """ Insert fact instances (overridden to handle Dimensions correctly)
         """
-        if not instances:
-            return
-        columns = cls.__dimensionkeys__ + cls.__metrics__
-        sql = "INSERT INTO %s (\n  %s\n)\n" % (
-            escape(cls.__tablename__),
-            ",\n  ".join(escape(column.name) for column in columns))
-        link = "VALUES"
-        for instance in instances:
-            values = []
-            for column in columns:
-                value = instance[column.name]
-                if isinstance(column, DimensionKey):
-                    values.append("(%s)" % column.dimension.__subquery__(value))
-                else:
-                    values.append(dump(value))
-            sql += link + (" (\n  %s\n)" % ",\n  ".join(values))
-            link = ","
-        Warehouse.execute(sql, commit=True)
+        if instances:
+            columns = cls.__dimensionkeys__ + cls.__metrics__
+            sql = "INSERT INTO %s (\n  %s\n)\n" % (
+                escape(cls.__tablename__),
+                ",\n  ".join(escape(column.name) for column in columns))
+            link = "VALUES"
+            for instance in instances:
+                values = []
+                for column in columns:
+                    value = instance[column.name]
+                    if isinstance(column, DimensionKey):
+                        values.append("(%s)" %
+                                      column.dimension.__subquery__(value))
+                    else:
+                        values.append(dump(value))
+                sql += link + (" (\n  %s\n)" % ",\n  ".join(values))
+                link = ","
+            Warehouse.execute(sql, commit=True)
 
 
 class Source(object):
@@ -510,4 +511,11 @@ class Source(object):
         self.query = query
 
     def fetch(self, since=None):
-        return []
+        """ Fetch data from the data source and yield each row as a
+        dictionary of column name and value pairs.
+        """
+        query = self.query.format(since=since)
+        with DB(self.database) as database:
+            rows, col_names, _ = database.execute(query, get_cols=True)
+        for row in rows:
+            yield dict(zip(col_names, row))

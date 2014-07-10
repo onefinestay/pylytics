@@ -56,10 +56,8 @@ class Date(Dimension):
 
         dates = []
         while cur_date <= cls.end_date:
-            dates.append(Date(cur_date))
+            yield Date(cur_date)
             cur_date = cur_date + timedelta(days=1)
-
-        return dates
 
     def __init__(self, date_obj):
         quarter = (date_obj.month - 1) // 3 + 1
@@ -78,9 +76,16 @@ class Date(Dimension):
         self.year = date_obj.year
 
 
+@pytest.fixture
+def place_source(empty_warehouse):
+    empty_warehouse.execute("CREATE TABLE place_source(code varchar(40))")
+    empty_warehouse.execute("INSERT INTO place_source(code) VALUES('MOON')")
+
+
 class Place(Dimension):
 
-    __source__ = Source("test_warehouse", "select * from place_source")
+    __source__ = Source("test_warehouse",
+                        "select code as geo_code from place_source")
 
     geo_code = NaturalKey("geo_code", str, size=20)
 
@@ -159,13 +164,12 @@ def test_can_create_fact_if_all_dimensions_exist(empty_warehouse):
     assert Place.table_exists()
 
 
+@pytest.mark.usefixtures("place_source")
 def test_can_insert_fact_record(empty_warehouse):
     Warehouse.use(empty_warehouse)
     BoringEvent.build()
-    Date.pull()
-    moon = Place()
-    moon.geo_code = "MOON"
-    Place.insert(moon)
+    Date.update()
+    Place.update()
     fact_1 = BoringEvent()
     fact_1.date = date(2000, 7, 16)
     fact_1.place = "MOON"
@@ -173,3 +177,9 @@ def test_can_insert_fact_record(empty_warehouse):
     fact_1.duration = 10.7
     fact_1.very_boring = False
     BoringEvent.insert(fact_1)
+
+
+def test_cannot_create_a_column_with_an_odd_type():
+    column = Column("foo", object)
+    with pytest.raises(TypeError):
+        _ = column.type_expression
