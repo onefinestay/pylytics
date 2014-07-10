@@ -111,7 +111,13 @@ class Column(object):
                     return sql_type
 
 
-class PrimaryKey(Column):
+class AutoColumn(Column):
+    """ Subclass for defining columns that are not intended for
+    direct insertion or updates.
+    """
+
+
+class PrimaryKey(AutoColumn):
 
     __columnblock__ = 1
 
@@ -156,7 +162,7 @@ class Metric(Column):
     __columnblock__ = 4
 
 
-class CreatedTimestamp(Column):
+class CreatedTimestamp(AutoColumn):
 
     __columnblock__ = 6
 
@@ -243,9 +249,10 @@ class Warehouse(object):
         """
         connection = cls.get()
         log.debug(sql)
-        connection.execute(sql)
+        result = connection.execute(sql)
         if commit:
             connection.commit()
+        return result
 
 
 class TableMetaclass(type):
@@ -316,6 +323,40 @@ class Table(object):
         connection = Warehouse.get()
         return cls.__tablename__ in connection.table_names
 
+    @classmethod
+    def fetch(cls):
+        # TODO implement default fetch behaviour
+        raise NotImplementedError("No fetch function defined for this table")
+
+    @classmethod
+    def insert(cls, *instances):
+        """ Insert one or more instances into the table as records.
+        """
+        if not instances:
+            return
+        columns = [column for column in cls.__columns__
+                   if not isinstance(column, AutoColumn)]
+        sql = "INSERT INTO %s (\n  %s\n)\n" % (
+            escape(cls.__tablename__),
+            ",\n  ".join(escape(column.name) for column in columns))
+        link = "VALUES"
+        for instance in instances:
+            values = []
+            for column in columns:
+                value = instance[column.name]
+                values.append(dump(value))
+            sql += link + (" (\n  %s\n)" % ",\n  ".join(values))
+            link = ","
+        Warehouse.execute(sql, commit=True)
+
+    @classmethod
+    def pull(cls):
+        instances = cls.fetch()
+        count = len(instances)
+        log.info("Fetched %s record%s", count, "" if count == 1 else "s",
+                 extra={"table_name": cls.__tablename__})
+        cls.insert(*instances)
+
     def __getitem__(self, column_name):
         """ Get a value by table column name.
         """
@@ -367,7 +408,9 @@ class Dimension(Table):
             " OR ".join("%s = %s" % (escape(key.name), dump(value))
                         for key in natural_keys))
         return sql
-        # TODO
+
+    def __repr__(self):
+        return unicode(self[self.__naturalkeys__[0].name])
 
 
 class Fact(Table):
@@ -388,8 +431,7 @@ class Fact(Table):
 
     @classmethod
     def insert(cls, *instances):
-        """ Insert one or more instances - as a record - into the table for
-        this Fact.
+        """ Insert fact instances (overridden to handle Dimensions correctly)
         """
         if not instances:
             return
@@ -400,12 +442,14 @@ class Fact(Table):
         link = "VALUES"
         for instance in instances:
             values = []
-            for column in cls.__dimensionkeys__:
+            for column in columns:
                 value = instance[column.name]
-                values.append("(%s)" % column.dimension.__subquery__(value))
-            for column in cls.__metrics__:
-                value = instance[column.name]
-                values.append(dump(value))
+                if isinstance(column, DimensionKey):
+                    values.append("(%s)" % column.dimension.__subquery__(value))
+                else:
+                    values.append(dump(value))
             sql += link + (" (\n  %s\n)" % ",\n  ".join(values))
             link = ","
         Warehouse.execute(sql, commit=True)
+
+    # TODO: move view functionality here

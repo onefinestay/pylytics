@@ -1,45 +1,92 @@
-from datetime import date
+from datetime import date, datetime, timedelta
+import logging
 
 import pytest
 
 from pylytics.declarative import (
-    Column, Dimension, DimensionKey, Fact, Metric, NaturalKey, Warehouse)
+    Column, Dimension, DimensionKey, Fact, Metric, NaturalKey, Warehouse, escape)
 from pylytics.library.exceptions import TableExistsError
 
 
-DAY_NAMES = ('Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun')
-MONTH_NAMES = ('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-               'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')
+log = logging.getLogger("pylytics")
 
 
-class DateDimension(Dimension):
+class Date(Dimension):
     __tablename__ = "dim_date"
+
+    # Just use a fixed three year period for testing.
+    start_date = date(1999, 1, 1)
+    end_date = date(2001, 12, 31)
+
+    day_names = ('Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun')
+    month_names = ('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')
 
     date = NaturalKey("date", date)
     day = Column("day", int)
-    day_name = Column("day_name", DAY_NAMES)
+    day_name = Column("day_name", day_names)
     day_of_week = Column("day_of_week", int)
     week = Column("week", int)
     full_week = Column("full_week", str, size=15)
     month = Column("month", int)
-    month_name = Column("month_name", MONTH_NAMES)
+    month_name = Column("month_name", month_names)
     full_month = Column("full_name", str, size=15)
     quarter = Column("quarter", int)
     quarter_name = Column("quarter_name", ('Q1', 'Q2', 'Q3', 'Q4'))
     full_quarter = Column("full_quarter", str, size=15)
     year = Column("year", int)
 
+    @classmethod
+    def fetch(cls):
+        """ Create date instances as there's no remote data source
+        for this one.
+        """
+        table_name = cls.__tablename__
+        log.info("Fetching data from the depths of time itself",
+                 extra={"table_name": table_name})
 
-class PlaceDimension(Dimension):
+        # Get the last inserted date
+        sql = "SELECT MAX(`date`) FROM %s" % escape(table_name)
+        cur_date = Warehouse.execute(sql)[0][0]
+
+        if cur_date is None:
+            # Build history.
+            cur_date = cls.start_date
+
+        dates = []
+        while cur_date <= cls.end_date:
+            dates.append(Date(cur_date))
+            cur_date = cur_date + timedelta(days=1)
+
+        return dates
+
+    def __init__(self, date_obj):
+        quarter = (date_obj.month - 1) // 3 + 1
+        self.date = date_obj
+        self.day = date_obj.day
+        self.day_name = date_obj.strftime("%a")          # e.g. Mon
+        self.day_of_week = int(date_obj.strftime("%u"))  # ISO day no of week
+        self.week = int(date_obj.strftime("%U"))         # ISO week number
+        self.full_week = date_obj.strftime("%Y-%U")      # Year and week no
+        self.month = int(date_obj.strftime("%m"))        # Month number
+        self.month_name = date_obj.strftime("%b")        # Month name
+        self.full_month = date_obj.strftime("%Y-%m")     # Year and month
+        self.quarter = quarter                           # Quarter no
+        self.quarter_name = "Q{}".format(quarter)        # e.g. Q1
+        self.full_quarter = '{0}-{1}'.format(date_obj.year, quarter)
+        self.year = date_obj.year
+
+
+class Place(Dimension):
 
     geo_code = NaturalKey("geo_code", str, size=20)
 
 
-class BoringEventFact(Fact):
+class BoringEvent(Fact):
     __tablename__ = "boring_event_facts"
 
-    date = DimensionKey("when", DateDimension)
-    place = DimensionKey("where", PlaceDimension)
+    date = DimensionKey("when", Date)
+    place = DimensionKey("where", Place)
     people = Metric("num_people", int)
     duration = Metric("duration", float)
     very_boring = Metric("very_boring", bool)
@@ -50,26 +97,26 @@ class BoringEventFact(Fact):
 
 def test_can_create_dimension(empty_warehouse):
     Warehouse.use(empty_warehouse)
-    DateDimension.create_table()
-    assert DateDimension.table_exists()
+    Date.create_table()
+    assert Date.table_exists()
 
 
 def test_cannot_create_dimension_twice(empty_warehouse):
     Warehouse.use(empty_warehouse)
-    DateDimension.create_table()
+    Date.create_table()
     with pytest.raises(TableExistsError):
-        DateDimension.create_table()
+        Date.create_table()
 
 
 def test_can_create_dimension_only_if_not_exists(empty_warehouse):
     Warehouse.use(empty_warehouse)
-    DateDimension.create_table()
-    DateDimension.create_table(if_not_exists=True)
+    Date.create_table()
+    Date.create_table(if_not_exists=True)
 
 
 def test_dimension_has_sensible_defaults():
-    assert PlaceDimension.__tablename__ == "place_dimension"
-    columns = PlaceDimension.__columns__
+    assert Place.__tablename__ == "place_dimension"
+    columns = Place.__columns__
     assert len(columns) == 3
     assert columns[0].name == "id"
     assert columns[-1].name == "created"
@@ -77,45 +124,49 @@ def test_dimension_has_sensible_defaults():
 
 def test_can_drop_dimension(empty_warehouse):
     Warehouse.use(empty_warehouse)
-    DateDimension.create_table()
-    DateDimension.drop_table()
-    assert not DateDimension.table_exists()
+    Date.create_table()
+    Date.drop_table()
+    assert not Date.table_exists()
 
 
 def test_can_create_fact_if_no_dimensions_exist(empty_warehouse):
     Warehouse.use(empty_warehouse)
-    BoringEventFact.create_table()
-    assert BoringEventFact.table_exists()
-    assert DateDimension.table_exists()
-    assert PlaceDimension.table_exists()
+    BoringEvent.create_table()
+    assert BoringEvent.table_exists()
+    assert Date.table_exists()
+    assert Place.table_exists()
 
 
 def test_can_create_fact_if_some_dimensions_exist(empty_warehouse):
     Warehouse.use(empty_warehouse)
-    DateDimension.create_table()
-    BoringEventFact.create_table()
-    assert BoringEventFact.table_exists()
-    assert DateDimension.table_exists()
-    assert PlaceDimension.table_exists()
+    Date.create_table()
+    BoringEvent.create_table()
+    assert BoringEvent.table_exists()
+    assert Date.table_exists()
+    assert Place.table_exists()
 
 
 def test_can_create_fact_if_all_dimensions_exist(empty_warehouse):
     Warehouse.use(empty_warehouse)
-    DateDimension.create_table()
-    PlaceDimension.create_table()
-    BoringEventFact.create_table()
-    assert BoringEventFact.table_exists()
-    assert DateDimension.table_exists()
-    assert PlaceDimension.table_exists()
+    Date.create_table()
+    Place.create_table()
+    BoringEvent.create_table()
+    assert BoringEvent.table_exists()
+    assert Date.table_exists()
+    assert Place.table_exists()
 
 
 def test_can_insert_fact_record(empty_warehouse):
     Warehouse.use(empty_warehouse)
-    BoringEventFact.create_table()
-    fact_1 = BoringEventFact()
-    fact_1.date = date(1969, 7, 16)
-    fact_1.place = "THE MOON"
+    BoringEvent.create_table()
+    Date.pull()
+    moon = Place()
+    moon.geo_code = "MOON"
+    Place.insert(moon)
+    fact_1 = BoringEvent()
+    fact_1.date = date(2000, 7, 16)
+    fact_1.place = "MOON"
     fact_1.people = 3
     fact_1.duration = 10.7
     fact_1.very_boring = False
-    BoringEventFact.insert(fact_1)
+    BoringEvent.insert(fact_1)
