@@ -4,8 +4,11 @@
 from __future__ import unicode_literals
 
 import logging
+import os
 from importlib import import_module
 from inspect import getmembers
+
+from log import bright_black, bright_yellow
 
 
 log = logging.getLogger("pylytics")
@@ -29,11 +32,15 @@ class Settings(object):
     # modules may exist.
     #
     modules = [
-        "test.settings",          # local test settings
-        "test.default_settings",  # default test settings
         "settings",               # local application settings
         "default_settings",       # default application settings
     ]
+
+    if os.environ.get('PYLYTICS_TEST', '0') == '1':
+        modules = [
+            "test.settings",          # local test settings
+            "test.default_settings",  # default test settings
+        ] + modules
 
     # Singleton instance.
     __instance = None
@@ -65,15 +72,15 @@ class Settings(object):
             try:
                 module = import_module(module_name)
             except ImportError:
-                log.debug("[\033[30;1m✗\033[0m] No settings found "
-                          "for '%s'", module_name)
+                log.debug("[%s] No settings found for '%s'", bright_black('✗'),
+                    module_name)
             else:
                 members = {name.lower(): value
                            for name, value in getmembers(module)
                            if not name.startswith("_")}
                 inst.append(Settings(**members))
-                log.info("[\033[33;1m✓\033[0m] Settings loaded "
-                         "for '%s' from %s", module_name, module.__file__)
+                message = log.info("[%s] Settings loaded for '%s' from %s",
+                    bright_yellow('✓'), module_name, module.__file__)
         return inst
 
     def __init__(self, **settings):
