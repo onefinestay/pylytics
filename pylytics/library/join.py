@@ -344,12 +344,8 @@ class TableBuilder(object):
         'self.result_cols_names' and 'self.result_cols_types').
 
         """
-<<<<<<< HEAD
-        log.info("Joining main source to secondary sources",
+        log.debug("Joining main source to secondary sources",
                  extra={'table': self.output_table})
-=======
-        log.debug("Joining main source to secondary sources")
->>>>>>> 4609-views
 
         self._get_cols_info()
 
