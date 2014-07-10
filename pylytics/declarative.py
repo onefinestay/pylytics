@@ -11,7 +11,7 @@ log = logging.getLogger("pylytics")
 
 _camel_words = re.compile(r"([A-Z][a-z0-9_]+)")
 _type_map = {
-    bool: "BIT",
+    bool: "TINYINT",
     date: "DATE",
     datetime: "TIMESTAMP",
     Decimal: "DECIMAL",
@@ -33,10 +33,21 @@ def _camel_to_snake(s):
 def dump(s):
     if s is None:
         return "NULL"
+    elif s is True:
+        return "1"
+    elif s is False:
+        return "0"
     elif isinstance(s, (str, unicode)):
         return "'%s'" % s.replace("'", "''")
     else:
-        return s
+        return unicode(s)
+
+
+def escape(s):
+    """ Wrap in ` marks with escaped ones inside
+    """
+    pass
+    # TODO
 
 
 class Column(object):
@@ -191,6 +202,36 @@ class _ColumnSet(object):
     def metrics(self):
         return [c for c in self.columns if isinstance(c, Metric)]
 
+    @property
+    def natural_keys(self):
+        return [c for c in self.columns if isinstance(c, NaturalKey)]
+
+
+class Warehouse(object):
+    """ Global data warehouse pointer singleton. This class avoids
+    having to pass a data warehouse connection into every table
+    operation at the expense of the ability to easily work with
+    multiple data warehouses simultaneously.
+    """
+
+    __connection = None
+
+    @classmethod
+    def get(cls):
+        """ Get the current data warehouse connection, warning if
+        none has been defined.
+        """
+        if cls.__connection is None:
+            log.warning("No data warehouse connection defined")
+        return cls.__connection
+
+    @classmethod
+    def use(cls, connection):
+        """ Register a new data warehouse connection for use by all
+        table operations.
+        """
+        cls.__connection = connection
+
 
 class TableMetaclass(type):
 
@@ -207,7 +248,7 @@ class TableMetaclass(type):
 
         cls = super(TableMetaclass, mcs).__new__(mcs, name, bases, attributes)
 
-        # These attributes should apply to facts only so only populate them
+        # These attributes apply to subclasses so should only be populated
         # if an attribute exists with that name. We do this after class
         # creation as the attribute keys will probably only exist in a
         # base class, not in the `attributes` dictionary.
@@ -215,6 +256,8 @@ class TableMetaclass(type):
             cls.__dimensionkeys__ = column_set.dimension_keys
         if "__metrics__" in dir(cls):
             cls.__metrics__ = column_set.metrics
+        if "__naturalkeys__" in dir(cls):
+            cls.__naturalkeys__ = column_set.natural_keys
 
         return cls
 
@@ -233,7 +276,7 @@ class Table(object):
     }
 
     @classmethod
-    def create(cls, connection, if_not_exists=False):
+    def create_table(cls, if_not_exists=False):
         if if_not_exists:
             verb = "CREATE TABLE IF NOT EXISTS"
         else:
@@ -243,29 +286,51 @@ class Table(object):
         for key, value in cls.__tableargs__.items():
             sql += " %s=%s" % (key, value)
         log.debug(sql)
+        connection = Warehouse.get()
         connection.execute(sql)
         connection.commit()
 
     @classmethod
-    def drop(cls, connection, if_exists=False):
+    def drop_table(cls, if_exists=False):
         if if_exists:
             verb = "DROP TABLE IF EXISTS"
         else:
             verb = "DROP TABLE"
         sql = "%s %s" % (verb, cls.__tablename__)
         log.debug(sql)
+        connection = Warehouse.get()
         connection.execute(sql)
         connection.commit()
 
     @classmethod
-    def exists(cls, connection):
+    def table_exists(cls):
+        connection = Warehouse.get()
         return cls.__tablename__ in connection.table_names
 
 
 class Dimension(Table):
 
+    # Attributes specific to dimensions only. These will be filled
+    # in by the TableMetaclass on creation.
+    __naturalkeys__ = NotImplemented
+
     id = PrimaryKey()
     created = CreatedTimestamp()
+
+    @classmethod
+    def sql_select(cls, value):
+        """ Return a SQL SELECT query to use as a subquery within a
+        fact INSERT. Does not append parentheses or a LIMIT clause.
+        """
+        natural_keys = cls.__naturalkeys__
+        if not natural_keys:
+            raise ValueError("Dimension has no natural keys")
+        sql = "SELECT `%s` FROM `%s` WHERE %s" % (
+            cls.__primarykey__.name, cls.__tablename__,
+            " OR ".join("`%s` = %s" % (key.name, dump(value))
+                        for key in natural_keys))
+        print sql
+        # TODO
 
 
 class Fact(Table):
@@ -279,7 +344,24 @@ class Fact(Table):
     created = CreatedTimestamp()
 
     @classmethod
-    def create(cls, connection, if_not_exists=False):
+    def create_table(cls, if_not_exists=False):
         for dimension_key in cls.__dimensionkeys__:
-            dimension_key.dimension.create(connection, if_not_exists=True)
-        super(Fact, cls).create(connection, if_not_exists=if_not_exists)
+            dimension_key.dimension.create_table(if_not_exists=True)
+        super(Fact, cls).create_table(if_not_exists=if_not_exists)
+
+    @classmethod
+    def insert(cls, *instances):
+        """ Insert one or more instances - as a record - into the table for
+        this Fact.
+        """
+        if not instances:
+            return
+        connection = Warehouse.get()
+        pass
+        # INSERT INTO fact_table (
+        #     <all dimension and metric columns>
+        # ) VALUES (
+        #     (select id from dim_date where date='...' (or foo='...') limit 1),
+        #     (select id from dim_place where natural_key_1='...' (or foo='...') limit 1),
+        #     3, 10.7, FALSE
+        # )

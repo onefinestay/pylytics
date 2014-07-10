@@ -25,7 +25,7 @@ class TestFactFromSource(object):
         # when
         fact.build()
         # then
-        assert fact.exists()
+        assert fact.table_exists()
         table_names = fact.connection.table_names
         assert fact.rolling_view_name in table_names
         # we have no `dim_date` so can't build a midnight view
@@ -35,7 +35,7 @@ class TestFactFromSource(object):
         # when
         fact.update()
         # then
-        assert fact.exists()
+        assert fact.table_exists()
         assert fact.count() == len(JOURNEY)
 
 
@@ -66,7 +66,7 @@ class TestFactFromStaging(object):
         # when
         fact.build()
         # then
-        assert fact.exists()
+        assert fact.table_exists()
 
     @pytest.mark.usefixtures("source")
     def test_can_update_from_staging(self, fact):
@@ -116,7 +116,7 @@ class TestFactWithCustomLoader(object):
         # when
         fact.build()
         # then
-        assert fact.exists()
+        assert fact.table_exists()
 
     @pytest.mark.usefixtures("source")
     def test_can_update_from_staging(self, fact):

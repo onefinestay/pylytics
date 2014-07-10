@@ -21,7 +21,7 @@ class TestDimension(object):
         # when
         dimension.build()
         # then
-        assert dimension.exists()
+        assert dimension.table_exists()
 
     def test_can_update(self, dimension):
         # given
@@ -35,9 +35,9 @@ class TestDimension(object):
         # given
         dimension.build()
         # when
-        dimension.drop()
+        dimension.drop_table()
         # then
-        assert not dimension.exists()
+        assert not dimension.table_exists()
 
     def test_can_get_dictionary(self, dimension):
         # given
@@ -73,7 +73,7 @@ class TestDimensionWithAlternativeSurrogateKeyColumn(object):
         # when
         dimension.build(self.modified(sql))
         # then
-        assert dimension.exists()
+        assert dimension.table_exists()
 
     def test_for_expected_surrogate_key_name(self, dimension):
         # given

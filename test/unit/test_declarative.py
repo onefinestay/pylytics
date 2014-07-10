@@ -3,7 +3,7 @@ from datetime import date
 import pytest
 
 from pylytics.declarative import (
-    Column, Dimension, DimensionKey, Fact, Metric, NaturalKey)
+    Column, Dimension, DimensionKey, Fact, Metric, NaturalKey, Warehouse)
 from pylytics.library.exceptions import TableExistsError
 
 
@@ -48,19 +48,22 @@ class BoringEventFact(Fact):
 
 
 def test_can_create_dimension(empty_warehouse):
-    DateDimension.create(empty_warehouse)
-    assert DateDimension.exists(empty_warehouse)
+    Warehouse.use(empty_warehouse)
+    DateDimension.create_table()
+    assert DateDimension.table_exists()
 
 
 def test_cannot_create_dimension_twice(empty_warehouse):
-    DateDimension.create(empty_warehouse)
+    Warehouse.use(empty_warehouse)
+    DateDimension.create_table()
     with pytest.raises(TableExistsError):
-        DateDimension.create(empty_warehouse)
+        DateDimension.create_table()
 
 
 def test_can_create_dimension_only_if_not_exists(empty_warehouse):
-    DateDimension.create(empty_warehouse)
-    DateDimension.create(empty_warehouse, if_not_exists=True)
+    Warehouse.use(empty_warehouse)
+    DateDimension.create_table()
+    DateDimension.create_table(if_not_exists=True)
 
 
 def test_dimension_has_sensible_defaults():
@@ -72,30 +75,46 @@ def test_dimension_has_sensible_defaults():
 
 
 def test_can_drop_dimension(empty_warehouse):
-    DateDimension.create(empty_warehouse)
-    DateDimension.drop(empty_warehouse)
-    assert not DateDimension.exists(empty_warehouse)
+    Warehouse.use(empty_warehouse)
+    DateDimension.create_table()
+    DateDimension.drop_table()
+    assert not DateDimension.table_exists()
 
 
 def test_can_create_fact_if_no_dimensions_exist(empty_warehouse):
-    BoringEventFact.create(empty_warehouse)
-    assert BoringEventFact.exists(empty_warehouse)
-    assert DateDimension.exists(empty_warehouse)
-    assert PlaceDimension.exists(empty_warehouse)
+    Warehouse.use(empty_warehouse)
+    BoringEventFact.create_table()
+    assert BoringEventFact.table_exists()
+    assert DateDimension.table_exists()
+    assert PlaceDimension.table_exists()
 
 
 def test_can_create_fact_if_some_dimensions_exist(empty_warehouse):
-    DateDimension.create(empty_warehouse)
-    BoringEventFact.create(empty_warehouse)
-    assert BoringEventFact.exists(empty_warehouse)
-    assert DateDimension.exists(empty_warehouse)
-    assert PlaceDimension.exists(empty_warehouse)
+    Warehouse.use(empty_warehouse)
+    DateDimension.create_table()
+    BoringEventFact.create_table()
+    assert BoringEventFact.table_exists()
+    assert DateDimension.table_exists()
+    assert PlaceDimension.table_exists()
 
 
 def test_can_create_fact_if_all_dimensions_exist(empty_warehouse):
-    DateDimension.create(empty_warehouse)
-    PlaceDimension.create(empty_warehouse)
-    BoringEventFact.create(empty_warehouse)
-    assert BoringEventFact.exists(empty_warehouse)
-    assert DateDimension.exists(empty_warehouse)
-    assert PlaceDimension.exists(empty_warehouse)
+    Warehouse.use(empty_warehouse)
+    DateDimension.create_table()
+    PlaceDimension.create_table()
+    BoringEventFact.create_table()
+    assert BoringEventFact.table_exists()
+    assert DateDimension.table_exists()
+    assert PlaceDimension.table_exists()
+
+
+def test_can_insert_fact_record(empty_warehouse):
+    Warehouse.use(empty_warehouse)
+    BoringEventFact.create_table()
+    fact_1 = BoringEventFact()
+    fact_1.date = date(1969, 7, 16)
+    fact_1.place = "THE MOON"
+    fact_1.people = 3
+    fact_1.duration = 10.7
+    fact_1.very_boring = False
+    BoringEventFact.insert(fact_1)
