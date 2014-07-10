@@ -239,7 +239,8 @@ class TableBuilder(object):
         None to get data from the main source.
 
         """
-        log.debug("Getting data from source '%s'", source_name or 'main')
+        log.debug("Getting data from source '%s'", source_name or 'main',
+                 extra={'table': self.output_table})
 
         if source_name is None:
             source = self.main_source
@@ -343,7 +344,12 @@ class TableBuilder(object):
         'self.result_cols_names' and 'self.result_cols_types').
 
         """
+<<<<<<< HEAD
+        log.info("Joining main source to secondary sources",
+                 extra={'table': self.output_table})
+=======
         log.debug("Joining main source to secondary sources")
+>>>>>>> 4609-views
 
         self._get_cols_info()
 
