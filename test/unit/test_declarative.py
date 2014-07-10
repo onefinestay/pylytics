@@ -31,7 +31,8 @@ class DateDimension(Dimension):
 
 
 class PlaceDimension(Dimension):
-    pass
+
+    geo_code = NaturalKey("geo_code", str, size=20)
 
 
 class BoringEventFact(Fact):
@@ -69,7 +70,7 @@ def test_can_create_dimension_only_if_not_exists(empty_warehouse):
 def test_dimension_has_sensible_defaults():
     assert PlaceDimension.__tablename__ == "place_dimension"
     columns = PlaceDimension.__columns__
-    assert len(columns) == 2
+    assert len(columns) == 3
     assert columns[0].name == "id"
     assert columns[-1].name == "created"
 

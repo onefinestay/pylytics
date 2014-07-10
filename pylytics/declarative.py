@@ -30,24 +30,27 @@ def _camel_to_snake(s):
     return "_".join(map(string.lower, _camel_words.split(s)[1::2]))
 
 
-def dump(s):
-    if s is None:
+def dump(value):
+    """ Convert the supplied value to a SQL literal.
+    """
+    if value is None:
         return "NULL"
-    elif s is True:
+    elif value is True:
         return "1"
-    elif s is False:
+    elif value is False:
         return "0"
-    elif isinstance(s, (str, unicode)):
-        return "'%s'" % s.replace("'", "''")
+    elif isinstance(value, (str, unicode)):
+        return "'%s'" % value.replace("'", "''")
+    elif isinstance(value, (date, time, datetime)):
+        return "'%s'" % value
     else:
-        return unicode(s)
+        return unicode(value)
 
 
 def escape(s):
     """ Wrap in ` marks with escaped ones inside
     """
-    pass
-    # TODO
+    return "`" + s.replace("`", "``") + "`"
 
 
 class Column(object):
@@ -70,7 +73,7 @@ class Column(object):
 
     @property
     def expression(self):
-        s = ["`" + self.name + "`", self.type_expression]
+        s = [escape(self.name), self.type_expression]
         if not self.optional:
             s.append("NOT NULL")
         default_expression = self.default_clause
@@ -142,8 +145,9 @@ class DimensionKey(Column):
     @property
     def expression(self):
         dimension = self.dimension
-        foreign_key = "FOREIGN KEY (`%s`) REFERENCES `%s` (`%s`)" % (
-            self.name, dimension.__tablename__, dimension.__primarykey__.name)
+        foreign_key = "FOREIGN KEY (%s) REFERENCES %s (%s)" % (
+            escape(self.name), escape(dimension.__tablename__),
+            escape(dimension.__primarykey__.name))
         return super(DimensionKey, self).expression + ", " + foreign_key
 
 
@@ -232,6 +236,17 @@ class Warehouse(object):
         """
         cls.__connection = connection
 
+    @classmethod
+    def execute(cls, sql, commit=False):
+        """ Execute and optionally commit a SQL query against the
+        currently registered data warehouse connection.
+        """
+        connection = cls.get()
+        log.debug(sql)
+        connection.execute(sql)
+        if commit:
+            connection.commit()
+
 
 class TableMetaclass(type):
 
@@ -281,14 +296,11 @@ class Table(object):
             verb = "CREATE TABLE IF NOT EXISTS"
         else:
             verb = "CREATE TABLE"
-        columns = ",\n    ".join(col.expression for col in cls.__columns__)
-        sql = "%s %s (\n    %s\n)" % (verb, cls.__tablename__, columns)
+        columns = ",\n  ".join(col.expression for col in cls.__columns__)
+        sql = "%s %s (\n  %s\n)" % (verb, cls.__tablename__, columns)
         for key, value in cls.__tableargs__.items():
             sql += " %s=%s" % (key, value)
-        log.debug(sql)
-        connection = Warehouse.get()
-        connection.execute(sql)
-        connection.commit()
+        Warehouse.execute(sql, commit=True)
 
     @classmethod
     def drop_table(cls, if_exists=False):
@@ -297,15 +309,40 @@ class Table(object):
         else:
             verb = "DROP TABLE"
         sql = "%s %s" % (verb, cls.__tablename__)
-        log.debug(sql)
-        connection = Warehouse.get()
-        connection.execute(sql)
-        connection.commit()
+        Warehouse.execute(sql, commit=True)
 
     @classmethod
     def table_exists(cls):
         connection = Warehouse.get()
         return cls.__tablename__ in connection.table_names
+
+    def __getitem__(self, column_name):
+        """ Get a value by table column name.
+        """
+        for key in dir(self):
+            if not key.startswith("_"):
+                column = getattr(self.__class__, key)
+                if isinstance(column, Column) and column.name == column_name:
+                    value = getattr(self, key)
+                    return None if value is column else value
+        raise KeyError("No such table column '%s'" % column_name)
+
+    def __setitem__(self, column_name, value):
+        """ Set a value by table column name.
+        """
+        for key in dir(self):
+            if not key.startswith("_"):
+                column = getattr(self.__class__, key)
+                if isinstance(column, Column) and column.name == column_name:
+                    setattr(self, key, value)
+                    return
+        raise KeyError("No such table column '%s'" % column_name)
+
+    def __iter__(self):
+        """ Iterate through column-value pairs in order.
+        """
+        for column in self.__columns__:
+            yield column, self[column.name]
 
 
 class Dimension(Table):
@@ -318,18 +355,18 @@ class Dimension(Table):
     created = CreatedTimestamp()
 
     @classmethod
-    def sql_select(cls, value):
+    def __subquery__(cls, value):
         """ Return a SQL SELECT query to use as a subquery within a
         fact INSERT. Does not append parentheses or a LIMIT clause.
         """
         natural_keys = cls.__naturalkeys__
         if not natural_keys:
             raise ValueError("Dimension has no natural keys")
-        sql = "SELECT `%s` FROM `%s` WHERE %s" % (
-            cls.__primarykey__.name, cls.__tablename__,
-            " OR ".join("`%s` = %s" % (key.name, dump(value))
+        sql = "SELECT %s FROM %s WHERE %s" % (
+            escape(cls.__primarykey__.name), escape(cls.__tablename__),
+            " OR ".join("%s = %s" % (escape(key.name), dump(value))
                         for key in natural_keys))
-        print sql
+        return sql
         # TODO
 
 
@@ -356,12 +393,19 @@ class Fact(Table):
         """
         if not instances:
             return
-        connection = Warehouse.get()
-        pass
-        # INSERT INTO fact_table (
-        #     <all dimension and metric columns>
-        # ) VALUES (
-        #     (select id from dim_date where date='...' (or foo='...') limit 1),
-        #     (select id from dim_place where natural_key_1='...' (or foo='...') limit 1),
-        #     3, 10.7, FALSE
-        # )
+        columns = cls.__dimensionkeys__ + cls.__metrics__
+        sql = "INSERT INTO %s (\n  %s\n)\n" % (
+            escape(cls.__tablename__),
+            ",\n  ".join(escape(column.name) for column in columns))
+        link = "VALUES"
+        for instance in instances:
+            values = []
+            for column in cls.__dimensionkeys__:
+                value = instance[column.name]
+                values.append("(%s)" % column.dimension.__subquery__(value))
+            for column in cls.__metrics__:
+                value = instance[column.name]
+                values.append(dump(value))
+            sql += link + (" (\n  %s\n)" % ",\n  ".join(values))
+            link = ","
+        Warehouse.execute(sql, commit=True)

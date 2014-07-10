@@ -10,6 +10,15 @@ class CantCreateTableError(OperationalError):
     code = 1005
 
 
+class BadNullError(OperationalError):
+    """ Raised when an attempt is made to insert a NULL where it cannot go.
+
+    https://dev.mysql.com/doc/refman/5.5/en/error-messages-server.html#error_er_bad_null_error
+
+    """
+    code = 1048
+
+
 class TableExistsError(OperationalError):
     """ Raised when an attempt is made to create a table that already exists.
 
@@ -45,6 +54,8 @@ def classify_error(error):
     if isinstance(error, OperationalError):
         if error.args[0] == CantCreateTableError.code:
             error.__class__ = CantCreateTableError
+        elif error.args[0] == BadNullError.code:
+            error.__class__ = BadNullError
         elif error.args[0] == TableExistsError.code:
             error.__class__ = TableExistsError
         elif error.args[0] == BadFieldError.code:
