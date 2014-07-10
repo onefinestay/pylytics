@@ -48,12 +48,17 @@ def dump(value):
 
 
 def escape(s):
-    """ Wrap in ` marks with escaped ones inside
+    """ Quote a string in backticks and double all backticks in the
+    original string. This is used to ensure that odd characters and
+    keywords do not cause a problem within SQL queries.
     """
     return "`" + s.replace("`", "``") + "`"
 
 
 class Column(object):
+    """ A column in a table. This class has a number of subclasses
+    that represent more specific categories of column, e.g. PrimaryKey.
+    """
 
     __columnblock__ = 5  # TODO: explain
     default_size = 40
@@ -118,6 +123,9 @@ class AutoColumn(Column):
 
 
 class PrimaryKey(AutoColumn):
+    """ Column representing the primary key in a table, usually
+    named 'id'.
+    """
 
     __columnblock__ = 1
 
@@ -132,6 +140,9 @@ class PrimaryKey(AutoColumn):
 
 
 class NaturalKey(Column):
+    """ A Dimension column that can be used as a natural key for record
+    selection. This column type necessarily has a unique constraint.
+    """
 
     __columnblock__ = 2
 
@@ -141,6 +152,9 @@ class NaturalKey(Column):
 
 
 class DimensionKey(Column):
+    """ A Fact column that is used to hold a foreign key referencing
+    a Dimension table.
+    """
 
     __columnblock__ = 3
 
@@ -158,11 +172,16 @@ class DimensionKey(Column):
 
 
 class Metric(Column):
+    """ A column used to store fact metrics.
+    """
 
     __columnblock__ = 4
 
 
 class CreatedTimestamp(AutoColumn):
+    """ An auto-populated timestamp column for storing when the
+    record was created.
+    """
 
     __columnblock__ = 6
 
@@ -256,6 +275,9 @@ class Warehouse(object):
 
 
 class TableMetaclass(type):
+    """ Metaclass for constructing all Table classes. This applies number
+    of magic attributes which are used chiefly for reflection.
+    """
 
     def __new__(mcs, name, bases, attributes):
         attributes.setdefault("__tablename__", _camel_to_snake(name))
@@ -285,12 +307,21 @@ class TableMetaclass(type):
 
 
 class Table(object):
+    """ Base class for all Table classes. The class represents the table
+    itself and instances represent records for that table.
+
+    This class has two main subclasses: Fact and Dimension.
+
+    """
     __metaclass__ = TableMetaclass
 
-    # All of these properties should get built by the Metaclass.
+    # All these attributes should get populated by the metaclass.
     __columns__ = NotImplemented
     __primarykey__ = NotImplemented
     __tablename__ = NotImplemented
+
+    # These attributes aren't touched by the metaclass.
+    __source__ = None
     __tableargs__ = {
         "ENGINE": "InnoDB",
         "CHARSET": "utf8",
@@ -299,6 +330,8 @@ class Table(object):
 
     @classmethod
     def create_table(cls, if_not_exists=False):
+        """ Create this table in the current data warehouse.
+        """
         if if_not_exists:
             verb = "CREATE TABLE IF NOT EXISTS"
         else:
@@ -311,6 +344,8 @@ class Table(object):
 
     @classmethod
     def drop_table(cls, if_exists=False):
+        """ Drop this table from the current data warehouse.
+        """
         if if_exists:
             verb = "DROP TABLE IF EXISTS"
         else:
@@ -320,13 +355,19 @@ class Table(object):
 
     @classmethod
     def table_exists(cls):
+        """ Check if this table exists in the current data warehouse.
+        """
         connection = Warehouse.get()
         return cls.__tablename__ in connection.table_names
 
     @classmethod
-    def fetch(cls):
-        # TODO implement default fetch behaviour
-        raise NotImplementedError("No fetch function defined for this table")
+    def fetch(cls, since=None):
+        """ Fetch records from the data source defined for this table.
+        """
+        if cls.__source__:
+            return cls.__source__.fetch(since=since)
+        else:
+            raise NotImplementedError("No data source defined")
 
     @classmethod
     def insert(cls, *instances):
@@ -350,8 +391,8 @@ class Table(object):
         Warehouse.execute(sql, commit=True)
 
     @classmethod
-    def pull(cls):
-        instances = cls.fetch()
+    def pull(cls, since=None):
+        instances = cls.fetch(since=since)
         count = len(instances)
         log.info("Fetched %s record%s", count, "" if count == 1 else "s",
                  extra={"table_name": cls.__tablename__})
@@ -387,6 +428,8 @@ class Table(object):
 
 
 class Dimension(Table):
+    """ Base class for all dimensions.
+    """
 
     # Attributes specific to dimensions only. These will be filled
     # in by the TableMetaclass on creation.
@@ -414,6 +457,8 @@ class Dimension(Table):
 
 
 class Fact(Table):
+    """ Base class for all facts.
+    """
 
     # Attributes specific to facts only. These will be filled
     # in by the TableMetaclass on creation.
@@ -422,6 +467,11 @@ class Fact(Table):
 
     id = PrimaryKey()
     created = CreatedTimestamp()
+
+    @classmethod
+    def build(cls):
+        cls.create_table(if_not_exists=True)
+        # TODO: copy view functionality to here
 
     @classmethod
     def create_table(cls, if_not_exists=False):
@@ -452,4 +502,12 @@ class Fact(Table):
             link = ","
         Warehouse.execute(sql, commit=True)
 
-    # TODO: move view functionality here
+
+class Source(object):
+
+    def __init__(self, database, query):
+        self.database = database
+        self.query = query
+
+    def fetch(self, since=None):
+        return []

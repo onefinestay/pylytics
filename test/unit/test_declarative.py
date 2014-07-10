@@ -1,10 +1,11 @@
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 import logging
 
 import pytest
 
 from pylytics.declarative import (
-    Column, Dimension, DimensionKey, Fact, Metric, NaturalKey, Warehouse, escape)
+    Column, Dimension, DimensionKey, Fact, Metric, NaturalKey, Warehouse, escape,
+    Source)
 from pylytics.library.exceptions import TableExistsError
 
 
@@ -37,7 +38,7 @@ class Date(Dimension):
     year = Column("year", int)
 
     @classmethod
-    def fetch(cls):
+    def fetch(cls, since=None):
         """ Create date instances as there's no remote data source
         for this one.
         """
@@ -79,6 +80,8 @@ class Date(Dimension):
 
 class Place(Dimension):
 
+    __source__ = Source("test_warehouse", "select * from place_source")
+
     geo_code = NaturalKey("geo_code", str, size=20)
 
 
@@ -115,7 +118,7 @@ def test_can_create_dimension_only_if_not_exists(empty_warehouse):
 
 
 def test_dimension_has_sensible_defaults():
-    assert Place.__tablename__ == "place_dimension"
+    assert Place.__tablename__ == "place"
     columns = Place.__columns__
     assert len(columns) == 3
     assert columns[0].name == "id"
@@ -158,7 +161,7 @@ def test_can_create_fact_if_all_dimensions_exist(empty_warehouse):
 
 def test_can_insert_fact_record(empty_warehouse):
     Warehouse.use(empty_warehouse)
-    BoringEvent.create_table()
+    BoringEvent.build()
     Date.pull()
     moon = Place()
     moon.geo_code = "MOON"
