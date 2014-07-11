@@ -471,7 +471,8 @@ class Table(object):
 
 
 class Dimension(Table):
-    """ Base class for all dimensions.
+    """ Base class for all dimensions. Note that a Dimension should
+    always contain at least one NaturalKey column.
     """
 
     # Attributes specific to dimensions only. These will be filled
@@ -500,7 +501,8 @@ class Dimension(Table):
 
 
 class Fact(Table):
-    """ Base class for all facts.
+    """ Base class for all facts. Columns should be either of
+    type DimensionKey or Metric.
     """
 
     # Attributes specific to facts only. These will be filled
