@@ -1,11 +1,11 @@
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 import logging
 
 import pytest
 
 from pylytics.declarative import (
-    Column, Dimension, DimensionKey, Fact, Metric, NaturalKey, Warehouse, escaped,
-    Source)
+    Column, Dimension, DimensionKey, Fact, Metric, NaturalKey, Warehouse,
+    escaped, DatabaseSource, Staging)
 from pylytics.library.exceptions import TableExistsError
 
 
@@ -84,14 +84,24 @@ def place_source(empty_warehouse):
 
 class Place(Dimension):
 
-    __source__ = Source("test_warehouse",
-                        "select code as geo_code from place_source")
+    # This class method creates a custom subclass of `DatabaseSource`
+    # that selects using a SQL query.
+    __source__ = DatabaseSource.with_attributes(
+        database="test_warehouse",
+        query="select code as geo_code from place_source",
+    )
 
     geo_code = NaturalKey("geo_code", str, size=20)
 
 
 class BoringEvent(Fact):
     __tablename__ = "boring_event_fact"
+
+    # This class method creates a custom subclass of `Staging`
+    # that filters only "boring" events.
+    __source__ = Staging.with_attributes(
+        events=["boring"],
+    )
 
     date = DimensionKey("when", Date)
     place = DimensionKey("where", Place)
@@ -101,6 +111,12 @@ class BoringEvent(Fact):
 
 
 ### TESTS ###
+
+
+def test_cannot_create_a_column_with_an_odd_type():
+    column = Column("foo", object)
+    with pytest.raises(TypeError):
+        _ = column.type_expression
 
 
 def test_can_create_dimension(empty_warehouse):
@@ -166,9 +182,11 @@ def test_can_create_fact_if_all_dimensions_exist(empty_warehouse):
 @pytest.mark.usefixtures("place_source")
 def test_can_insert_fact_record(empty_warehouse):
     Warehouse.use(empty_warehouse)
+
     BoringEvent.build()
     Date.update()
     Place.update()
+
     fact_1 = BoringEvent()
     fact_1.date = date(2000, 7, 16)
     fact_1.place = "MOON"
@@ -177,8 +195,36 @@ def test_can_insert_fact_record(empty_warehouse):
     fact_1.very_boring = False
     BoringEvent.insert(fact_1)
 
+    rows, columns, _ = Warehouse.execute(
+        "select * from %s" % BoringEvent.__tablename__, get_cols=True)
+    data = [dict(zip(columns, row)) for row in rows]
+    assert len(data) == 1
+    datum = data[0]
+    assert datum["num_people"] == 3
+    assert datum["duration"] == 10.7
+    assert bool(datum["very_boring"]) is False
 
-def test_cannot_create_a_column_with_an_odd_type():
-    column = Column("foo", object)
-    with pytest.raises(TypeError):
-        _ = column.type_expression
+
+@pytest.mark.usefixtures("place_source")
+def test_can_insert_fact_record_from_staging_source(empty_warehouse):
+    Warehouse.use(empty_warehouse)
+    Staging.build()
+    BoringEvent.build()
+
+    Staging.insert(Staging("boring", {
+        "when": date(2000, 7, 16).isoformat(),
+        "where": "MOON",
+        "num_people": 3,
+        "duration": 10.7,
+        "very_boring": False,
+    }))
+    BoringEvent.update()
+
+    rows, columns, _ = Warehouse.execute(
+        "select * from %s" % BoringEvent.__tablename__, get_cols=True)
+    data = [dict(zip(columns, row)) for row in rows]
+    assert len(data) == 1
+    datum = data[0]
+    assert datum["num_people"] == 3
+    assert datum["duration"] == 10.7
+    assert bool(datum["very_boring"]) is False

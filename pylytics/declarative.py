@@ -1,10 +1,11 @@
+import json
 import logging
 import re
 import string
 
 from datetime import date, datetime, time
 from decimal import Decimal
-from pylytics.library.connection import run_query, DB
+from pylytics.library.connection import DB
 
 
 log = logging.getLogger("pylytics")
@@ -73,6 +74,17 @@ def escaped(s):
     return "`" + s.replace("`", "``") + "`"
 
 
+def hydrated(cls, data):
+    """ Inflate the data provided into an instance of a table class
+    by mapping key to column name.
+    """
+    log.debug("Hydrating data %s", data)
+    inst = cls()
+    for key, value in dict(data).items():
+        inst[key] = value
+    return inst
+
+
 class Column(object):
     """ A column in a table. This class has a number of subclasses
     that represent more specific categories of column, e.g. PrimaryKey.
@@ -123,7 +135,7 @@ class Column(object):
             try:
                 sql_type = _type_map[self.type]
             except KeyError:
-                raise TypeError(type)
+                raise TypeError(self.type)
             else:
                 if "%s" in sql_type:
                     if self.size is None:
@@ -280,13 +292,13 @@ class Warehouse(object):
         cls.__connection = connection
 
     @classmethod
-    def execute(cls, sql, commit=False):
+    def execute(cls, sql, commit=False, **kwargs):
         """ Execute and optionally commit a SQL query against the
         currently registered data warehouse connection.
         """
         connection = cls.get()
         log.debug(sql)
-        result = connection.execute(sql)
+        result = connection.execute(sql, **kwargs)
         if commit:
             connection.commit()
         return result
@@ -387,15 +399,21 @@ class Table(object):
 
     @classmethod
     def fetch(cls, since=None):
-        """ Fetch records from the data source defined for this table and
-        yield each as an instance.
+        """ Fetch data from the source defined for this table and
+        yield as each is received.
         """
         if cls.__source__:
-            for data in cls.__source__.fetch(since=since):
-                inst = cls()
-                for key, value in data.items():
-                    inst[key] = value
-                yield inst
+            try:
+                for inst in cls.__source__.select(cls, since=since):
+                    yield inst
+            except Exception as error:
+                log.error("Error raised while fetching data: (%s: %s)",
+                          error.__class__.__name__, error,
+                          extra={"table_name": cls.__tablename__})
+                raise
+            else:
+                # Only mark as finished if we've not had errors.
+                cls.__source__.finish(cls)
         else:
             raise NotImplementedError("No data source defined")
 
@@ -434,7 +452,7 @@ class Table(object):
         """
         for key in dir(self):
             if not key.startswith("_"):
-                column = getattr(self.__class__, key)
+                column = getattr(self.__class__, key, None)
                 if isinstance(column, Column) and column.name == column_name:
                     value = getattr(self, key)
                     return None if value is column else value
@@ -445,7 +463,7 @@ class Table(object):
         """
         for key in dir(self):
             if not key.startswith("_"):
-                column = getattr(self.__class__, key)
+                column = getattr(self.__class__, key, None)
                 if isinstance(column, Column) and column.name == column_name:
                     setattr(self, key, value)
                     return
@@ -501,6 +519,12 @@ class Fact(Table):
         # TODO: copy view functionality to here
         cls.create_or_replace_rolling_view()
         #cls.create_or_replace_midnight_view() -- only if a date column is defined
+
+    @classmethod
+    def update(cls, since=None):
+        for dimension_key in cls.__dimensionkeys__:
+            dimension_key.dimension.update(since=since)
+        return super(Fact, cls).update(since)
 
     @classmethod
     def create_or_replace_rolling_view(cls):
@@ -563,17 +587,99 @@ class Fact(Table):
 
 
 class Source(object):
+    """ Base class for data sources used by `fetch`.
+    """
 
-    def __init__(self, database, query):
-        self.database = database
-        self.query = query
+    @classmethod
+    def with_attributes(cls, **attributes):
+        return type(cls.__name__, (cls,), attributes)
 
-    def fetch(self, since=None):
-        """ Fetch data from the data source and yield each row as a
-        dictionary of column name and value pairs.
+    @classmethod
+    def select(cls, for_class, since=None):
+        """ Select data from this data source and yield each record as an
+        instance of the fact class provided.
         """
-        query = self.query.format(since=since)
-        with DB(self.database) as database:
-            rows, col_names, _ = database.execute(query, get_cols=True)
+        raise NotImplementedError("No select method defined for this source")
+
+    @classmethod
+    def finish(cls, for_class):
+        """ Mark a selection as finished, performing any necessary clean-up
+        such as deleting rows. By default, this method takes no action but
+        can be overridden by subclasses.
+        """
+        pass
+
+
+class DatabaseSource(Source):
+    """ Base class for remote databases used as data sources for table
+    data. This class is intended to be overridden with the `database`
+    and `query` attributes populated with appropriate values.
+
+    (See unit tests for example of usage)
+
+    """
+
+    @classmethod
+    def select(cls, for_class, since=None):
+        database = getattr(cls, "database")
+        query = getattr(cls, "query").format(since=since)
+        with DB(database) as connection:
+            rows, col_names, _ = connection.execute(query, get_cols=True)
         for row in rows:
-            yield dict(zip(col_names, row))
+            yield hydrated(for_class, zip(col_names, row))
+
+
+class Staging(Source, Table):
+    """ Staging is both a table and a data source.
+    """
+
+    # Keep details of records to be deleted.
+    __recycling = set()
+
+    id = PrimaryKey()
+    event_name = Column("event_name", unicode, size=80)
+    value_map = Column("value_map", unicode, size=2048)
+    created = CreatedTimestamp()
+
+    @classmethod
+    def select(cls, for_class, since=None):
+        extra = {"table_name": for_class.__tablename__}
+
+        connection = Warehouse.get()
+        log.debug("Fetching rows from staging table", extra=extra)
+
+        events = list(getattr(cls, "events"))
+        sql = """\
+        SELECT id, value_map FROM staging
+        WHERE event_name IN %s
+        ORDER BY created, id
+        """ % ("(" + repr(events)[1:-1] + ")")
+        results = connection.execute(sql)
+
+        for id_, value_map in results:
+            try:
+                data = json.loads(value_map)
+                inst = hydrated(for_class, data)
+            except Exception as error:
+                log.error("Broken record (%s: %s) -- %s",
+                          error.__class__.__name__, error,
+                          value_map, extra=extra)
+            else:
+                yield inst
+            finally:
+                # We'll recycle the row regardless of whether or
+                # not we've been able to hydrate and yield it. If
+                # broken, it gets logged anyway.
+                cls.__recycling.add(id_)
+
+    @classmethod
+    def finish(cls, for_class):
+        if cls.__recycling:
+            sql = "DELETE FROM staging WHERE id in (%s)" % (
+                ",".join(map(str, cls.__recycling)))
+            Warehouse.execute(sql)
+            cls.__recycling.clear()
+
+    def __init__(self, event_name, value_map):
+        self.event_name = event_name
+        self.value_map = json.dumps(value_map, separators=",:")
