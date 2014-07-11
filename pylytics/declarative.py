@@ -363,6 +363,12 @@ class Table(object):
         """ Create this table. Override this method to also create
         dependent tables and any related views that do not already exist.
         """
+        try:
+            # If this uses the staging table or similar, we can
+            # automatically build this here too.
+            cls.__source__.build()
+        except AttributeError:
+            pass
         cls.create_table(if_not_exists=True)
 
     @classmethod
