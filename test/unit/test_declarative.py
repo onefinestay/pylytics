@@ -86,7 +86,7 @@ class Place(Dimension):
 
     # This class method creates a custom subclass of `DatabaseSource`
     # that selects using a SQL query.
-    __source__ = DatabaseSource.with_attributes(
+    __source__ = DatabaseSource.definition(
         database="test_warehouse",
         query="select code as geo_code from place_source",
     )
@@ -98,9 +98,25 @@ class BoringEvent(Fact):
     __tablename__ = "boring_event_fact"
 
     # This class method creates a custom subclass of `Staging`
-    # that filters only "boring" events.
-    __source__ = Staging.with_attributes(
+    # that filters only "boring" events. One expansion is also
+    # defined to explode the "expansion_key_1" value into more
+    # values drawn from the defined database source. This
+    # mechanism can be used to seek further details on
+    # bookings, etc.
+    __source__ = Staging.definition(
         events=["boring"],
+        expansions={
+            "expansion_key_1": DatabaseSource.definition(
+                database="test_warehouse",
+                query="""\
+                SELECT
+                    colour AS colour_of_stuff,
+                    size AS size_of_stuff
+                FROM extra_table
+                WHERE id = {expansion_key_1}
+                """,
+            )
+        },
     )
 
     date = DimensionKey("when", Date)
@@ -108,6 +124,8 @@ class BoringEvent(Fact):
     people = Metric("num_people", int)
     duration = Metric("duration", float)
     very_boring = Metric("very_boring", bool)
+    stuff_colour = Metric("colour_of_stuff", str, optional=True)
+    stuff_size = Metric("size_of_stuff", str, optional=True)
 
 
 ### TESTS ###
@@ -211,15 +229,33 @@ def test_can_insert_fact_record_from_staging_source(empty_warehouse):
     Staging.build()
     BoringEvent.build()
 
+    # Prepare expansion data ready for expansion.
+    Warehouse.execute("""\
+    create table extra_table (
+        id int primary key,
+        colour varchar(20),
+        size varchar(20)
+    )""")
+    Warehouse.execute("""\
+    insert into extra_table (id, colour, size)
+    values (12, 'pink', '37kg'), (13, 'grey', '9 miles')
+    """)
+
+    # Insert staging record.
     Staging.insert(Staging("boring", {
         "when": date(2000, 7, 16).isoformat(),
         "where": "MOON",
         "num_people": 3,
         "duration": 10.7,
         "very_boring": False,
+        "pointless_ignored_value": "spoon",
+        "expansion_key_1": 12,
     }))
+
+    # Perform update.
     BoringEvent.update()
 
+    # Check a record has been correctly inserted.
     rows, columns, _ = Warehouse.execute(
         "select * from %s" % BoringEvent.__tablename__, get_cols=True)
     data = [dict(zip(columns, row)) for row in rows]
@@ -228,3 +264,5 @@ def test_can_insert_fact_record_from_staging_source(empty_warehouse):
     assert datum["num_people"] == 3
     assert datum["duration"] == 10.7
     assert bool(datum["very_boring"]) is False
+    assert datum["colour_of_stuff"] == "pink"
+    assert datum["size_of_stuff"] == "37kg"

@@ -81,7 +81,10 @@ def hydrated(cls, data):
     log.debug("Hydrating data %s", data)
     inst = cls()
     for key, value in dict(data).items():
-        inst[key] = value
+        try:
+            inst[key] = value
+        except KeyError:
+            log.debug("No column found for key '%s'", key)
     return inst
 
 
@@ -599,7 +602,7 @@ class Source(object):
     """
 
     @classmethod
-    def with_attributes(cls, **attributes):
+    def definition(cls, **attributes):
         return type(cls.__name__, (cls,), attributes)
 
     @classmethod
@@ -628,13 +631,19 @@ class DatabaseSource(Source):
     """
 
     @classmethod
-    def select(cls, for_class, since=None):
+    def execute(cls, **params):
         database = getattr(cls, "database")
-        query = getattr(cls, "query").format(since=since)
+        query = getattr(cls, "query").format(
+            **{key: dump(value) for key, value in params.items()})
         with DB(database) as connection:
             rows, col_names, _ = connection.execute(query, get_cols=True)
         for row in rows:
-            yield hydrated(for_class, zip(col_names, row))
+            yield zip(col_names, row)
+
+    @classmethod
+    def select(cls, for_class, since=None):
+        for record in cls.execute(since=since):
+            yield hydrated(for_class, record)
 
 
 class Staging(Source, Table):
@@ -667,10 +676,15 @@ class Staging(Source, Table):
         for id_, value_map in results:
             try:
                 data = json.loads(value_map)
+                expansions = getattr(cls, "expansions", {})
+                for key, source in expansions.items():
+                    if key in data:
+                        for record in source.execute(**data):
+                            data.update(record)
                 inst = hydrated(for_class, data)
             except Exception as error:
-                log.error("Broken record (%s: %s) -- %s",
-                          error.__class__.__name__, error,
+                log.error("Unable to hydrate %s record (%s: %s) -- %s",
+                          for_class.__name__, error.__class__.__name__, error,
                           value_map, extra=extra)
             else:
                 yield inst
