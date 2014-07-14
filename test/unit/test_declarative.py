@@ -94,6 +94,15 @@ class Place(Dimension):
     geo_code = NaturalKey("geo_code", str, size=20)
 
 
+# We have to declare this outside the class below as staticmethods
+# and classmethods cannot be referenced without a class instance.
+def expand_duration(data):
+    """ Example expansion function. This one simply adds a
+    unit for the duration.
+    """
+    data["duration_unit"] = "s"
+
+
 class BoringEvent(Fact):
     __tablename__ = "boring_event_fact"
 
@@ -116,6 +125,7 @@ class BoringEvent(Fact):
                 WHERE id = {expansion_key_1}
                 """,
             ),
+            expand_duration,
         ],
     )
 
@@ -123,6 +133,7 @@ class BoringEvent(Fact):
     place = DimensionKey("where", Place)
     people = Metric("num_people", int)
     duration = Metric("duration", float)
+    duration_unit = Metric("duration_unit", str, size=2, optional=True)
     very_boring = Metric("very_boring", bool)
     stuff_colour = Metric("colour_of_stuff", str, optional=True)
     stuff_size = Metric("size_of_stuff", str, optional=True)

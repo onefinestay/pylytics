@@ -603,7 +603,8 @@ class Source(object):
 
     @classmethod
     def definition(cls, **attributes):
-        return type(cls.__name__, (cls,), attributes)
+        name = "Custom" + cls.__name__
+        return type(name, (cls,), attributes)
 
     @classmethod
     def select(cls, for_class, since=None):
@@ -665,9 +666,15 @@ class Staging(Source, Table):
         except AttributeError:
             pass
         else:
-            for source in expansions:
-                for record in source.execute(**data):
-                    data.update(record)
+            for exp in expansions:
+                if isinstance(exp, type) and issubclass(exp, DatabaseSource):
+                    for record in exp.execute(**data):
+                        data.update(record)
+                elif hasattr(exp, "__call__"):
+                    exp(data)
+                else:
+                    log.debug("Unexpected expansion type: %s",
+                              exp.__class__.__name__)
 
     @classmethod
     def select(cls, for_class, since=None):
