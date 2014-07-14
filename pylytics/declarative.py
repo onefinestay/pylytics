@@ -603,8 +603,7 @@ class Source(object):
 
     @classmethod
     def definition(cls, **attributes):
-        name = "Custom" + cls.__name__
-        return type(name, (cls,), attributes)
+        return type(cls.__name__, (cls,), attributes)
 
     @classmethod
     def select(cls, for_class, since=None):
@@ -650,6 +649,7 @@ class DatabaseSource(Source):
 class Staging(Source, Table):
     """ Staging is both a table and a data source.
     """
+    __tablename__ = "staging"
 
     # Keep details of records to be deleted.
     __recycling = set()
