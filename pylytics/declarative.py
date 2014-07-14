@@ -659,6 +659,17 @@ class Staging(Source, Table):
     created = CreatedTimestamp()
 
     @classmethod
+    def _apply_expansions(cls, data):
+        try:
+            expansions = getattr(cls, "expansions")
+        except AttributeError:
+            pass
+        else:
+            for source in expansions:
+                for record in source.execute(**data):
+                    data.update(record)
+
+    @classmethod
     def select(cls, for_class, since=None):
         extra = {"table_name": for_class.__tablename__}
 
@@ -667,20 +678,17 @@ class Staging(Source, Table):
 
         events = list(getattr(cls, "events"))
         sql = """\
-        SELECT id, value_map FROM staging
+        SELECT id, event_name, value_map FROM staging
         WHERE event_name IN %s
         ORDER BY created, id
         """ % ("(" + repr(events)[1:-1] + ")")
         results = connection.execute(sql)
 
-        for id_, value_map in results:
+        for id_, event_name, value_map in results:
             try:
-                data = json.loads(value_map)
-                expansions = getattr(cls, "expansions", {})
-                for key, source in expansions.items():
-                    if key in data:
-                        for record in source.execute(**data):
-                            data.update(record)
+                data = {"__event__": event_name}
+                data.update(json.loads(value_map))
+                cls._apply_expansions(data)
                 inst = hydrated(for_class, data)
             except Exception as error:
                 log.error("Unable to hydrate %s record (%s: %s) -- %s",

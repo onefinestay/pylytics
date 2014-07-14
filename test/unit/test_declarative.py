@@ -105,8 +105,8 @@ class BoringEvent(Fact):
     # bookings, etc.
     __source__ = Staging.definition(
         events=["boring"],
-        expansions={
-            "expansion_key_1": DatabaseSource.definition(
+        expansions=[
+            DatabaseSource.definition(
                 database="test_warehouse",
                 query="""\
                 SELECT
@@ -115,8 +115,8 @@ class BoringEvent(Fact):
                 FROM extra_table
                 WHERE id = {expansion_key_1}
                 """,
-            )
-        },
+            ),
+        ],
     )
 
     date = DimensionKey("when", Date)
