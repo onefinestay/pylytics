@@ -7,7 +7,7 @@ import logging
 import re
 import string
 
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from pylytics.library.connection import DB
 
@@ -67,7 +67,7 @@ def dump(value):
         return "'%s'" % value.encode("utf-8").replace("'", "''")
     elif isinstance(value, unicode):
         return "'%s'" % value.replace("'", "''")
-    elif isinstance(value, (date, time, datetime)):
+    elif isinstance(value, (date, time, datetime, timedelta)):
         return "'%s'" % value
     else:
         return unicode(value)
@@ -589,7 +589,8 @@ class Fact(Table):
         """ Insert fact instances (overridden to handle Dimensions correctly)
         """
         if instances:
-            columns = cls.__dimensionkeys__ + cls.__metrics__
+            columns = [column for column in cls.__columns__
+                       if not isinstance(column, AutoColumn)]
             sql = "INSERT INTO %s (\n  %s\n)\n" % (
                 escaped(cls.__tablename__),
                 ",\n  ".join(escaped(column.name) for column in columns))
