@@ -90,7 +90,7 @@ class Place(Dimension):
 
     # This class method creates a custom subclass of `DatabaseSource`
     # that selects using a SQL query.
-    __source__ = DatabaseSource.definition(
+    __source__ = DatabaseSource.define(
         database="test_warehouse",
         query="select code as geo_code from place_source",
     )
@@ -116,10 +116,10 @@ class BoringEvent(Fact):
     # values drawn from the defined database source. This
     # mechanism can be used to seek further details on
     # bookings, etc.
-    __source__ = Staging.definition(
+    __source__ = Staging.define(
         events=["boring"],
         expansions=[
-            DatabaseSource.definition(
+            DatabaseSource.define(
                 database="test_warehouse",
                 query="""\
                 SELECT

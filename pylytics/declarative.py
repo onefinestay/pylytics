@@ -614,7 +614,7 @@ class Source(object):
     """
 
     @classmethod
-    def definition(cls, **attributes):
+    def define(cls, **attributes):
         return type(cls.__name__, (cls,), attributes)
 
     @classmethod
