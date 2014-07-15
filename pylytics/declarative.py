@@ -1,3 +1,7 @@
+# -*- encoding: utf-8 -*-
+
+from __future__ import unicode_literals
+
 import json
 import logging
 import re
@@ -43,10 +47,11 @@ def _raw_name(name):
 
 
 def _column_name(table, column):
-    name = "%s_%s" % (_raw_name(table), column)
-    if name == "date_date":
-        name = "date"
-    return name
+    table = _raw_name(table)
+    if table == column:
+        return column
+    else:
+        return "%s_%s" % (table, column)
 
 
 def dump(value):
@@ -58,7 +63,9 @@ def dump(value):
         return "1"
     elif value is False:
         return "0"
-    elif isinstance(value, (str, unicode)):
+    elif isinstance(value, str):
+        return "'%s'" % value.encode("utf-8").replace("'", "''")
+    elif isinstance(value, unicode):
         return "'%s'" % value.replace("'", "''")
     elif isinstance(value, (date, time, datetime)):
         return "'%s'" % value
@@ -361,6 +368,8 @@ class Table(object):
         "COLLATE": "utf8_bin",
     }
 
+    INSERT = "INSERT"
+
     @classmethod
     def build(cls):
         """ Create this table. Override this method to also create
@@ -418,7 +427,7 @@ class Table(object):
             except Exception as error:
                 log.error("Error raised while fetching data: (%s: %s)",
                           error.__class__.__name__, error,
-                          extra={"table_name": cls.__tablename__})
+                          extra={"table": cls.__tablename__})
                 raise
             else:
                 # Only mark as finished if we've not had errors.
@@ -433,8 +442,8 @@ class Table(object):
         if instances:
             columns = [column for column in cls.__columns__
                        if not isinstance(column, AutoColumn)]
-            sql = "INSERT INTO %s (\n  %s\n)\n" % (
-                escaped(cls.__tablename__),
+            sql = "%s INTO %s (\n  %s\n)\n" % (
+                cls.INSERT, escaped(cls.__tablename__),
                 ",\n  ".join(escaped(column.name) for column in columns))
             link = "VALUES"
             for instance in instances:
@@ -453,7 +462,7 @@ class Table(object):
         instances = list(cls.fetch(since=since))
         count = len(instances)
         log.info("Fetched %s record%s", count, "" if count == 1 else "s",
-                 extra={"table_name": cls.__tablename__})
+                 extra={"table": cls.__tablename__})
         cls.insert(*instances)
 
     def __getitem__(self, column_name):
@@ -487,6 +496,8 @@ class Dimension(Table):
     # Attributes specific to dimensions only. These will be filled
     # in by the TableMetaclass on creation.
     __naturalkeys__ = NotImplemented
+
+    INSERT = "INSERT IGNORE"
 
     id = PrimaryKey()
     created = CreatedTimestamp()
@@ -678,7 +689,7 @@ class Staging(Source, Table):
 
     @classmethod
     def select(cls, for_class, since=None):
-        extra = {"table_name": for_class.__tablename__}
+        extra = {"table": for_class.__tablename__}
 
         connection = Warehouse.get()
         log.debug("Fetching rows from staging table", extra=extra)
@@ -686,9 +697,10 @@ class Staging(Source, Table):
         events = list(getattr(cls, "events"))
         sql = """\
         SELECT id, event_name, value_map FROM staging
-        WHERE event_name IN %s
+        WHERE event_name IN (%s)
         ORDER BY created, id
-        """ % ("(" + repr(events)[1:-1] + ")")
+        """ % ",".join(map(dump, events))
+        log.debug(sql)
         results = connection.execute(sql)
 
         for id_, event_name, value_map in results:

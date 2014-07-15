@@ -1,4 +1,8 @@
-from datetime import date, timedelta, datetime
+# -*- encoding: utf-8 -*-
+
+from __future__ import unicode_literals
+
+from datetime import date, timedelta
 import logging
 
 import pytest
@@ -246,10 +250,11 @@ def test_can_insert_fact_record_from_staging_source(empty_warehouse):
         id int primary key,
         colour varchar(20),
         size varchar(20)
-    )""")
+    ) charset=utf8 collate=utf8_bin
+    """)
     Warehouse.execute("""\
     insert into extra_table (id, colour, size)
-    values (12, 'pink', '37kg'), (13, 'grey', '9 miles')
+    values (12, 'grün', '37kg'), (13, 'orange', '9 miles')
     """)
 
     # Insert staging record.
@@ -275,5 +280,5 @@ def test_can_insert_fact_record_from_staging_source(empty_warehouse):
     assert datum["num_people"] == 3
     assert datum["duration"] == 10.7
     assert bool(datum["very_boring"]) is False
-    assert datum["colour_of_stuff"] == "pink"
+    assert datum["colour_of_stuff"] == u"grün"
     assert datum["size_of_stuff"] == "37kg"
