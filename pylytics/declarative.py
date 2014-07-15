@@ -507,9 +507,13 @@ class Dimension(Table):
         """ Return a SQL SELECT query to use as a subquery within a
         fact INSERT. Does not append parentheses or a LIMIT clause.
         """
-        natural_keys = cls.__naturalkeys__
+        value_type = type(value)
+        natural_keys = [key for key in cls.__naturalkeys__
+                        if key.type is value_type]
         if not natural_keys:
-            raise ValueError("Dimension has no natural keys")
+            raise ValueError("Value type '%s' does not match type of any "
+                             "natural key for dimension "
+                             "'%s'" % (value_type.__name__, cls.__name__))
         sql = "SELECT %s FROM %s WHERE %s" % (
             escaped(cls.__primarykey__.name), escaped(cls.__tablename__),
             " OR ".join("%s = %s" % (escaped(key.name), dump(value))
