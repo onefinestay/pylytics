@@ -28,17 +28,18 @@ class Date(Dimension):
                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')
 
     date = NaturalKey("date", date)
+    date_string = NaturalKey("date_string", unicode)
     day = Column("day", int)
     day_name = Column("day_name", day_names)
     day_of_week = Column("day_of_week", int)
     week = Column("week", int)
-    full_week = Column("full_week", str, size=15)
+    full_week = Column("full_week", unicode, size=15)
     month = Column("month", int)
     month_name = Column("month_name", month_names)
-    full_month = Column("full_name", str, size=15)
+    full_month = Column("full_name", unicode, size=15)
     quarter = Column("quarter", int)
     quarter_name = Column("quarter_name", ('Q1', 'Q2', 'Q3', 'Q4'))
-    full_quarter = Column("full_quarter", str, size=15)
+    full_quarter = Column("full_quarter", unicode, size=15)
     year = Column("year", int)
 
     @classmethod
@@ -66,6 +67,7 @@ class Date(Dimension):
     def __init__(self, date_obj):
         quarter = (date_obj.month - 1) // 3 + 1
         self.date = date_obj
+        self.date_string = date_obj.strftime("%Y-%m-%d")
         self.day = date_obj.day
         self.day_name = date_obj.strftime("%a")          # e.g. Mon
         self.day_of_week = int(date_obj.strftime("%u"))  # ISO day no of week
@@ -95,7 +97,7 @@ class Place(Dimension):
         query="select code as geo_code from place_source",
     )
 
-    geo_code = NaturalKey("geo_code", str, size=20)
+    geo_code = NaturalKey("geo_code", unicode, size=20)
 
 
 # We have to declare this outside the class below as staticmethods
@@ -137,10 +139,10 @@ class BoringEvent(Fact):
     place = DimensionKey("where", Place)
     people = Metric("num_people", int)
     duration = Metric("duration", float)
-    duration_unit = Metric("duration_unit", str, size=2, optional=True)
+    duration_unit = Metric("duration_unit", unicode, size=2, optional=True)
     very_boring = Metric("very_boring", bool)
-    stuff_colour = Metric("colour_of_stuff", str, optional=True)
-    stuff_size = Metric("size_of_stuff", str, optional=True)
+    stuff_colour = Metric("colour_of_stuff", unicode, optional=True)
+    stuff_size = Metric("size_of_stuff", unicode, optional=True)
 
 
 ### TESTS ###
