@@ -1,6 +1,10 @@
 from __future__ import absolute_import
+from functools import partial
 
 import eventlet
+from nameko.events import event_handler
+from pylytics.declarative import Staging, Warehouse
+
 eventlet.monkey_patch()
 
 try:
@@ -118,30 +122,33 @@ def fact_collector():
     return DependencyFactory(FactCollector)
 
 
+def build_staging():
+    db = DB(settings.pylytics_db)
+    db.connect()
+    Warehouse.use(db)
+    Staging.build()
+
+
 class NamekoCollectionService(object):
-
     name = 'pylytics'
-
     stash = fact_collector()
 
-    @rpc
-    def save(self, fact_table, **values):
-        """ Stashes the information provided in `values` for later processing
-        into the target fact table.
+    # TODO: dynamically create these event handler functions
 
-        Usage::
+    @event_handler("booking", "booking_appointment_created")
+    def collect_booking_appointment_created(self, event_data):
+        record = Staging("booking.booking_appointment_created", event_data)
+        Staging.insert(record)
 
-            pylitics.save(
-                fact_table='fact_something_interesting',
-                dimension='foo',
-                another_dimension='bar',
-            )
+    @event_handler("booking", "booking_appointment_changed")
+    def collect_booking_appointment_changed(self, event_data):
+        record = Staging("booking.booking_appointment_changed", event_data)
+        Staging.insert(record)
 
-        :Returns:
-            Nothing
-
-        """
-        self.stash(fact_table, values)
+    @event_handler("activity", "activity_task_completed")
+    def collect_activity_task_completed(self, event_data):
+        record = Staging("activity.activity_task_completed", event_data)
+        Staging.insert(record)
 
 
 def run_collector():
@@ -156,6 +163,41 @@ def run_collector():
     config = {
         AMQP_URI_CONFIG_KEY: amqp_uri
     }
+
+    build_staging()
+
+    # Commented code shows attempt at dynamic event handler creation.
+    # Probably needs tidier contract with Nameko for this.
+    #
+    # # TODO: get from list of active facts, don't hard code
+    # collectible_events = {
+    #     "booking": [
+    #         "booking_appointment_created",
+    #         "booking_appointment_changed",
+    #     ],
+    #     "activity": [
+    #         "activity_task_completed",
+    #     ],
+    # }
+    #
+    # for service, events in collectible_events.items():
+    #     for event in events:
+    #
+    #         def create_handler(service_name, event_name):
+    #             full_event_name = ".".join((service_name, event_name))
+    #
+    #             @event_handler(service_name, event_name)
+    #             def collect(self, event_data):
+    #                 """ Insert the incoming event details directly
+    #                 into the staging table.
+    #                 """
+    #                 Staging.insert(Staging(full_event_name, event_data))
+    #
+    #             return collect
+    #
+    #         handler_name = "_".join(("collect", service, event))
+    #         handler = create_handler(service, event)
+    #         setattr(NamekoCollectionService, handler_name, handler)
 
     service_runner = ServiceRunner(config)
 

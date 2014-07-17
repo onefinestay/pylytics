@@ -100,7 +100,7 @@ class BoringEvent(Fact):
     # This class method creates a custom subclass of `Staging`
     # that filters only "boring" events.
     __source__ = Staging.with_attributes(
-        events=["boring"],
+        events=["dull.boring"],
     )
 
     date = DimensionKey("when", Date)
@@ -211,7 +211,7 @@ def test_can_insert_fact_record_from_staging_source(empty_warehouse):
     Staging.build()
     BoringEvent.build()
 
-    Staging.insert(Staging("boring", {
+    Staging.insert(Staging("dull.boring", {
         "when": date(2000, 7, 16).isoformat(),
         "where": "MOON",
         "num_people": 3,
