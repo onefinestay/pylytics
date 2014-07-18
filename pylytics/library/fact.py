@@ -408,7 +408,7 @@ class Fact(Table):
             dim_table = dim_class.table_name
             columns.extend(
                 "`%s`.`%s` AS %s" % (
-                    dim_table,
+                    self.dim_names[i],
                     column,
                     column_name(self.dim_names[i], column)
                     ) for column in dim_class.column_names[1:-1]
