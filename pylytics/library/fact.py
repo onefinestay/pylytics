@@ -403,21 +403,46 @@ class Fact(Table):
         clauses = ["CREATE OR REPLACE VIEW `{view}` AS",
                    "SELECT\n    {columns}",
                    "FROM `{source}` AS fact"]
+        
+        # The issue we have is if the same dim is used twice.
+        # for now, we don't want to use the name of the dim referenced
+        # but the name of the referencing column in the fact.
+        # Can get the stuff we need here:
+        # self.dim_names
+
         for i, dim_class in enumerate(self.dim_classes):
+            
             dim_table = dim_class.table_name
+
             columns.extend(
                 "`%s`.`%s` AS %s" % (
-                    dim_table, column, column_name(dim_table, column))
-                for column in dim_class.column_names[1:-1])
-            clauses.append("INNER JOIN `%s` ON `%s`.`id` = `fact`.`%s`" % (
-                dim_table, dim_table, self.dim_names[i]))
+                    dim_table,
+                    column,
+                    column_name(self.dim_names[i], column)
+                    ) for column in dim_class.column_names[1:-1]
+                )
+
+            clauses.append(
+                "INNER JOIN `%s` AS `%s` ON `%s`.`id` = `fact`.`%s`" % (
+                    dim_table,
+                    self.dim_names[i],
+                    dim_table,
+                    self.dim_names[i]
+                    )
+                )
+
         columns.extend(
-            "`fact`.`%s` AS %s" % (d[0], raw_name(d[0]))
-            for d in self.description[1:-1]
-            if not d[0].startswith("dim_"))
+            "`fact`.`%s` AS %s" % (
+                d[0],
+                raw_name(d[0])
+                ) for d in self.description[1:-1]
+                  if not d[0].startswith("dim_")
+            )
+
         sql = "\n".join(clauses).format(
             view=self.rolling_view_name, source=self.table_name,
             columns=",\n    ".join(columns))
+
         self.connection.execute(sql)
 
     def _create_or_replace_midnight_view(self):
