@@ -31,7 +31,6 @@ def service_container(patched_db):
 
 def test_db_connection(patched_db, service_container):
 
-    import ipdb; ipdb.set_trace()
     assert patched_db.called
     database = patched_db.return_value
 
