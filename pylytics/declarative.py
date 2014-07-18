@@ -691,3 +691,10 @@ class Staging(Source, Table):
     def __init__(self, event_name, value_map):
         self.event_name = event_name
         self.value_map = json.dumps(value_map, separators=",:")
+
+    def __eq__(self, other):
+        return (self.event_name == other.event_name and
+                self.value_map == other.value_map)
+
+    def __ne__(self, other):
+        return not self.__eq__(other)

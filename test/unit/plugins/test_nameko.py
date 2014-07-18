@@ -5,6 +5,7 @@ import eventlet
 from nameko.runners import ServiceRunner
 from nameko.testing.utils import get_container
 from nameko.testing.services import entrypoint_hook
+from pylytics.declarative import Warehouse, Staging
 
 from pylytics.library.settings import settings
 from pylytics.plugins.nameko import NamekoCollectionService
@@ -13,7 +14,14 @@ from pylytics.plugins.nameko import NamekoCollectionService
 @pytest.yield_fixture
 def patched_db():
     with patch('pylytics.plugins.nameko.DB') as DB:
+        Warehouse.use(DB)
         yield DB
+
+
+@pytest.yield_fixture
+def mock_staging_insert():
+    with patch.object(Staging, "insert") as mocked:
+        yield mocked
 
 
 @pytest.yield_fixture
@@ -29,45 +37,16 @@ def service_container(patched_db):
     runner.stop()
 
 
-def test_db_connection(patched_db, service_container):
+@pytest.mark.usefixtures("patched_db")
+def test_collect(service_container, mock_staging_insert):
+    handler_name = 'collect_booking_appointment_created'
+    event_name = 'booking.booking_appointment_created'
+    event_data = {"booking_ref": "ABCD", "appointment_id": 123}
 
-    assert patched_db.called
-    database = patched_db.return_value
+    with entrypoint_hook(service_container, handler_name) as collect:
 
-    assert database.connect.called
+        collect(event_data)
 
-    with entrypoint_hook(service_container, 'save') as save:
+        expected = Staging(event_name, event_data)
+        mock_staging_insert.assert_called_once_with(expected)
 
-        save('fact_foo', foo='bar')
-
-        with eventlet.Timeout(5):
-            while not database.execute.called:
-                pass
-
-        expected_call = call(
-            query=ANY,
-            values=('nameko', 'fact_foo', '{"foo": "bar"}', ANY),
-            many=False,
-            get_cols=False,
-        )
-
-        assert database.execute.call_args == expected_call
-
-
-def test_multiple_requests(patched_db, service_container):
-
-    assert patched_db.called
-    database = patched_db.return_value
-
-    assert database.connect.called
-
-    with entrypoint_hook(service_container, 'save') as save:
-
-        for i in xrange(10):
-            save('fact_foo', foo=i)
-
-        with eventlet.Timeout(5):
-            while database.execute.call_count < 10:
-                pass
-
-        assert database.execute.call_count == 10

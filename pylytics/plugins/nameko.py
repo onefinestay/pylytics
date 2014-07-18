@@ -122,13 +122,6 @@ def fact_collector():
     return DependencyFactory(FactCollector)
 
 
-def build_staging():
-    db = DB(settings.pylytics_db)
-    db.connect()
-    Warehouse.use(db)
-    Staging.build()
-
-
 class NamekoCollectionService(object):
     name = 'pylytics'
     stash = fact_collector()
@@ -163,8 +156,6 @@ def run_collector():
     config = {
         AMQP_URI_CONFIG_KEY: amqp_uri
     }
-
-    build_staging()
 
     # Commented code shows attempt at dynamic event handler creation.
     # Probably needs tidier contract with Nameko for this.
