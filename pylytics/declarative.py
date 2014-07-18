@@ -1,9 +1,13 @@
+# -*- encoding: utf-8 -*-
+
+from __future__ import unicode_literals
+
 import json
 import logging
 import re
 import string
 
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from pylytics.library.connection import DB
 
@@ -43,10 +47,11 @@ def _raw_name(name):
 
 
 def _column_name(table, column):
-    name = "%s_%s" % (_raw_name(table), column)
-    if name == "date_date":
-        name = "date"
-    return name
+    table = _raw_name(table)
+    if table == column:
+        return column
+    else:
+        return "%s_%s" % (table, column)
 
 
 def dump(value):
@@ -58,9 +63,11 @@ def dump(value):
         return "1"
     elif value is False:
         return "0"
-    elif isinstance(value, (str, unicode)):
+    elif isinstance(value, str):
+        return "'%s'" % value.encode("utf-8").replace("'", "''")
+    elif isinstance(value, unicode):
         return "'%s'" % value.replace("'", "''")
-    elif isinstance(value, (date, time, datetime)):
+    elif isinstance(value, (date, time, datetime, timedelta)):
         return "'%s'" % value
     else:
         return unicode(value)
@@ -81,7 +88,10 @@ def hydrated(cls, data):
     log.debug("Hydrating data %s", data)
     inst = cls()
     for key, value in dict(data).items():
-        inst[key] = value
+        try:
+            inst[key] = value
+        except KeyError:
+            log.debug("No column found for key '%s'", key)
     return inst
 
 
@@ -358,6 +368,8 @@ class Table(object):
         "COLLATE": "utf8_bin",
     }
 
+    INSERT = "INSERT"
+
     @classmethod
     def build(cls):
         """ Create this table. Override this method to also create
@@ -415,7 +427,7 @@ class Table(object):
             except Exception as error:
                 log.error("Error raised while fetching data: (%s: %s)",
                           error.__class__.__name__, error,
-                          extra={"table_name": cls.__tablename__})
+                          extra={"table": cls.__tablename__})
                 raise
             else:
                 # Only mark as finished if we've not had errors.
@@ -430,8 +442,8 @@ class Table(object):
         if instances:
             columns = [column for column in cls.__columns__
                        if not isinstance(column, AutoColumn)]
-            sql = "INSERT INTO %s (\n  %s\n)\n" % (
-                escaped(cls.__tablename__),
+            sql = "%s INTO %s (\n  %s\n)\n" % (
+                cls.INSERT, escaped(cls.__tablename__),
                 ",\n  ".join(escaped(column.name) for column in columns))
             link = "VALUES"
             for instance in instances:
@@ -450,7 +462,7 @@ class Table(object):
         instances = list(cls.fetch(since=since))
         count = len(instances)
         log.info("Fetched %s record%s", count, "" if count == 1 else "s",
-                 extra={"table_name": cls.__tablename__})
+                 extra={"table": cls.__tablename__})
         cls.insert(*instances)
 
     def __getitem__(self, column_name):
@@ -485,6 +497,8 @@ class Dimension(Table):
     # in by the TableMetaclass on creation.
     __naturalkeys__ = NotImplemented
 
+    INSERT = "INSERT IGNORE"
+
     id = PrimaryKey()
     created = CreatedTimestamp()
 
@@ -493,9 +507,13 @@ class Dimension(Table):
         """ Return a SQL SELECT query to use as a subquery within a
         fact INSERT. Does not append parentheses or a LIMIT clause.
         """
-        natural_keys = cls.__naturalkeys__
+        value_type = type(value)
+        natural_keys = [key for key in cls.__naturalkeys__
+                        if key.type is value_type]
         if not natural_keys:
-            raise ValueError("Dimension has no natural keys")
+            raise ValueError("Value type '%s' does not match type of any "
+                             "natural key for dimension "
+                             "'%s'" % (value_type.__name__, cls.__name__))
         sql = "SELECT %s FROM %s WHERE %s" % (
             escaped(cls.__primarykey__.name), escaped(cls.__tablename__),
             " OR ".join("%s = %s" % (escaped(key.name), dump(value))
@@ -575,7 +593,8 @@ class Fact(Table):
         """ Insert fact instances (overridden to handle Dimensions correctly)
         """
         if instances:
-            columns = cls.__dimensionkeys__ + cls.__metrics__
+            columns = [column for column in cls.__columns__
+                       if not isinstance(column, AutoColumn)]
             sql = "INSERT INTO %s (\n  %s\n)\n" % (
                 escaped(cls.__tablename__),
                 ",\n  ".join(escaped(column.name) for column in columns))
@@ -599,7 +618,7 @@ class Source(object):
     """
 
     @classmethod
-    def with_attributes(cls, **attributes):
+    def define(cls, **attributes):
         return type(cls.__name__, (cls,), attributes)
 
     @classmethod
@@ -628,18 +647,25 @@ class DatabaseSource(Source):
     """
 
     @classmethod
-    def select(cls, for_class, since=None):
+    def execute(cls, **params):
         database = getattr(cls, "database")
-        query = getattr(cls, "query").format(since=since)
+        query = getattr(cls, "query").format(
+            **{key: dump(value) for key, value in params.items()})
         with DB(database) as connection:
             rows, col_names, _ = connection.execute(query, get_cols=True)
         for row in rows:
-            yield hydrated(for_class, zip(col_names, row))
+            yield zip(col_names, row)
+
+    @classmethod
+    def select(cls, for_class, since=None):
+        for record in cls.execute(since=since):
+            yield hydrated(for_class, record)
 
 
 class Staging(Source, Table):
     """ Staging is both a table and a data source.
     """
+    __tablename__ = "staging"
 
     # Keep details of records to be deleted.
     __recycling = set()
@@ -650,27 +676,47 @@ class Staging(Source, Table):
     created = CreatedTimestamp()
 
     @classmethod
+    def _apply_expansions(cls, data):
+        try:
+            expansions = getattr(cls, "expansions")
+        except AttributeError:
+            pass
+        else:
+            for exp in expansions:
+                if isinstance(exp, type) and issubclass(exp, DatabaseSource):
+                    for record in exp.execute(**data):
+                        data.update(record)
+                elif hasattr(exp, "__call__"):
+                    exp(data)
+                else:
+                    log.debug("Unexpected expansion type: %s",
+                              exp.__class__.__name__)
+
+    @classmethod
     def select(cls, for_class, since=None):
-        extra = {"table_name": for_class.__tablename__}
+        extra = {"table": for_class.__tablename__}
 
         connection = Warehouse.get()
         log.debug("Fetching rows from staging table", extra=extra)
 
         events = list(getattr(cls, "events"))
         sql = """\
-        SELECT id, value_map FROM staging
-        WHERE event_name IN %s
+        SELECT id, event_name, value_map FROM staging
+        WHERE event_name IN (%s)
         ORDER BY created, id
-        """ % ("(" + repr(events)[1:-1] + ")")
+        """ % ",".join(map(dump, events))
+        log.debug(sql)
         results = connection.execute(sql)
 
-        for id_, value_map in results:
+        for id_, event_name, value_map in results:
             try:
-                data = json.loads(value_map)
+                data = {"__event__": event_name}
+                data.update(json.loads(value_map))
+                cls._apply_expansions(data)
                 inst = hydrated(for_class, data)
             except Exception as error:
-                log.error("Broken record (%s: %s) -- %s",
-                          error.__class__.__name__, error,
+                log.error("Unable to hydrate %s record (%s: %s) -- %s",
+                          for_class.__name__, error.__class__.__name__, error,
                           value_map, extra=extra)
             else:
                 yield inst

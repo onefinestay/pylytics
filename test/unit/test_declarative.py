@@ -1,4 +1,8 @@
-from datetime import date, timedelta, datetime
+# -*- encoding: utf-8 -*-
+
+from __future__ import unicode_literals
+
+from datetime import date, timedelta
 import logging
 
 import pytest
@@ -24,17 +28,18 @@ class Date(Dimension):
                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')
 
     date = NaturalKey("date", date)
+    date_string = NaturalKey("date_string", unicode)
     day = Column("day", int)
     day_name = Column("day_name", day_names)
     day_of_week = Column("day_of_week", int)
     week = Column("week", int)
-    full_week = Column("full_week", str, size=15)
+    full_week = Column("full_week", unicode, size=15)
     month = Column("month", int)
     month_name = Column("month_name", month_names)
-    full_month = Column("full_name", str, size=15)
+    full_month = Column("full_name", unicode, size=15)
     quarter = Column("quarter", int)
     quarter_name = Column("quarter_name", ('Q1', 'Q2', 'Q3', 'Q4'))
-    full_quarter = Column("full_quarter", str, size=15)
+    full_quarter = Column("full_quarter", unicode, size=15)
     year = Column("year", int)
 
     @classmethod
@@ -62,6 +67,7 @@ class Date(Dimension):
     def __init__(self, date_obj):
         quarter = (date_obj.month - 1) // 3 + 1
         self.date = date_obj
+        self.date_string = date_obj.strftime("%Y-%m-%d")
         self.day = date_obj.day
         self.day_name = date_obj.strftime("%a")          # e.g. Mon
         self.day_of_week = int(date_obj.strftime("%u"))  # ISO day no of week
@@ -86,28 +92,57 @@ class Place(Dimension):
 
     # This class method creates a custom subclass of `DatabaseSource`
     # that selects using a SQL query.
-    __source__ = DatabaseSource.with_attributes(
+    __source__ = DatabaseSource.define(
         database="test_warehouse",
         query="select code as geo_code from place_source",
     )
 
-    geo_code = NaturalKey("geo_code", str, size=20)
+    geo_code = NaturalKey("geo_code", unicode, size=20)
+
+
+# We have to declare this outside the class below as staticmethods
+# and classmethods cannot be referenced without a class instance.
+def expand_duration(data):
+    """ Example expansion function. This one simply adds a
+    unit for the duration.
+    """
+    data["duration_unit"] = "s"
 
 
 class BoringEvent(Fact):
     __tablename__ = "boring_event_fact"
 
     # This class method creates a custom subclass of `Staging`
-    # that filters only "boring" events.
-    __source__ = Staging.with_attributes(
+    # that filters only "boring" events. One expansion is also
+    # defined to explode the "expansion_key_1" value into more
+    # values drawn from the defined database source. This
+    # mechanism can be used to seek further details on
+    # bookings, etc.
+    __source__ = Staging.define(
         events=["boring"],
+        expansions=[
+            DatabaseSource.define(
+                database="test_warehouse",
+                query="""\
+                SELECT
+                    colour AS colour_of_stuff,
+                    size AS size_of_stuff
+                FROM extra_table
+                WHERE id = {expansion_key_1}
+                """,
+            ),
+            expand_duration,
+        ],
     )
 
     date = DimensionKey("when", Date)
     place = DimensionKey("where", Place)
     people = Metric("num_people", int)
     duration = Metric("duration", float)
+    duration_unit = Metric("duration_unit", unicode, size=2, optional=True)
     very_boring = Metric("very_boring", bool)
+    stuff_colour = Metric("colour_of_stuff", unicode, optional=True)
+    stuff_size = Metric("size_of_stuff", unicode, optional=True)
 
 
 ### TESTS ###
@@ -211,15 +246,34 @@ def test_can_insert_fact_record_from_staging_source(empty_warehouse):
     Staging.build()
     BoringEvent.build()
 
+    # Prepare expansion data ready for expansion.
+    Warehouse.execute("""\
+    create table extra_table (
+        id int primary key,
+        colour varchar(20),
+        size varchar(20)
+    ) charset=utf8 collate=utf8_bin
+    """)
+    Warehouse.execute("""\
+    insert into extra_table (id, colour, size)
+    values (12, 'grün', '37kg'), (13, 'orange', '9 miles')
+    """)
+
+    # Insert staging record.
     Staging.insert(Staging("boring", {
         "when": date(2000, 7, 16).isoformat(),
         "where": "MOON",
         "num_people": 3,
         "duration": 10.7,
         "very_boring": False,
+        "pointless_ignored_value": "spoon",
+        "expansion_key_1": 12,
     }))
+
+    # Perform update.
     BoringEvent.update()
 
+    # Check a record has been correctly inserted.
     rows, columns, _ = Warehouse.execute(
         "select * from %s" % BoringEvent.__tablename__, get_cols=True)
     data = [dict(zip(columns, row)) for row in rows]
@@ -228,3 +282,5 @@ def test_can_insert_fact_record_from_staging_source(empty_warehouse):
     assert datum["num_people"] == 3
     assert datum["duration"] == 10.7
     assert bool(datum["very_boring"]) is False
+    assert datum["colour_of_stuff"] == u"grün"
+    assert datum["size_of_stuff"] == "37kg"

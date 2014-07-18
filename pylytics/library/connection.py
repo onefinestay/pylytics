@@ -86,7 +86,7 @@ class DB(object):
     def connect(self):
         if not self.connection:
             db_settings = settings.DATABASES[self.database]
-            self.connection = MySQLdb.connect(**db_settings)
+            self.connection = MySQLdb.connect(use_unicode=True, **db_settings)
 
     def commit(self):
         self.connection.commit()
