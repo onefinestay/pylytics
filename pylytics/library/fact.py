@@ -403,17 +403,9 @@ class Fact(Table):
         clauses = ["CREATE OR REPLACE VIEW `{view}` AS",
                    "SELECT\n    {columns}",
                    "FROM `{source}` AS fact"]
-        
-        # The issue we have is if the same dim is used twice.
-        # for now, we don't want to use the name of the dim referenced
-        # but the name of the referencing column in the fact.
-        # Can get the stuff we need here:
-        # self.dim_names
 
         for i, dim_class in enumerate(self.dim_classes):
-            
             dim_table = dim_class.table_name
-
             columns.extend(
                 "`%s`.`%s` AS %s" % (
                     dim_table,
