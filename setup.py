@@ -63,6 +63,6 @@ setup(
         'pylytics/bin/pylytics-admin.py',
     ],
     url='https://github.com/onefinestay/pylytics',
-    version='0.6.1',
+    version='0.7.0',
     zip_safe=False,
     )
