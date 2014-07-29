@@ -418,7 +418,7 @@ class Fact(Table):
                 "INNER JOIN `%s` AS `%s` ON `%s`.`id` = `fact`.`%s`" % (
                     dim_table,
                     self.dim_names[i],
-                    dim_table,
+                    self.dim_names[i],
                     self.dim_names[i]
                     )
                 )
