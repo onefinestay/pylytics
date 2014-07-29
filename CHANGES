@@ -1,3 +1,11 @@
+Version 0.7.0
+-------------
+
+- Logging added (including Sentry integration).
+- CLI changed to `manage.py command fact`, so beware - CRONs need updating. 
+- Automatic view generation.
+
+
 Version 0.6.1
 -------------
 
