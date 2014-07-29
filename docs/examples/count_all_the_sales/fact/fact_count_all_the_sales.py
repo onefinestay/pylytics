@@ -10,15 +10,11 @@ class FactCountAllTheSales(Fact):
 
     source_query = """
         SELECT
-            sale_date as `date`,
-            location_name AS location,
-            SUM(sale_value) AS total_sales
+            `sale_date` AS `date`,
+            `location_name` AS `location`,
+            SUM(`sale_value`) AS `total_sales`
         FROM
-            sales
+            `sales`
         GROUP BY
-            location, `date`;
+            `location`, `date`;
         """
-
-    def test(self):
-        self.update()
-        print "Test succeeded because I have chosen not to implement a test"
