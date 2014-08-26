@@ -1,8 +1,25 @@
-import datetime
+from datetime import date, datetime, time, timedelta
+from decimal import Decimal
+
+from utils import dump, escaped
 
 
 __all__ = ['Column', 'NaturalKey', 'DimensionKey', 'Metric', 'AutoColumn',
            'PrimaryKey', 'CreatedTimestamp']
+
+
+_type_map = {
+   bool: "TINYINT",
+   date: "DATE",
+   datetime: "TIMESTAMP",
+   Decimal: "DECIMAL",
+   float: "DOUBLE",
+   int: "INT",
+   long: "INT",
+   str: "VARCHAR(%s)",
+   time: "TIME",
+   unicode: "VARCHAR(%s)",
+}
 
 
 class Column(object):

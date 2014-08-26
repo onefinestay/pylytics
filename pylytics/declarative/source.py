@@ -1,13 +1,29 @@
 import json
 import logging
 
+from column import *
 # TODO Can replace this with SQLAlchemy?
 from pylytics.library.connection import DB
 from table import Table
+from warehouse import Warehouse
 
 
 __all__ = ['Source', 'DatabaseSource', 'Staging']
 log = logging.getLogger("pylytics")
+
+
+def hydrated(cls, data):
+    """ Inflate the data provided into an instance of a table class
+    by mapping key to column name.
+    """
+    log.debug("Hydrating data %s", data)
+    inst = cls()
+    for key, value in dict(data).items():
+        try:
+            inst[key] = value
+        except KeyError:
+            log.debug("No column found for key '%s'", key)
+    return inst
 
 
 class Source(object):

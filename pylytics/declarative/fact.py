@@ -1,5 +1,25 @@
-from table import Table
 from column import *
+from table import Table
+from utils import escaped
+from warehouse import Warehouse
+
+
+def _raw_name(name):
+    for prefix in ("dim_", "fact_"):
+        if name.startswith(prefix):
+            name = name[len(prefix):]
+    for suffix in ("_dim", "_fact"):
+        if name.endswith(suffix):
+            name = name[:-len(suffix)]
+    return name
+
+
+def _column_name(table, column):
+    table = _raw_name(table)
+    if table == column:
+        return column
+    else:
+        return "%s_%s" % (table, column)
 
 
 class Fact(Table):

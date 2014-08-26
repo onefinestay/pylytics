@@ -1,5 +1,6 @@
-from table import Table
 from column import *
+from table import Table
+from utils import escaped
 
 
 class Dimension(Table):

@@ -1,3 +1,55 @@
+import logging
+
+from column import *
+from utils import _camel_to_snake, escaped
+from warehouse import Warehouse
+
+
+log = logging.getLogger("pylytics")
+
+
+class _ColumnSet(object):
+    """ Internal class for grouping and ordering column
+    attributes; used by TableMetaclass.
+    """
+
+    def __init__(self):
+        self.__columns = {}
+        self.__primary_key = None
+
+    def update(self, attributes):
+        for key in attributes:
+            if not key.startswith("_"):
+                col = attributes[key]
+                if isinstance(col, Column):
+                    order_key = (col.__columnblock__, col.order)
+                    self.__columns.setdefault(order_key, []).append((key, col))
+                    if isinstance(col, PrimaryKey):
+                        self.__primary_key = col
+
+    @property
+    def columns(self):
+        ordered_columns = []
+        for order_key, column_list in sorted(self.__columns.items()):
+            ordered_columns.extend(sorted(column_list))
+        return [value for key, value in ordered_columns]
+
+    @property
+    def primary_key(self):
+        return self.__primary_key
+
+    @property
+    def dimension_keys(self):
+        return [c for c in self.columns if isinstance(c, DimensionKey)]
+
+    @property
+    def metrics(self):
+        return [c for c in self.columns if isinstance(c, Metric)]
+
+    @property
+    def natural_keys(self):
+        return [c for c in self.columns if isinstance(c, NaturalKey)]
+
 
 class TableMetaclass(type):
     """ Metaclass for constructing all Table classes. This applies number
