@@ -5,6 +5,7 @@ from column import *
 # TODO Can replace this with SQLAlchemy?
 from pylytics.library.connection import DB
 from table import Table
+from utils import dump
 from warehouse import Warehouse
 
 

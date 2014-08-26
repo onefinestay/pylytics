@@ -1,7 +1,8 @@
+from datetime import date
 import logging
 
 from column import *
-from utils import _camel_to_snake, escaped
+from utils import _camel_to_snake, dump, escaped
 from warehouse import Warehouse
 
 

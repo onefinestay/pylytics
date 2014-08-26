@@ -1,3 +1,9 @@
+import logging
+
+
+log = logging.getLogger("pylytics")
+
+
 class Warehouse(object):
     """ Global data warehouse pointer singleton. This class avoids
     having to pass a data warehouse connection into every table

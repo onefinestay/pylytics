@@ -1,6 +1,6 @@
 from column import *
 from table import Table
-from utils import escaped
+from utils import dump, escaped
 from warehouse import Warehouse
 
 

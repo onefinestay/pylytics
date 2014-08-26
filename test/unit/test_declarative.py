@@ -7,15 +7,13 @@ import logging
 
 import pytest
 
-from pylytics.declarative import Warehouse
+from pylytics.declarative.warehouse import Warehouse
 from pylytics.declarative.source import DatabaseSource, Staging
 from pylytics.declarative.column import (Column, DimensionKey, Metric,
                                          NaturalKey)
 from pylytics.declarative.dimension import Dimension
 from pylytics.declarative.fact import Fact
 from pylytics.declarative.utils import escaped
-
-
 from pylytics.library.exceptions import TableExistsError
 
 
