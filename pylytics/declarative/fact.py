@@ -46,6 +46,7 @@ class Fact(Table):
 
     @classmethod
     def update(cls, since=None):
+        import pdb; pdb.set_trace()
         for dimension_key in cls.__dimensionkeys__:
             dimension_key.dimension.update(since=since)
         return super(Fact, cls).update(since)

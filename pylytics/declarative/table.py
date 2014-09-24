@@ -158,12 +158,8 @@ class Table(object):
         """ Fetch data from the source defined for this table and
         yield as each is received.
         """
+        import pdb; pdb.set_trace()
         if cls.__source__:
-            if hasattr(cls.__source__, __call__):
-                # TODO We don't just return the data here ...
-                # Also ... pipelining would still be useful here ...
-                pass
-            
             try:
                 for inst in cls.__source__.select(cls, since=since):
                     yield inst
