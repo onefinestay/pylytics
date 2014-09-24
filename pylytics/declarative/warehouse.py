@@ -36,7 +36,10 @@ class Warehouse(object):
         """
         connection = cls.get()
         log.debug(sql)
-        result = connection.execute(sql, **kwargs)
+        # TODO Need to think whether we should pass in a cursor, or a
+        # connection object.
+        cursor = connection.cursor()
+        result = cursor.execute(sql, **kwargs)
         if commit:
             connection.commit()
         return result
