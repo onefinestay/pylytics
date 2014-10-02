@@ -2,7 +2,6 @@
 Utilities for making database connections easier.
 """
 
-
 import logging
 import warnings
 
@@ -86,7 +85,8 @@ class DB(object):
     def connect(self):
         if not self.connection:
             db_settings = settings.DATABASES[self.database]
-            self.connection = MySQLdb.connect(use_unicode=True, **db_settings)
+            self.connection = MySQLdb.connect(charset='utf8',
+                use_unicode=True, **db_settings)
 
     def commit(self):
         self.connection.commit()

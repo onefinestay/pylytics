@@ -158,7 +158,6 @@ class Table(object):
         """ Fetch data from the source defined for this table and
         yield as each is received.
         """
-        import pdb; pdb.set_trace()
         if cls.__source__:
             try:
                 for inst in cls.__source__.select(cls, since=since):

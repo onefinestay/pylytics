@@ -17,6 +17,7 @@ _type_map = {
    int: "INT",
    long: "INT",
    str: "VARCHAR(%s)",
+   timedelta: "TIME",
    time: "TIME",
    unicode: "VARCHAR(%s)",
 }

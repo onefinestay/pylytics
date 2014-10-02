@@ -51,6 +51,30 @@ class Source(object):
         """
         pass
 
+    @classmethod
+    def select(cls, for_class, since=None):
+        for record in cls.execute(since=since):
+            dict_record = dict(record)
+            cls._apply_expansions(dict_record)
+            yield hydrated(for_class, dict_record.items())
+
+    @classmethod
+    def _apply_expansions(cls, data):
+        try:
+            expansions = getattr(cls, "expansions")
+        except AttributeError:
+            pass
+        else:
+            for exp in expansions:
+                if isinstance(exp, type) and issubclass(exp, DatabaseSource):
+                    for record in exp.execute(**data):
+                        data.update(record)
+                elif hasattr(exp, "__call__"):
+                    exp(data)
+                else:
+                    log.debug("Unexpected expansion type: %s",
+                              exp.__class__.__name__)
+
 
 class DatabaseSource(Source):
     """ Base class for remote databases used as data sources for table
@@ -71,11 +95,6 @@ class DatabaseSource(Source):
         for row in rows:
             yield zip(col_names, row)
 
-    @classmethod
-    def select(cls, for_class, since=None):
-        for record in cls.execute(since=since):
-            yield hydrated(for_class, record)
-
 
 class CallableSource(Source):
     """ A data source which is generated from a callable object
@@ -95,11 +114,6 @@ class CallableSource(Source):
         for row in _callable(*args, **kwargs):
             yield list(row)
 
-    @classmethod
-    def select(cls, for_class, since=None):
-        for record in cls.execute(since=since):
-            yield hydrated(for_class, record)
-
 
 class Staging(Source, Table):
     """ Staging is both a table and a data source.
@@ -113,23 +127,6 @@ class Staging(Source, Table):
     event_name = Column("event_name", unicode, size=80)
     value_map = Column("value_map", unicode, size=2048)
     created = CreatedTimestamp()
-
-    @classmethod
-    def _apply_expansions(cls, data):
-        try:
-            expansions = getattr(cls, "expansions")
-        except AttributeError:
-            pass
-        else:
-            for exp in expansions:
-                if isinstance(exp, type) and issubclass(exp, DatabaseSource):
-                    for record in exp.execute(**data):
-                        data.update(record)
-                elif hasattr(exp, "__call__"):
-                    exp(data)
-                else:
-                    log.debug("Unexpected expansion type: %s",
-                              exp.__class__.__name__)
 
     @classmethod
     def select(cls, for_class, since=None):

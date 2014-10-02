@@ -407,7 +407,7 @@ class Fact(Table):
         for i, dim_class in enumerate(self.dim_classes):
             dim_table = dim_class.table_name
             columns.extend(
-                "`%s`.`%s` AS %s" % (
+                "`%s`.`%s` AS `%s`" % (
                     self.dim_names[i],
                     column,
                     column_name(self.dim_names[i], column)
@@ -424,7 +424,7 @@ class Fact(Table):
                 )
 
         columns.extend(
-            "`fact`.`%s` AS %s" % (
+            "`fact`.`%s` AS `%s`" % (
                 d[0],
                 raw_name(d[0])
                 ) for d in self.description[1:-1]

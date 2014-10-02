@@ -41,14 +41,23 @@ class Fact(Table):
             dimension_key.dimension.build()
         super(Fact, cls).build()
         # TODO: copy view functionality to here
-        cls.create_or_replace_rolling_view()
-        #cls.create_or_replace_midnight_view() -- only if a date column is defined
+        # TODO: Fix the rolling view for when the same dimensions is used
+        # twice. The problem is having multiple join clauses.
+        # Need something like this instead - INNER JOIN X AS Y ON ...
+        # cls.create_or_replace_rolling_view()
+        # cls.create_or_replace_midnight_view() -- only if a date column is defined
 
     @classmethod
     def update(cls, since=None):
-        import pdb; pdb.set_trace()
+
+        # Remove any duplicate dimensions.
+        unique_dimensions = []
         for dimension_key in cls.__dimensionkeys__:
-            dimension_key.dimension.update(since=since)
+            if dimension_key.dimension not in unique_dimensions:
+                unique_dimensions.append(dimension_key.dimension)
+
+        for dimension in unique_dimensions:
+            dimension.update(since=since)
         return super(Fact, cls).update(since)
 
     @classmethod
