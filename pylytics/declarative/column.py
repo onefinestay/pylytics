@@ -12,7 +12,7 @@ _type_map = {
    bool: "TINYINT",
    date: "DATE",
    datetime: "TIMESTAMP",
-   Decimal: "DECIMAL",
+   Decimal: "DECIMAL(%s,%s)",
    float: "DOUBLE",
    int: "INT",
    long: "INT",
@@ -29,7 +29,11 @@ class Column(object):
     """
 
     __columnblock__ = 5  # TODO: explain
-    default_size = 40
+    default_size = {
+        str: 40,
+        unicode: 40,
+        Decimal: (6, 2)
+        }
 
     def __init__(self, name, type, size=None, optional=False,
                  default=NotImplemented, order=None, comment=None, null=None):
@@ -77,7 +81,7 @@ class Column(object):
             else:
                 if "%s" in sql_type:
                     if self.size is None:
-                        return sql_type % str(self.default_size)
+                        return sql_type % self.default_size[self.type]
                     else:
                         return sql_type % self.size
                 else:
