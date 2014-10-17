@@ -1,3 +1,5 @@
+import datetime
+
 from column import *
 from table import Table
 from utils import dump, escaped
@@ -15,10 +17,11 @@ class Dimension(Table):
     INSERT = "INSERT IGNORE"
 
     id = PrimaryKey()
+    applicable_from = ApplicableFrom()
     created = CreatedTimestamp()
 
     @classmethod
-    def __subquery__(cls, value):
+    def __subquery__(cls, value, timestamp):
         """ Return a SQL SELECT query to use as a subquery within a
         fact INSERT. Does not append parentheses or a LIMIT clause.
         """
@@ -29,10 +32,13 @@ class Dimension(Table):
             raise ValueError("Value type '%s' does not match type of any "
                              "natural key for dimension "
                              "'%s'" % (value_type.__name__, cls.__name__))
-        sql = "SELECT %s FROM %s WHERE %s" % (
-            escaped(cls.__primarykey__.name), escaped(cls.__tablename__),
-            " OR ".join("%s = %s" % (escaped(key.name), dump(value))
-                        for key in natural_keys))
+
+        sql = 'SELECT {primary_key} FROM {table_name} WHERE {selector} AND `applicable_from` = (SELECT max(`applicable_from`) FROM {table_name} WHERE {selector} AND `applicable_from` < "{timestamp}")'.format(
+            primary_key=escaped(cls.__primarykey__.name),
+            table_name=escaped(cls.__tablename__),
+            selector=" OR ".join("%s = %s" % (escaped(key.name), dump(value)) for key in natural_keys),
+            timestamp=timestamp
+            )
         return sql
 
     def __repr__(self):

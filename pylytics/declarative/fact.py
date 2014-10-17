@@ -1,7 +1,14 @@
+import math
+import logging
+
 from column import *
+from selector import DimensionSelector
 from table import Table
 from utils import dump, escaped
 from warehouse import Warehouse
+
+
+log = logging.getLogger("pylytics")
 
 
 def _raw_name(name):
@@ -31,6 +38,7 @@ class Fact(Table):
     # in by the TableMetaclass on creation.
     __dimensionkeys__ = NotImplemented
     __metrics__ = NotImplemented
+    __dimension_selector__ = DimensionSelector()
 
     id = PrimaryKey()
     created = CreatedTimestamp()
@@ -55,7 +63,7 @@ class Fact(Table):
         for dimension_key in cls.__dimensionkeys__:
             if dimension_key.dimension not in unique_dimensions:
                 unique_dimensions.append(dimension_key.dimension)
-
+        
         for dimension in unique_dimensions:
             dimension.update(since=since)
         return super(Fact, cls).update(since)
@@ -107,15 +115,28 @@ class Fact(Table):
                 escaped(cls.__tablename__),
                 ",\n  ".join(escaped(column.name) for column in columns))
             link = "VALUES"
-            for instance in instances:
-                values = []
-                for column in columns:
-                    value = instance[column.name]
-                    if isinstance(column, DimensionKey):
-                        values.append("(%s)" %
-                                      column.dimension.__subquery__(value))
-                    else:
-                        values.append(dump(value))
-                sql += link + (" (\n  %s\n)" % ",\n  ".join(values))
-                link = ","
-            Warehouse.execute(sql, commit=True)
+
+            # We can't insert too many at once, otherwise the target
+            # database will 'go away'.
+            batch_size = 10000
+            batch_number = int(math.ceil(len(instances) / float(batch_size)))
+            batches = [instances[i * batch_size:(i + 1) * batch_size] for i in xrange(batch_number)]
+
+            for iteration, batch in enumerate(batches):
+                log.debug('Inserting batch %s' % (iteration + 1))
+                for instance in batch:
+                    values = []
+                    for column in columns:
+                        value = instance[column.name]
+                        if isinstance(column, DimensionKey):
+                            values.append(
+                                "(%s)" % column.dimension.__subquery__(
+                                    value,
+                                    instance.__dimension_selector__.timestamp(instance) # TODO This is a bit messy - shouldn't have to pass the instance back in.
+                                    )
+                                )
+                        else:
+                            values.append(dump(value))
+                    sql += link + (" (\n  %s\n)" % ",\n  ".join(values))
+                    link = ","
+                Warehouse.execute(sql, commit=True)

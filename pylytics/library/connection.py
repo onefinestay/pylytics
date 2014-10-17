@@ -74,6 +74,8 @@ class DB(object):
         255: 'VARCHAR(255)',
     }
 
+    recursions = 0
+
     def __init__(self, database):
         if database not in (settings.DATABASES.keys()):
             raise ValueError("The database {} isn't recognised - check "
@@ -131,9 +133,24 @@ class DB(object):
                         cursor.executemany(query, values)
                     else:
                         cursor.execute(query, values)
+
+            except MySQLdb.OperationalError as error:
+                # OperationalError is a child of Database error, so the
+                # order here is important.
+                # The connection most likely timed out. Try again up to the
+                # recursion limit.
+                classify_error(error)
+                self.recursions += 1
+                if self.recursions < 5:
+                    log.info('Reconnecting to database.')
+                    self.connection = None
+                    self.connect()
+                    return self.execute(query, values, many, get_cols)
+
             except MySQLdb.DatabaseError as error:
                 classify_error(error)
                 raise
+
             finally:
                 for w in caught:
                     log.warning(w.message)
@@ -151,6 +168,7 @@ class DB(object):
                                   "the field_types dictionary".format(error))
 
         cursor.close()
+        self.recursions = 0
 
         if get_cols:
             return data, cols_names, cols_types

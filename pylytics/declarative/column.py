@@ -5,7 +5,7 @@ from utils import dump, escaped
 
 
 __all__ = ['Column', 'NaturalKey', 'DimensionKey', 'Metric', 'AutoColumn',
-           'PrimaryKey', 'CreatedTimestamp']
+           'PrimaryKey', 'CreatedTimestamp', 'ApplicableFrom']
 
 
 _type_map = {
@@ -28,7 +28,7 @@ class Column(object):
     that represent more specific categories of column, e.g. PrimaryKey.
     """
 
-    __columnblock__ = 5  # TODO: explain
+    __columnblock__ = 5
     default_size = {
         str: 40,
         unicode: 40,
@@ -159,6 +159,21 @@ class CreatedTimestamp(AutoColumn):
 
     def __init__(self, name="created", order=None, comment=None):
         Column.__init__(self, name, datetime, order=order, comment=comment)
+
+    @property
+    def default_clause(self):
+        return "DEFAULT CURRENT_TIMESTAMP"
+
+
+class ApplicableFrom(Column):
+    """ This is a special column which is only used in dimensions.
+    """
+
+    __columnblock__ = 6
+
+    def __init__(self, name="applicable_from", order=None, comment=None):
+        Column.__init__(self, name, datetime, optional=False, order=order,
+                        comment=comment)
 
     @property
     def default_clause(self):
