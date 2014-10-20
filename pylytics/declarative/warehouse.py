@@ -35,6 +35,7 @@ class Warehouse(object):
         currently registered data warehouse connection.
         """
         connection = cls.get()
+        connection.connect()
         log.debug(sql)
         result = connection.execute(sql, **kwargs)
         if commit:

@@ -62,7 +62,7 @@ class Commander(object):
         """ Run command for each fact in facts.
         """
         database = connection.DB(settings.pylytics_db)
-        Warehouse.use(database.connect())
+        Warehouse.use(database)
 
         all_fact_classes = get_all_fact_classes()
 
@@ -145,8 +145,12 @@ def main():
 
     command = args['command'][0]
     commander = Commander(settings.pylytics_db)
-    if command in ['update', 'build']:
-        commander.run(command, *args['fact'])
+
+    if command == 'update':
+        commander.run('build', *args['fact'])
+        commander.run('update', *args['fact'])
+    elif command == 'build':
+        commander.run('build', *args['fact'])
     else:
         log.error("Unknown command: %s", command)
 
