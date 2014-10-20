@@ -3,6 +3,10 @@ import re
 import string
 
 
+# MySQL minimum timestamps are slightly above the Unix epoch.
+EPOCH = datetime(1970, 1, 1, 1, 1)
+
+
 _camel_words = re.compile(r"([A-Z][a-z0-9_]+)")
 
 

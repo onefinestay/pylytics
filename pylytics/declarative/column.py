@@ -167,6 +167,11 @@ class CreatedTimestamp(AutoColumn):
 
 class ApplicableFrom(Column):
     """ This is a special column which is only used in dimensions.
+    
+    Some dimension rows are only applicable over certain time periods. This
+    column allows facts to match on dimensions rows, not just just based on
+    dimension values, but also when that dimension is valid.
+
     """
 
     __columnblock__ = 6

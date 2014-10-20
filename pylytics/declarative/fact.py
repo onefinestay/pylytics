@@ -118,7 +118,7 @@ class Fact(Table):
 
             # We can't insert too many at once, otherwise the target
             # database will 'go away'.
-            batch_size = 10000
+            batch_size = 100
             batch_number = int(math.ceil(len(instances) / float(batch_size)))
             batches = [instances[i * batch_size:(i + 1) * batch_size] for i in xrange(batch_number)]
 

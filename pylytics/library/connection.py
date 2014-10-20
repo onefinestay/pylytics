@@ -7,7 +7,7 @@ import warnings
 
 import MySQLdb
 
-from pylytics.library.exceptions import classify_error
+from pylytics.library.exceptions import classify_error, DatabaseGoneAwayError
 from pylytics.library.settings import settings
 
 
@@ -124,8 +124,10 @@ class DB(object):
             warnings.simplefilter("always")
             try:
                 if not values:
-                    # SELECT query
+                    # Most likely a SELECT query
                     cursor.execute(query)
+                    # A bit hacky ...
+                    #if 'SELECT' in query[0:10]:
                     data = cursor.fetchall()
                 else:
                     # INSERT or REPLACE query
@@ -140,12 +142,15 @@ class DB(object):
                 # The connection most likely timed out. Try again up to the
                 # recursion limit.
                 classify_error(error)
-                self.recursions += 1
-                if self.recursions < 5:
-                    log.info('Reconnecting to database.')
-                    self.connection = None
-                    self.connect()
-                    return self.execute(query, values, many, get_cols)
+                if type(error) == DatabaseGoneAwayError:
+                    self.recursions += 1
+                    if self.recursions < 5:
+                        log.info('Reconnecting to database.')
+                        cursor.close()
+                        self.connection.close()
+                        self.connection = None
+                        self.connect()
+                        return self.execute(query, values, many, get_cols)
 
             except MySQLdb.DatabaseError as error:
                 classify_error(error)

@@ -37,6 +37,15 @@ class BadFieldError(OperationalError):
     code = 1054
 
 
+class DatabaseGoneAwayError(OperationalError):
+    """ Raised when the connection to a database is lost.
+
+    See: https://dev.mysql.com/doc/refman/5.5/en/error-messages-client.html#error_cr_server_gone_error
+
+    """
+    code = 2006
+
+
 class NoSuchTableError(ProgrammingError):
     """ Raised when a reference is made to a non-existent table.
 
@@ -46,21 +55,18 @@ class NoSuchTableError(ProgrammingError):
     code = 1146
 
 
-# TODO: tidy up this function
 def classify_error(error):
     """ Alter the class of an error to something specific instead of the
     generic error raised. This enables errors to be caught more cleanly
     rather than having to inspect and re-raise.
     """
     if isinstance(error, OperationalError):
-        if error.args[0] == CantCreateTableError.code:
-            error.__class__ = CantCreateTableError
-        elif error.args[0] == BadNullError.code:
-            error.__class__ = BadNullError
-        elif error.args[0] == TableExistsError.code:
-            error.__class__ = TableExistsError
-        elif error.args[0] == BadFieldError.code:
-            error.__class__ = BadFieldError
+        for error_class in [CantCreateTableError, BadNullError,
+                            TableExistsError, BadFieldError,
+                            DatabaseGoneAwayError]:        
+            if error.args[0] == error_class.code:
+                error.__class__ = error_class
+
     if isinstance(error, ProgrammingError):
         if error.args[0] == NoSuchTableError.code:
             error.__class__ = NoSuchTableError

@@ -5,7 +5,7 @@ class DimensionSelector(object):
     """ Returns a datetime value which is used to select the correct dimension
     row.
 
-    Dimensions can evolve over time, so multiple dimensions can match given a
+    Dimensions can evolve over time, so multiple dimensions can match a given 
     natural key. The differentiator is the time the rows were created. The
     selector allows us to select the dimension row which was valid at a certain
     point of time.

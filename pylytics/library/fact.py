@@ -181,7 +181,6 @@ class Fact(Table):
     def _build_dimensions(self):
         """ Build (and update) the dimension tables related to this fact.
         """
-
         for dim_class in self.dim_classes:
             dim_class.build()
             dim_class.update()
