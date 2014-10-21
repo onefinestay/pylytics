@@ -29,14 +29,14 @@ class Schedule(object):
 
         """
         self.starts = starts
-        self.ends = ends.replace(timezone)
+        self.ends = ends
         self.repeats = repeats
         self.timezone = timezone
 
     @property
     def starts_tzaware(self):
-        return self.starts.replace(self.timezone)
+        return self.starts.replace(tzinfo=self.timezone)
 
     @property
     def ends_tzaware(self):
-        return self.ends.replace(self.timezone)
+        return self.ends.replace(tzinfo=self.timezone)

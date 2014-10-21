@@ -1,9 +1,10 @@
-from datetime import datetime
+import argparse
+import datetime
 import inspect
 import logging
 import sys
 
-import argparse
+from pytz import UTC
 
 from pylytics.library import connection
 from pylytics.library.log import ColourFormatter, bright_white
@@ -53,6 +54,21 @@ def print_summary(errors):
         log.info("\n".join(items))
 
 
+def valid_time_range(start_time, end_time, delta):
+    # We have to convert time objects to datetime so timedeltas can be used.
+    fake_date = datetime.date(2000, 1, 1)
+    start = datetime.datetime.combine(fake_date, start_time)
+    end = datetime.datetime.combine(fake_date, end_time)
+
+    while start < end:
+        yield start.time()
+        start += delta
+
+        if start.date().day == 2:
+            # Time has wrapped around.
+            break
+
+
 def find_scheduled(all_fact_classes):
     """
     Finds which facts are scheduled to run now.
@@ -65,19 +81,26 @@ def find_scheduled(all_fact_classes):
         A list of facts which are scheduled to run at the current time.
 
     """
-    # Basic approach now ...
-    # Get the current time.
-    # Immediately remove any which are outside of the start and end time.
-    # The challenge here is timezone awareness ...
-    # Can we compare these objects??? Need a load of tests for this ...
-    
-    
-    current_time = None
-    
-    # TODO 
-    
-    
-    pass
+    facts_to_update = []
+
+    now = datetime.datetime.now(tz=UTC).time()
+    now.replace(second=0)
+    now.replace(microsecond=0)
+    now.replace(minute=(now.minute - now.minute % 10))
+
+    for fact in all_fact_classes:
+        starts = fact.__scheduled__.starts_tzaware
+        ends = fact.__scheduled__.ends_tzaware
+        repeats = fact.__scheduled__.repeats
+
+        if starts > current_time:
+            continue
+        elif ends < current_time:
+            continue
+        elif current_time in valid_time_range(start, ends, repeats):
+            facts_to_update.append(fact)
+
+    return facts_to_update
 
 
 class Commander(object):
@@ -151,7 +174,7 @@ def main():
 
     sys.stdout.write(bright_white(TITLE))
     sys.stdout.write(bright_white("\nStarting at {}\n\n".format(
-        datetime.now())))
+        datetime.datetime.now())))
 
     # Enable log output before loading settings so we have visibility
     # of any load errors.
@@ -184,4 +207,4 @@ def main():
         log.error("Unknown command: %s", command)
 
     sys.stdout.write(bright_white("\nCompleted at {}\n\n".format(
-        datetime.now())))
+        datetime.datetime.now())))

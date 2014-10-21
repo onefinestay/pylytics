@@ -2,7 +2,7 @@
 
 from __future__ import unicode_literals
 
-from datetime import date, timedelta
+from datetime import date, time, timedelta
 import logging
 
 import pytest
@@ -13,6 +13,7 @@ from pylytics.declarative.column import (Column, DimensionKey, Metric,
                                          NaturalKey)
 from pylytics.declarative.dimension import Dimension
 from pylytics.declarative.fact import Fact
+from pylytics.declarative.main import valid_time_range
 from pylytics.declarative.utils import escaped
 from pylytics.library.exceptions import TableExistsError
 
@@ -288,3 +289,22 @@ def test_can_insert_fact_record_from_staging_source(empty_warehouse):
     assert bool(datum["very_boring"]) is False
     assert datum["colour_of_stuff"] == u"grün"
     assert datum["size_of_stuff"] == "37kg"
+
+###############################################################################
+
+# main.py
+
+def test_valid_time_range():
+    start_time = time(hour=0)
+    end_time = time(hour=23, minute=59)
+    delta = timedelta(minutes=30)
+
+    values = []
+    for i in valid_time_range(start_time, end_time, delta):
+        values.append(i)
+
+    # Test a range of values.
+    assert start_time in values
+    assert time(hour=0, minute=30) in values
+    assert time(hour=6) in values
+    assert time(hour=23, minute=30) in values
