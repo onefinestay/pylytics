@@ -53,6 +53,33 @@ def print_summary(errors):
         log.info("\n".join(items))
 
 
+def find_scheduled(all_fact_classes):
+    """
+    Finds which facts are scheduled to run now.
+
+    Args:
+        all_fact_classes:
+            A list of all facts available.
+
+    Returns:
+        A list of facts which are scheduled to run at the current time.
+
+    """
+    # Basic approach now ...
+    # Get the current time.
+    # Immediately remove any which are outside of the start and end time.
+    # The challenge here is timezone awareness ...
+    # Can we compare these objects??? Need a load of tests for this ...
+    
+    
+    current_time = None
+    
+    # TODO 
+    
+    
+    pass
+
+
 class Commander(object):
 
     def __init__(self, db_name):
@@ -68,8 +95,10 @@ class Commander(object):
 
         # Normalise the collection of facts supplied to remove duplicates,
         # expand "all" and report unknown facts.
-        if "all" in facts:
+        if 'all' in facts:
             facts_to_run = all_fact_classes
+        elif 'scheduled' in facts:
+            facts_to_run = find_scheduled(all_fact_classes)
         else:
             facts_to_run = []
             fact_names = [type(fact()).__name__ for fact in all_fact_classes]

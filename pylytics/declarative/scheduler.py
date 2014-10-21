@@ -2,17 +2,6 @@ from datetime import time, timedelta
 
 from pytz import UTC
 
-# Scheduler to work out which to run?
-# Timezone ... timezones could be an argument we pass in ...
-# tz argument ... Can we just pass these into the starts and ends arguments
-# instead?
-
-
-# Could potentially have a schedules argument where we can specify multiple
-# Schedule instances ... e.g. if you wanted to update them at different
-# timezones. You would be better off inheriting from other facts and
-# overrding the schedule.
-
 
 class Schedule(object):
     """
@@ -46,8 +35,8 @@ class Schedule(object):
 
     @property
     def starts_tzaware(self):
-        return self.starts.replace(timezone)
+        return self.starts.replace(self.timezone)
 
     @property
     def ends_tzaware(self):
-        return self.ends.replace(timezone)
+        return self.ends.replace(self.timezone)

@@ -2,6 +2,7 @@ import math
 import logging
 
 from column import *
+from schedule import Schedule
 from selector import DimensionSelector
 from table import Table
 from utils import dump, escaped
@@ -39,6 +40,7 @@ class Fact(Table):
     __dimensionkeys__ = NotImplemented
     __metrics__ = NotImplemented
     __dimension_selector__ = DimensionSelector()
+    __schedule__ = Schedule()
 
     id = PrimaryKey()
     created = CreatedTimestamp()
