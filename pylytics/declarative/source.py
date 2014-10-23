@@ -1,9 +1,9 @@
+from contextlib import closing
 import json
 import logging
 
 from column import *
-# TODO Can replace this with SQLAlchemy?
-from pylytics.library.connection import DB
+from connection import NamedConnection
 from table import Table
 from utils import dump
 from warehouse import Warehouse
@@ -90,10 +90,15 @@ class DatabaseSource(Source):
         database = getattr(cls, "database")
         query = getattr(cls, "query").format(
             **{key: dump(value) for key, value in params.items()})
-        with DB(database) as connection:
-            rows, col_names, _ = connection.execute(query, get_cols=True)
-        for row in rows:
-            yield zip(col_names, row)
+
+        with NamedConnection(database) as connection:
+            # We don't use a buffered cursor here, because we don't know
+            # how big the query is / how much memory the host machine has.
+            cursor = connection.cursor(dictionary=True)
+            rows = cursor.execute(query)
+            for row in rows:
+                yield row
+            cursor.close()
 
 
 class CallableSource(Source):
@@ -167,7 +172,12 @@ class Staging(Source, Table):
         if cls.__recycling:
             sql = "DELETE FROM staging WHERE id in (%s)" % (
                 ",".join(map(str, cls.__recycling)))
-            Warehouse.execute(sql)
+            connection = Warehouse.use()
+            try:
+                with closing(connection.cursor()) as cursor:
+                    cursor.execute(sql, commit=True)
+            except:
+                log.error('Unable to clear staging.')
             cls.__recycling.clear()
 
     def __init__(self, event_name, value_map):

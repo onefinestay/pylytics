@@ -1,3 +1,4 @@
+from contextlib import closing
 import logging
 
 
@@ -20,6 +21,8 @@ class Warehouse(object):
         """
         if cls.__connection is None:
             log.warning("No data warehouse connection defined")
+        if not cls.__connection.is_connected():
+            cls.__connection.reconnect(attempts=5)
         return cls.__connection
 
     @classmethod
@@ -29,15 +32,11 @@ class Warehouse(object):
         """
         cls.__connection = connection
 
-    @classmethod
-    def execute(cls, sql, commit=False, **kwargs):
-        """ Execute and optionally commit a SQL query against the
-        currently registered data warehouse connection.
+    @property
+    def table_names(self):
+        """ List of names of all the tables (and views) currently
+        defined within the database.
         """
-        connection = cls.get()
-        connection.connect()
-        log.debug(sql)
-        result = connection.execute(sql, **kwargs)
-        if commit:
-            connection.commit()
-        return result
+        connection = self.get()
+        with closing(connection.cursor()) as cursor:
+            return [record[0] for record in cursor.execute("SHOW TABLES")]

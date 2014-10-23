@@ -1,3 +1,4 @@
+from contextlib import closing
 from datetime import date
 import logging
 
@@ -133,7 +134,15 @@ class Table(object):
         sql = "%s %s (\n  %s\n)" % (verb, cls.__tablename__, columns)
         for key, value in cls.__tableargs__.items():
             sql += " %s=%s" % (key, value)
-        Warehouse.execute(sql, commit=True)
+
+        connection = Warehouse.use()
+        with closing(connection.cursor()) as cursor:
+            try:
+                cursor.execute(sql)
+            except:
+                cursor.rollback()
+            else:
+                cursor.commit()
 
     @classmethod
     def drop_table(cls, if_exists=False):
@@ -144,14 +153,21 @@ class Table(object):
         else:
             verb = "DROP TABLE"
         sql = "%s %s" % (verb, cls.__tablename__)
-        Warehouse.execute(sql, commit=True)
+
+        connection = Warehouse.use()
+        with closing(connection.cursor()) as cursor:
+            try:
+                cursor.execute(sql)
+            except:
+                cursor.rollback()
+            else:
+                cursor.commit()
 
     @classmethod
     def table_exists(cls):
         """ Check if this table exists in the current data warehouse.
         """
-        connection = Warehouse.get()
-        return cls.__tablename__ in connection.table_names
+        return cls.__tablename__ in Warehouse.table_names
 
     @classmethod
     def fetch(cls, since=None):
@@ -191,7 +207,15 @@ class Table(object):
                     values.append(dump(value))
                 sql += link + (" (\n  %s\n)" % ",\n  ".join(values))
                 link = ","
-            Warehouse.execute(sql, commit=True)
+            
+            connection = Warehouse.use()
+            with closing(connection.cursor()) as cursor:
+                try:
+                    cursor.execute(sql)
+                except:
+                    cursor.rollback()
+                else:
+                    cursor.commit()
 
     @classmethod
     def update(cls, since=None):

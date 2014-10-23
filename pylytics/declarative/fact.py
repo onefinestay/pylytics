@@ -1,3 +1,4 @@
+from contextlib import closing
 import math
 import logging
 
@@ -104,7 +105,16 @@ class Fact(Table):
             view=escaped(view_name),
             source=escaped(fact_table_name),
             columns=",\n    ".join(columns))
-        Warehouse.execute(sql)
+
+        connection = Warehouse.use()
+        try:
+            with closing(connection.cursor()) as cursor:
+                cursor.execute(sql, commit=True)
+        except:
+            # TODO We want to log the sql to file.
+            connection.rollback()
+        else:
+            connection.commit()
 
     @classmethod
     def insert(cls, *instances):
@@ -120,6 +130,8 @@ class Fact(Table):
 
             # We can't insert too many at once, otherwise the target
             # database will 'go away'.
+            # TODO These should be dynamically sized based on the
+            # max_packet_size.
             batch_size = 100
             batch_number = int(math.ceil(len(instances) / float(batch_size)))
             batches = [instances[i * batch_size:(i + 1) * batch_size] for i in xrange(batch_number)]
@@ -141,4 +153,13 @@ class Fact(Table):
                             values.append(dump(value))
                     sql += link + (" (\n  %s\n)" % ",\n  ".join(values))
                     link = ","
-                Warehouse.execute(sql, commit=True)
+
+                connection = Warehouse.use()
+                try:
+                    with closing(connection.cursor()) as cursor:
+                        cursor.execute(sql, commit=True)
+                except:
+                    # TODO We want to log the sql to file.
+                    connection.rollback()
+                else:
+                    connection.commit()

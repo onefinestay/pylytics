@@ -6,11 +6,11 @@ import sys
 
 from pytz import UTC
 
-from pylytics.library import connection
-from pylytics.library.log import ColourFormatter, bright_white
-from pylytics.declarative.fact import Fact
-from pylytics.declarative.warehouse import Warehouse
-from pylytics.declarative.settings import Settings, settings
+import connection
+from log import ColourFormatter, bright_white
+from fact import Fact
+from warehouse import Warehouse
+from settings import Settings, settings
 
 
 log = logging.getLogger("pylytics")
@@ -111,8 +111,8 @@ class Commander(object):
     def run(self, command, *facts):
         """ Run command for each fact in facts.
         """
-        database = connection.DB(settings.pylytics_db)
-        Warehouse.use(database)
+        connection = connection.get_named_connection(settings.pylytics_db)
+        Warehouse.use(connection)
 
         all_fact_classes = get_all_fact_classes()
 
@@ -146,6 +146,21 @@ class Commander(object):
             else:
                 command_function()
 
+        # Close the Warehouse connection.
+        Warehouse.get().close()
+
+
+def enable_logging():
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(ColourFormatter())
+    log.addHandler(handler)
+    log.setLevel(logging.DEBUG if __debug__ else logging.INFO)
+    # We currently use info, debug, error, warning.
+    # We need our log config to be somewhere else.
+    # For writing failed writes ... should really be using error?
+    # Shouldn't reserve levels for a certain situation.
+    # `Critical` would be suitable though.
+
 
 def main():
     """ Main function called by the manage.py from the project directory.
@@ -178,10 +193,7 @@ def main():
 
     # Enable log output before loading settings so we have visibility
     # of any load errors.
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(ColourFormatter())
-    log.addHandler(handler)
-    log.setLevel(logging.DEBUG if __debug__ else logging.INFO)
+    enable_logging()
 
     # Attempt to configure Sentry logging.
     sentry_dsn = settings.SENTRY_DSN
