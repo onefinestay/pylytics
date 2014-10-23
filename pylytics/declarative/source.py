@@ -172,7 +172,7 @@ class Staging(Source, Table):
         if cls.__recycling:
             sql = "DELETE FROM staging WHERE id in (%s)" % (
                 ",".join(map(str, cls.__recycling)))
-            connection = Warehouse.use()
+            connection = Warehouse.get()
             try:
                 with closing(connection.cursor()) as cursor:
                     cursor.execute(sql, commit=True)

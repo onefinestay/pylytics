@@ -135,14 +135,14 @@ class Table(object):
         for key, value in cls.__tableargs__.items():
             sql += " %s=%s" % (key, value)
 
-        connection = Warehouse.use()
+        connection = Warehouse.get()
         with closing(connection.cursor()) as cursor:
             try:
                 cursor.execute(sql)
             except:
                 cursor.rollback()
             else:
-                cursor.commit()
+                connection.commit()
 
     @classmethod
     def drop_table(cls, if_exists=False):
@@ -154,14 +154,14 @@ class Table(object):
             verb = "DROP TABLE"
         sql = "%s %s" % (verb, cls.__tablename__)
 
-        connection = Warehouse.use()
+        connection = Warehouse.get()
         with closing(connection.cursor()) as cursor:
             try:
                 cursor.execute(sql)
             except:
                 cursor.rollback()
             else:
-                cursor.commit()
+                connection.commit()
 
     @classmethod
     def table_exists(cls):
@@ -208,14 +208,14 @@ class Table(object):
                 sql += link + (" (\n  %s\n)" % ",\n  ".join(values))
                 link = ","
             
-            connection = Warehouse.use()
+            connection = Warehouse.get()
             with closing(connection.cursor()) as cursor:
                 try:
                     cursor.execute(sql)
                 except:
                     cursor.rollback()
                 else:
-                    cursor.commit()
+                    connection.commit()
 
     @classmethod
     def update(cls, since=None):

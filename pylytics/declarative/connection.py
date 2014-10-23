@@ -2,7 +2,9 @@
 Utilities for making database connections easier.
 """
 
-import mysql
+from mysql import connector
+
+from settings import settings
 
 
 def get_named_connection(connection_name):
@@ -11,7 +13,7 @@ def get_named_connection(connection_name):
                          "your settings in settings.py".format(database))
     else:
         kwargs = settings.DATABASES[connection_name]
-        return mysql.connector.connect(**kwargs)
+        return connector.connect(**kwargs)
 
 
 class NamedConnection(object):

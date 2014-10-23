@@ -111,8 +111,8 @@ class Commander(object):
     def run(self, command, *facts):
         """ Run command for each fact in facts.
         """
-        connection = connection.get_named_connection(settings.pylytics_db)
-        Warehouse.use(connection)
+        _connection = connection.get_named_connection(settings.pylytics_db)
+        Warehouse.use(_connection)
 
         all_fact_classes = get_all_fact_classes()
 

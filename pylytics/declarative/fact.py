@@ -106,7 +106,7 @@ class Fact(Table):
             source=escaped(fact_table_name),
             columns=",\n    ".join(columns))
 
-        connection = Warehouse.use()
+        connection = Warehouse.get()
         try:
             with closing(connection.cursor()) as cursor:
                 cursor.execute(sql, commit=True)
@@ -154,7 +154,7 @@ class Fact(Table):
                     sql += link + (" (\n  %s\n)" % ",\n  ".join(values))
                     link = ","
 
-                connection = Warehouse.use()
+                connection = Warehouse.get()
                 try:
                     with closing(connection.cursor()) as cursor:
                         cursor.execute(sql, commit=True)
