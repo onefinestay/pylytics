@@ -161,7 +161,6 @@ class Fact(Table):
                     with closing(connection.cursor()) as cursor:
                         cursor.execute(sql)
                 except Exception as e:
-                    import pdb; pdb.set_trace()
                     classify_error(e)
                     log.error(e)
                     # TODO We want to log the sql to file.
