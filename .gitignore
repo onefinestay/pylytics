@@ -41,3 +41,7 @@ test/settings.py
 
 # Compiled documentation
 html/
+
+# Pickled Python objects.
+*.pickled
+
