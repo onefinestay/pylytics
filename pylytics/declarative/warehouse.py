@@ -5,6 +5,15 @@ import logging
 log = logging.getLogger("pylytics")
 
 
+class classproperty(object):
+
+    def __init__(self, func):
+        self.func = func
+
+    def __get__(self, inst, cls):
+        return self.func(cls)
+
+
 class Warehouse(object):
     """ Global data warehouse pointer singleton. This class avoids
     having to pass a data warehouse connection into every table
@@ -32,11 +41,12 @@ class Warehouse(object):
         """
         cls.__connection = connection
 
-    @property
-    def table_names(self):
+    @classproperty
+    def table_names(cls):
         """ List of names of all the tables (and views) currently
         defined within the database.
         """
-        connection = self.get()
+        connection = cls.get()
         with closing(connection.cursor()) as cursor:
-            return [record[0] for record in cursor.execute("SHOW TABLES")]
+            cursor.execute("SHOW TABLES")
+            return [record[0] for record in cursor]

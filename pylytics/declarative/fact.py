@@ -3,6 +3,7 @@ import math
 import logging
 
 from column import *
+from exceptions import classify_error
 from schedule import Schedule
 from selector import DimensionSelector
 from table import Table
@@ -66,7 +67,7 @@ class Fact(Table):
         for dimension_key in cls.__dimensionkeys__:
             if dimension_key.dimension not in unique_dimensions:
                 unique_dimensions.append(dimension_key.dimension)
-        
+
         for dimension in unique_dimensions:
             dimension.update(since=since)
         return super(Fact, cls).update(since)
@@ -109,7 +110,7 @@ class Fact(Table):
         connection = Warehouse.get()
         try:
             with closing(connection.cursor()) as cursor:
-                cursor.execute(sql, commit=True)
+                cursor.execute(sql)
         except:
             # TODO We want to log the sql to file.
             connection.rollback()
@@ -137,7 +138,8 @@ class Fact(Table):
             batches = [instances[i * batch_size:(i + 1) * batch_size] for i in xrange(batch_number)]
 
             for iteration, batch in enumerate(batches):
-                log.debug('Inserting batch %s' % (iteration + 1))
+                log.debug('Inserting batch %s' % (iteration + 1),
+                          extra={"table": cls.__tablename__})
                 for instance in batch:
                     values = []
                     for column in columns:
@@ -157,8 +159,11 @@ class Fact(Table):
                 connection = Warehouse.get()
                 try:
                     with closing(connection.cursor()) as cursor:
-                        cursor.execute(sql, commit=True)
-                except:
+                        cursor.execute(sql)
+                except Exception as e:
+                    import pdb; pdb.set_trace()
+                    classify_error(e)
+                    log.error(e)
                     # TODO We want to log the sql to file.
                     connection.rollback()
                 else:

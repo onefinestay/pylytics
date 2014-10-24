@@ -39,5 +39,7 @@ def dump(value):
         return "'%s'" % value.replace("'", "''")
     elif isinstance(value, (date, time, datetime, timedelta)):
         return "'%s'" % value
+    elif isinstance(value, bytearray):
+        return "'%s'" % value.decode("utf-8").replace("'", "''")
     else:
         return unicode(value)

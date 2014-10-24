@@ -95,8 +95,8 @@ class DatabaseSource(Source):
             # We don't use a buffered cursor here, because we don't know
             # how big the query is / how much memory the host machine has.
             cursor = connection.cursor(dictionary=True)
-            rows = cursor.execute(query)
-            for row in rows:
+            cursor.execute(query)
+            for row in cursor:
                 yield row
             cursor.close()
 
@@ -137,7 +137,6 @@ class Staging(Source, Table):
     def select(cls, for_class, since=None):
         extra = {"table": for_class.__tablename__}
 
-        connection = Warehouse.get()
         log.debug("Fetching rows from staging table", extra=extra)
 
         events = list(getattr(cls, "events"))
@@ -147,12 +146,16 @@ class Staging(Source, Table):
         ORDER BY created, id
         """ % ",".join(map(dump, events))
         log.debug(sql)
-        results = connection.execute(sql)
+
+        connection = Warehouse.get()
+        with closing(connection.cursor(raw=False)) as cursor:
+            cursor.execute(sql)
+            results = cursor.fetchall()
 
         for id_, event_name, value_map in results:
             try:
                 data = {"__event__": event_name}
-                data.update(json.loads(value_map))
+                data.update(json.loads(unicode(value_map)))
                 cls._apply_expansions(data)
                 inst = hydrated(for_class, data)
             except Exception as error:
@@ -175,7 +178,7 @@ class Staging(Source, Table):
             connection = Warehouse.get()
             try:
                 with closing(connection.cursor()) as cursor:
-                    cursor.execute(sql, commit=True)
+                    cursor.execute(sql)
             except:
                 log.error('Unable to clear staging.')
             cls.__recycling.clear()

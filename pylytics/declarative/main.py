@@ -147,6 +147,7 @@ class Commander(object):
                 command_function()
 
         # Close the Warehouse connection.
+        log.info('Closing Warehouse connection.')
         Warehouse.get().close()
 
 

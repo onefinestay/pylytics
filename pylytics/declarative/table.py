@@ -3,6 +3,7 @@ from datetime import date
 import logging
 
 from column import *
+from exceptions import classify_error
 from utils import _camel_to_snake, dump, escaped
 from warehouse import Warehouse
 
@@ -139,10 +140,9 @@ class Table(object):
         with closing(connection.cursor()) as cursor:
             try:
                 cursor.execute(sql)
-            except:
-                cursor.rollback()
-            else:
-                connection.commit()
+            except Exception as exception:
+                classify_error(exception)
+                raise exception
 
     @classmethod
     def drop_table(cls, if_exists=False):
@@ -159,7 +159,7 @@ class Table(object):
             try:
                 cursor.execute(sql)
             except:
-                cursor.rollback()
+                connection.rollback()
             else:
                 connection.commit()
 
@@ -207,13 +207,13 @@ class Table(object):
                     values.append(dump(value))
                 sql += link + (" (\n  %s\n)" % ",\n  ".join(values))
                 link = ","
-            
+
             connection = Warehouse.get()
             with closing(connection.cursor()) as cursor:
                 try:
                     cursor.execute(sql)
                 except:
-                    cursor.rollback()
+                    connection.rollback()
                 else:
                     connection.commit()
 

@@ -2,6 +2,7 @@
 
 from __future__ import unicode_literals
 
+from contextlib import closing
 from datetime import date, time, timedelta
 import logging
 
@@ -13,9 +14,8 @@ from pylytics.declarative.column import (Column, DimensionKey, Metric,
                                          NaturalKey)
 from pylytics.declarative.dimension import Dimension
 from pylytics.declarative.fact import Fact
-from pylytics.declarative.main import valid_time_range
 from pylytics.declarative.utils import escaped
-from pylytics.library.exceptions import TableExistsError
+from pylytics.declarative.exceptions import TableExistsError
 
 
 log = logging.getLogger("pylytics")
@@ -47,6 +47,7 @@ class Date(Dimension):
     full_quarter = Column("full_quarter", unicode, size=15)
     year = Column("year", int)
 
+    # TODO This is an old school dimension. Should be using CallableSource.
     @classmethod
     def fetch(cls, since=None):
         """ Create date instances as there's no remote data source
@@ -58,7 +59,11 @@ class Date(Dimension):
 
         # Get the last inserted date
         sql = "SELECT MAX(`date`) FROM %s" % escaped(table_name)
-        cur_date = Warehouse.execute(sql)[0][0]
+        connection = Warehouse.get()
+        cursor = connection.cursor()
+        cursor.execute(sql)
+        cur_date = cursor.fetchall()[0][0]
+        cursor.close()
 
         if cur_date is None:
             # Build history.
@@ -89,8 +94,11 @@ class Date(Dimension):
 
 @pytest.fixture
 def place_source(empty_warehouse):
-    empty_warehouse.execute("CREATE TABLE place_source(code varchar(40))")
-    empty_warehouse.execute("INSERT INTO place_source(code) VALUES('MOON')")
+    cursor = empty_warehouse.cursor()
+    cursor.execute("CREATE TABLE place_source(code varchar(40))")
+    cursor.execute("INSERT INTO place_source(code) VALUES('MOON')")
+    cursor.close()
+    empty_warehouse.commit()
 
 
 class Place(Dimension):
@@ -235,9 +243,11 @@ def test_can_insert_fact_record(empty_warehouse):
     fact_1.very_boring = False
     BoringEvent.insert(fact_1)
 
-    rows, columns, _ = Warehouse.execute(
-        "select * from %s" % BoringEvent.__tablename__, get_cols=True)
-    data = [dict(zip(columns, row)) for row in rows]
+    connection = Warehouse.get()
+    cursor = connection.cursor(dictionary=True)
+    cursor.execute("select * from %s" % BoringEvent.__tablename__)
+    data = cursor.fetchall()
+    cursor.close()
     assert len(data) == 1
     datum = data[0]
     assert datum["num_people"] == 3
@@ -252,17 +262,20 @@ def test_can_insert_fact_record_from_staging_source(empty_warehouse):
     BoringEvent.build()
 
     # Prepare expansion data ready for expansion.
-    Warehouse.execute("""\
-    create table extra_table (
-        id int primary key,
-        colour varchar(20),
-        size varchar(20)
-    ) charset=utf8 collate=utf8_bin
-    """)
-    Warehouse.execute("""\
-    insert into extra_table (id, colour, size)
-    values (12, 'grün', '37kg'), (13, 'orange', '9 miles')
-    """)
+    connection = Warehouse.get()
+    with closing(connection.cursor()) as cursor:
+        cursor.execute("""\
+        create table extra_table (
+            id int primary key,
+            colour varchar(20),
+            size varchar(20)
+        ) charset=utf8 collate=utf8_bin
+        """)
+        cursor.execute("""\
+        insert into extra_table (id, colour, size)
+        values (12, 'grün', '37kg'), (13, 'orange', '9 miles')
+        """)
+    connection.commit()
 
     # Insert staging record.
     Staging.insert(Staging("boring", {
@@ -279,41 +292,15 @@ def test_can_insert_fact_record_from_staging_source(empty_warehouse):
     BoringEvent.update()
 
     # Check a record has been correctly inserted.
-    rows, columns, _ = Warehouse.execute(
-        "select * from %s" % BoringEvent.__tablename__, get_cols=True)
-    data = [dict(zip(columns, row)) for row in rows]
+    with closing(connection.cursor(dictionary=True)) as cursor:
+        cursor.execute("select * from %s" % BoringEvent.__tablename__)
+        data = cursor.fetchall()
+
     assert len(data) == 1
     datum = data[0]
     assert datum["num_people"] == 3
     assert datum["duration"] == 10.7
     assert bool(datum["very_boring"]) is False
-    assert datum["colour_of_stuff"] == u"grün"
-    assert datum["size_of_stuff"] == "37kg"
-
-###############################################################################
-
-# main.py
-
-def test_valid_time_range():
-    start_time = time(hour=0)
-    end_time = time(hour=23, minute=59)
-    delta = timedelta(minutes=30)
-
-    values = []
-    for i in valid_time_range(start_time, end_time, delta):
-        values.append(i)
-
-    # Test a range of values.
-    assert start_time in values
-    assert time(hour=0, minute=30) in values
-    assert time(hour=6) in values
-    assert time(hour=23, minute=30) in values
-    assert len(values) = 48
-
-
-def test_():
-    pass
-
-
-
-
+    # mysql returns unicode as bytearrays.
+    assert datum["colour_of_stuff"].decode('utf8') == u"grün"
+    assert datum["size_of_stuff"].decode('utf8') == "37kg"

@@ -13,7 +13,13 @@ def get_named_connection(connection_name):
                          "your settings in settings.py".format(database))
     else:
         kwargs = settings.DATABASES[connection_name]
-        return connector.connect(**kwargs)
+        # TODO We can use settings.settings to get our defaults from there.
+        return connector.connect(
+            connection_timeout=3000,
+            use_unicode=True,
+            charset='utf8',
+            **kwargs
+            )
 
 
 class NamedConnection(object):

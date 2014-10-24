@@ -1,9 +1,9 @@
-from MySQLdb import OperationalError
+from mysql.connector.errors import OperationalError
 import pytest
 
 from pylytics.library.collection import CREATE_STAGING_TABLE
 
-from test.helpers import db_fixture
+from test.helpers import db_fixture, execute
 
 
 @pytest.fixture(scope="session")
@@ -13,20 +13,25 @@ def warehouse():
 
 @pytest.fixture
 def empty_warehouse(warehouse):
-    tables = [_[0] for _ in warehouse.execute("SHOW TABLES")]
-    warehouse.execute("SET foreign_key_checks = 0")
+    cursor = warehouse.cursor()
+    cursor.execute("SHOW TABLES")
+    tables = [_[0] for _ in cursor]
+    cursor.close()
+
+    execute(warehouse, "SET foreign_key_checks = 0")
+
     for table in tables:
         try:
-            warehouse.execute("DROP TABLE {}".format(table))
+            execute(warehouse, "DROP TABLE {}".format(table))
         except OperationalError:
-            warehouse.execute("DROP VIEW {}".format(table))
-    warehouse.execute("SET foreign_key_checks = 1")
+            execute(warehouse, "DROP VIEW {}".format(table))
+    execute(warehouse, "SET foreign_key_checks = 1")
     warehouse.commit()
     return warehouse
 
 
 @pytest.fixture
 def staging(warehouse):
-    warehouse.execute("DROP TABLE IF EXISTS staging")
-    warehouse.execute(CREATE_STAGING_TABLE)
+    execute(warehouse, "DROP TABLE IF EXISTS staging")
+    execute(warehouse, CREATE_STAGING_TABLE)
     warehouse.commit()
