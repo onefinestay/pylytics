@@ -127,7 +127,6 @@ class Fact(Table):
             sql = "INSERT INTO %s (\n  %s\n)\n" % (
                 escaped(cls.__tablename__),
                 ",\n  ".join(escaped(column.name) for column in columns))
-            link = "VALUES"
 
             # We can't insert too many at once, otherwise the target
             # database will 'go away'.
@@ -140,6 +139,10 @@ class Fact(Table):
             for iteration, batch in enumerate(batches):
                 log.debug('Inserting batch %s' % (iteration + 1),
                           extra={"table": cls.__tablename__})
+
+                insert_statement = sql
+                link = "VALUES"
+
                 for instance in batch:
                     values = []
                     for column in columns:
@@ -153,13 +156,13 @@ class Fact(Table):
                                 )
                         else:
                             values.append(dump(value))
-                    sql += link + (" (\n  %s\n)" % ",\n  ".join(values))
+                    insert_statement += link + (" (\n  %s\n)" % ",\n  ".join(values))
                     link = ","
 
                 connection = Warehouse.get()
                 try:
                     with closing(connection.cursor()) as cursor:
-                        cursor.execute(sql)
+                        cursor.execute(insert_statement)
                 except Exception as e:
                     classify_error(e)
                     log.error(e)

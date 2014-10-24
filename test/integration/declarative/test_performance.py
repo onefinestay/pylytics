@@ -3,17 +3,25 @@ Testing huge inserts.
 
 """
 
+import logging
 import os
 import pickle
+import datetime
+
+import pytest
+from mysql.connector.errors import OperationalError
 
 from pylytics.declarative.column import Column, DimensionKey, NaturalKey
 from pylytics.declarative.dimension import Dimension
 from pylytics.declarative.fact import Fact
 from pylytics.declarative.warehouse import Warehouse
+from pylytics.declarative.main import enable_logging
 
 
 # The fact table generated is MAX_ITERATIONS ^ 2.
 MAX_ITERATIONS = 1001
+
+log = logging.getLogger("pylytics")
 
 
 class Store(Dimension):
@@ -86,18 +94,33 @@ def _get_instances(class_name):
 
 def test_insert(empty_warehouse):
     """
-    Inserts a fact with a million rows.
+    Inserts a fact with MAX_ITERATIONS ^ 2 rows.
     """
+    enable_logging()
+
     Warehouse.use(empty_warehouse)
 
     Store.build()
     stores = _get_instances('store')
     Store.insert(*stores)
-    
+
     Product.build()
     products = _get_instances('product')
     Product.insert(*products)
 
     Sales.build()
     sales = _get_instances('sales')
-    Sales.insert(*sales)
+
+    start_time = datetime.datetime.now()
+    print 'Starting bulk insert of fact at ', start_time
+
+    try:
+        Sales.insert(*sales)
+    except OperationalError:
+        pytest.fail('The connection broke.')
+
+    end_time = datetime.datetime.now()
+    print 'Ending bulk insert of fact at ', end_time
+
+    delta = end_time - start_time
+    print 'Time taken = ', delta
