@@ -27,9 +27,11 @@ The full documentation is available at `readthedocs.org <https://pylytics.readth
 Version 1
 *********
 
-Version 1 of pylytics is a considerable departure from previous stable versions (v.0.7.*).
+Version 1 of pylytics is a considerable departure from the previous stable version (v.0.7.0).
 
-Projects created pylytics versions < 1.0 are not compatible with pylytics >= 1.0.
+Projects created using pylytics versions < 1.0 are not compatible with pylytics >= 1.0.
+
+We recommend you version pin your old pylytics projects to v.0.7.0.
 
 
 Installing the MySQL connector
@@ -45,8 +47,6 @@ Depending on your version of pip, you may need to install the requirements as fo
 Supported MySQL version
 ***********************
 
-Pylytics requires a MySQL database of version greater than 5.6.5 for inserting data into.
+Pylytics has been tested with MySQL versions 5.5.37 and 5.6.5.
 
-This is because TIMESTAMP column functionality was changed with that version.
-
-Backwards compatibility may be added at some point for older MySQL versions.
+The recommended version is 5.6.5.
