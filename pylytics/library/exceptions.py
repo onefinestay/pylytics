@@ -1,4 +1,31 @@
-from MySQLdb import OperationalError, ProgrammingError
+from mysql.connector.errors import OperationalError, ProgrammingError
+
+
+class CantCreateTableError(OperationalError):
+    """ Raised when a table cannot be created.
+
+    https://dev.mysql.com/doc/refman/5.5/en/error-messages-server.html#error_er_cant_create_table
+
+    """
+    code = 1005
+
+
+class BadNullError(OperationalError):
+    """ Raised when an attempt is made to insert a NULL where it cannot go.
+
+    https://dev.mysql.com/doc/refman/5.5/en/error-messages-server.html#error_er_bad_null_error
+
+    """
+    code = 1048
+
+
+class TableExistsError(OperationalError):
+    """ Raised when an attempt is made to create a table that already exists.
+
+    https://dev.mysql.com/doc/refman/5.5/en/error-messages-server.html#error_er_table_exists_error
+
+    """
+    code = 1050
 
 
 class BadFieldError(OperationalError):
@@ -8,6 +35,15 @@ class BadFieldError(OperationalError):
 
     """
     code = 1054
+
+
+class DatabaseGoneAwayError(OperationalError):
+    """ Raised when the connection to a database is lost.
+
+    See: https://dev.mysql.com/doc/refman/5.5/en/error-messages-client.html#error_cr_server_gone_error
+
+    """
+    code = 2006
 
 
 class NoSuchTableError(ProgrammingError):
@@ -25,8 +61,12 @@ def classify_error(error):
     rather than having to inspect and re-raise.
     """
     if isinstance(error, OperationalError):
-        if error.args[0] == BadFieldError.code:
-            error.__class__ = BadFieldError
+        for error_class in [CantCreateTableError, BadNullError, BadFieldError,
+                            DatabaseGoneAwayError]:        
+            if error.args[0] == error_class.code:
+                error.__class__ = error_class
+
     if isinstance(error, ProgrammingError):
-        if error.args[0] == NoSuchTableError.code:
-            error.__class__ = NoSuchTableError
+        for error_class in [NoSuchTableError, TableExistsError]:        
+            if error.args[0] == error_class.code:
+                error.__class__ = error_class

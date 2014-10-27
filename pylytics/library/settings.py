@@ -1,6 +1,5 @@
 # -*- encoding: utf-8 -*-
 
-
 from __future__ import unicode_literals
 
 import logging
@@ -32,8 +31,9 @@ class Settings(object):
     # modules may exist.
     #
     modules = [
-        "settings",               # local application settings
-        "default_settings",       # default application settings
+        "settings",                         # local application settings
+        "default_settings",                 # default application settings
+        "pylytics.library.system_settings", # sytem settings (rarely overriden)
     ]
 
     if os.environ.get('PYLYTICS_TEST', '0') == '1':

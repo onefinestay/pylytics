@@ -1,10 +1,8 @@
 language: python
 python:
     - 2.7
-services:
-    - rabbitmq
 install:
-    - pip install -r requirements.txt
+    - pip install -r requirements.txt --allow-external mysql-connector-python
     - pip install -r test_requirements.txt
 script:
-    - ./runtests.sh
+    - ./run_unit_tests.sh

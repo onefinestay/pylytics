@@ -1,14 +1,14 @@
 import warnings
 
-import MySQLdb as mysql
+from mysql import connector
 
-from pylytics.library import connection
+from pylytics.library.settings import settings
 
 
-def execute(conn, statement):
+def execute(connection, statement):
     """ Execute a single SQL statement against a connection.
     """
-    cursor = conn.cursor()
+    cursor = connection.cursor()
     cursor.execute(statement)
     cursor.close()
 
@@ -17,18 +17,22 @@ def db_fixture(database):
     """ Create and return a database fixture based on details from the
     global database settings.
     """
-    db_settings = dict(connection.settings.DATABASES[database])
+    db_settings = settings.DATABASES[database]
 
-    conn = mysql.connect(host=db_settings["host"], user=db_settings["user"],
-                         passwd=db_settings["passwd"])
+    connection = connector.connect(
+        host=db_settings["host"],
+        user=db_settings["user"],
+        passwd=db_settings["passwd"],
+        use_unicode=True,
+        charset='utf8',
+        )
+
     with warnings.catch_warnings():
         # Hide warnings
         warnings.simplefilter("ignore")
-        execute(conn, "DROP DATABASE IF EXISTS {}".format(db_settings["db"]))
-    execute(conn, "CREATE DATABASE {}".format(db_settings["db"]))
-    conn.commit()
-    conn.close()
+        execute(connection, "DROP DATABASE IF EXISTS {}".format(db_settings["db"]))
+    execute(connection, "CREATE DATABASE {}".format(db_settings["db"]))
+    connection.commit()
 
-    fixture = connection.DB(database)
-    fixture.connect()
-    return fixture
+    connection.database = db_settings["db"]
+    return connection

@@ -1,14 +1,16 @@
-from datetime import datetime
+import argparse
+import datetime
+import inspect
 import logging
 import sys
 
-import argparse
-import importlib
-import os
-from pylytics.library.log import ColourFormatter, bright_white
-from pylytics.library.table import Table
+from pytz import UTC
 
-from utils.text_conversion import underscore_to_camelcase
+import connection
+from log import ColourFormatter, bright_white
+from fact import Fact
+from warehouse import Warehouse
+from settings import Settings, settings
 
 
 log = logging.getLogger("pylytics")
@@ -26,39 +28,16 @@ TITLE = r"""
 """
 
 
-def all_facts():
-    """Return the names of all facts in the facts folder."""
-    fact_filenames = os.listdir('fact')
+def get_all_fact_classes():
+    """Return all of the fact classes available."""
+    fact = __import__('fact')
+    public_attributes = [i for i in dir(fact) if not i.startswith('_')]
     facts = []
-    for filename in fact_filenames:
-        if filename.startswith('fact_') and filename.endswith('.py'):
-            facts.append(filename.split('.')[0])
+    for attribute_name in public_attributes:
+        attribute =  getattr(fact, attribute_name)
+        if inspect.isclass(attribute) and Fact in inspect.getmro(attribute):
+            facts.append(attribute)
     return facts
-
-
-def get_class(module_name, dimension=False, package=None):
-    """
-    Effectively does this:
-    from fact/fact_count_all_the_sales import FactCountAllTheSales
-    return FactCountAllTheSales
-
-    Example usage:
-    get_class('fact_count_all_the_sales')
-
-    If dimension is True then it searches for a dimension instead.
-
-    """
-    module_name_parts = []
-    if package:
-        module_name_parts.append(package)
-    module_name_parts.append("dim" if dimension else "fact")
-    module_name_parts.append(module_name)
-    qualified_module_name = ".".join(module_name_parts)
-
-    module = importlib.import_module(qualified_module_name)
-    class_name = underscore_to_camelcase(module_name)
-    my_class = getattr(module, class_name)
-    return my_class
 
 
 def print_summary(errors):
@@ -75,49 +54,53 @@ def print_summary(errors):
         log.info("\n".join(items))
 
 
-def run_scripts(scripts):
+def valid_time_range(start_time, end_time, delta):
+    # We have to convert time objects to datetime so timedeltas can be used.
+    fake_date = datetime.date(2000, 1, 1)
+    start = datetime.datetime.combine(fake_date, start_time)
+    end = datetime.datetime.combine(fake_date, end_time)
+
+    while start < end:
+        yield start.time()
+        start += delta
+
+        if start.date().day == 2:
+            # Time has wrapped around.
+            break
+
+
+def find_scheduled(all_fact_classes):
     """
-    Looks for the scripts in the folder 'scripts' at the root of the
-    pylytics project, and runs them.
+    Finds which facts are scheduled to run now.
+
+    Args:
+        all_fact_classes:
+            A list of all facts available.
+
+    Returns:
+        A list of facts which are scheduled to run at the current time.
 
     """
-    for script in scripts:
-        log.info("Running setup script: %s", script)
-        try:
-            script = importlib.import_module('scripts.{}'.format(script))
-        except ImportError as exception:
-            log.error('Unable to import the script `{}`. '
-                      'Traceback - {}.'.format(script, str(exception)))
+    facts_to_update = []
+
+    now = datetime.datetime.now(tz=UTC).time()
+    now.replace(second=0)
+    now.replace(microsecond=0)
+    now.replace(minute=(now.minute - now.minute % 10))
+
+    for fact in all_fact_classes:
+        starts = fact.__scheduled__.starts_tzaware
+        ends = fact.__scheduled__.ends_tzaware
+        repeats = fact.__scheduled__.repeats
+
+        if starts > current_time:
             continue
+        elif ends < current_time:
+            continue
+        elif current_time in valid_time_range(start, ends, repeats):
+            facts_to_update.append(fact)
 
-        log.info('Running {}'.format(script))
-
-        try:
-            script.main()
-        except Exception as error:
-            log.error("Error occurred while running script: %s", error)
-
-
-def find_scripts(command, fact_classes, script_type):
-    """
-    Introspects the list of fact_classes and returns a list of script names
-    that need to be run.
-
-    If the same script is listed in multiple fact classes, then it will
-    only appear once in the list.
-
-    """
-    scripts = set()
-    for fact_class in fact_classes:
-        try:
-            script_dict = getattr(fact_class, script_type)
-        except AttributeError:
-            log.warning('Unable to find {} in {}.'.format(
-                        script_type, fact_class.__class__.__name__))
-        else:
-            if isinstance(script_dict, dict) and command in script_dict:
-                scripts.update(script_dict[command])
-    return scripts
+    return facts_to_update
 
 
 class Commander(object):
@@ -128,72 +111,61 @@ class Commander(object):
     def run(self, command, *facts):
         """ Run command for each fact in facts.
         """
-        from connection import DB
-        errors = {}
+        _connection = connection.get_named_connection(settings.pylytics_db)
+        Warehouse.use(_connection)
+
+        all_fact_classes = get_all_fact_classes()
 
         # Normalise the collection of facts supplied to remove duplicates,
         # expand "all" and report unknown facts.
-        if "all" in facts:
-            facts = all_facts()
+        if 'all' in facts:
+            facts_to_run = all_fact_classes
+        elif 'scheduled' in facts:
+            facts_to_run = find_scheduled(all_fact_classes)
         else:
-            facts = set(facts)
-            unknown_facts = facts - set(all_facts())
-            for fact in unknown_facts:
-                log.error("%s | Unknown fact", fact)
-                facts.remove(fact)
-
-        with DB(self.db_name) as database_connection:
-
-            # Get all the fact classes.
-            fact_classes = []
-            for fact in facts:
+            facts_to_run = []
+            fact_names = [type(fact()).__name__ for fact in all_fact_classes]
+            for fact_name in facts:
                 try:
-                    FactClass = get_class(fact)(connection=database_connection)
-                except Exception as error:
-                    # Inline import as we're not making log object global.
-                    log.error("Unable to load fact '{}' due to {}: {}"
-                              .format(fact, error.__class__.__name__, error))
+                    index = fact_names.index(fact_name)
+                except ValueError:
+                    log.debug('Unrecognised fact %s' % fact_name)
                 else:
-                    fact_classes.append(FactClass)
+                    facts_to_run.append(all_fact_classes[index])
 
-            # Execute any setup scripts that need to be run.
-            setup_scripts = find_scripts(command, fact_classes, "setup_scripts")
-            if setup_scripts:
-                log.debug("Running setup scripts")
-                run_scripts(setup_scripts)
+            # Remove any duplicates:
+            facts_to_run = list(set(facts_to_run))
+
+        # Execute the command on each fact class.
+        for fact_class in facts_to_run:
+            try:
+                command_function = getattr(fact_class, command)
+            except AttributeError:
+                log.error("Cannot find command %s for fact class %s",
+                          command, fact_class)
             else:
-                log.debug('No setup scripts to run')
+                command_function()
 
-            # Execute the command on each fact class.
-            for fact_class in fact_classes:
-                extra = {'table': fact_class.table_name}
-                fact_class_name = fact_class.__class__.__name__
-                log.debug("Calling {0}.{1}".format(fact_class_name, command),
-                          extra=extra)
-                try:
-                    command_function = getattr(fact_class, command)
-                except AttributeError:
-                    log.error("Cannot find command %s for fact class %s",
-                              command, fact_class, extra=extra)
-                else:
-                    command_function()
+        # Close the Warehouse connection.
+        log.info('Closing Warehouse connection.')
+        Warehouse.get().close()
 
-            # Execute any exit scripts that need to be run.
-            exit_scripts = find_scripts(command, fact_classes, "exit_scripts")
-            if exit_scripts:
-                log.debug("Running exit scripts")
-                run_scripts(exit_scripts)
-            else:
-                log.debug('No exit scripts to run')
 
-        print_summary(errors)
+def enable_logging():
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(ColourFormatter())
+    log.addHandler(handler)
+    log.setLevel(logging.DEBUG if __debug__ else logging.INFO)
+    # We currently use info, debug, error, warning.
+    # We need our log config to be somewhere else.
+    # For writing failed writes ... should really be using error?
+    # Shouldn't reserve levels for a certain situation.
+    # `Critical` would be suitable though.
 
 
 def main():
     """ Main function called by the manage.py from the project directory.
     """
-    from fact import Fact
-
     parser = argparse.ArgumentParser(
         description = "Run fact scripts.")
     parser.add_argument(
@@ -204,14 +176,12 @@ def main():
         )
     parser.add_argument(
         'command',
-        #choices = Fact.public_methods(),
         help = 'The command you want to run.',
         nargs = 1,
         type = str,
         )
     parser.add_argument(
         'fact',
-        #choices = ['all'] + all_facts(),
         help = 'The name(s) of the fact(s) to run e.g. fact_example.',
         nargs = '*',
         type = str,
@@ -220,16 +190,11 @@ def main():
 
     sys.stdout.write(bright_white(TITLE))
     sys.stdout.write(bright_white("\nStarting at {}\n\n".format(
-        datetime.now())))
+        datetime.datetime.now())))
 
     # Enable log output before loading settings so we have visibility
     # of any load errors.
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(ColourFormatter())
-    log.addHandler(handler)
-    log.setLevel(logging.DEBUG if __debug__ else logging.INFO)
-
-    from pylytics.library.settings import Settings, settings
+    enable_logging()
 
     # Attempt to configure Sentry logging.
     sentry_dsn = settings.SENTRY_DSN
@@ -245,10 +210,16 @@ def main():
 
     command = args['command'][0]
     commander = Commander(settings.pylytics_db)
-    if command in Fact.public_methods():
-        commander.run(command, *args['fact'])
+
+    if command == 'update':
+        commander.run('build', *args['fact'])
+        commander.run('update', *args['fact'])
+    elif command == 'historical':
+        commander.run('historical', *args['fact'])
+    elif command == 'build':
+        commander.run('build', *args['fact'])
     else:
         log.error("Unknown command: %s", command)
 
     sys.stdout.write(bright_white("\nCompleted at {}\n\n".format(
-        datetime.now())))
+        datetime.datetime.now())))

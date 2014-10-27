@@ -1,317 +1,288 @@
-import datetime
-from importlib import import_module
-import inspect
+from contextlib import closing
+from datetime import date
+from distutils.version import StrictVersion
 import logging
-import os
-import warnings
 
-from MySQLdb import IntegrityError
-
-from pylytics.library.connection import DB
-from pylytics.library.exceptions import NoSuchTableError
-from pylytics.library.settings import settings
-
-from utils.text_conversion import camelcase_to_underscore
+from column import *
+from exceptions import classify_error
+from settings import settings
+from utils import _camel_to_snake, dump, escaped
+from warehouse import Warehouse
 
 
 log = logging.getLogger("pylytics")
 
-STAGING = "__staging__"
+
+class _ColumnSet(object):
+    """ Internal class for grouping and ordering column
+    attributes; used by TableMetaclass.
+    """
+
+    def __init__(self):
+        self.__columns = {}
+        self.__primary_key = None
+
+    def update(self, attributes):
+        for key in attributes:
+            if not key.startswith("_"):
+                col = attributes[key]
+                if isinstance(col, Column):
+                    order_key = (col.__columnblock__, col.order)
+                    self.__columns.setdefault(order_key, []).append((key, col))
+                    if isinstance(col, PrimaryKey):
+                        self.__primary_key = col
+
+    @property
+    def columns(self):
+        ordered_columns = []
+        for order_key, column_list in sorted(self.__columns.items()):
+            ordered_columns.extend(sorted(column_list))
+        return [value for key, value in ordered_columns]
+
+    @property
+    def primary_key(self):
+        return self.__primary_key
+
+    @property
+    def dimension_keys(self):
+        return [c for c in self.columns if isinstance(c, DimensionKey)]
+
+    @property
+    def metrics(self):
+        return [c for c in self.columns if isinstance(c, Metric)]
+
+    @property
+    def natural_keys(self):
+        return [c for c in self.columns if isinstance(c, NaturalKey)]
 
 
-def filter_dict(d, prefix):
-    len_prefix = len(prefix)
-    return {k[len_prefix:]: v for k, v in d.items() if k.startswith(prefix)}
+class TableMetaclass(type):
+    """ Metaclass for constructing all Table classes. This applies number
+    of magic attributes which are used chiefly for reflection.
+    """
+
+    def __new__(mcs, name, bases, attributes):
+        attributes.setdefault("__tablename__", _camel_to_snake(name))
+
+        column_set = _ColumnSet()
+        for base in bases:
+            column_set.update(base.__dict__)
+        column_set.update(attributes)
+
+        attributes["__columns__"] = column_set.columns
+        attributes["__primarykey__"] = column_set.primary_key
+
+        cls = super(TableMetaclass, mcs).__new__(mcs, name, bases, attributes)
+
+        # These attributes apply to subclasses so should only be populated
+        # if an attribute exists with that name. We do this after class
+        # creation as the attribute keys will probably only exist in a
+        # base class, not in the `attributes` dictionary.
+        if "__dimensionkeys__" in dir(cls):
+            cls.__dimensionkeys__ = column_set.dimension_keys
+        if "__metrics__" in dir(cls):
+            cls.__metrics__ = column_set.metrics
+        if "__naturalkeys__" in dir(cls):
+            cls.__naturalkeys__ = column_set.natural_keys
+
+        return cls
 
 
 class Table(object):
-    """Base class."""
+    """ Base class for all Table classes. The class represents the table
+    itself and instances represent records for that table.
 
-    DESCRIBE = """\
-    DESCRIBE `{table}`
+    This class has two main subclasses: Fact and Dimension.
+
     """
-    DROP_TABLE = """\
-    DROP TABLE IF EXISTS `{table}`
-    """
-    DROP_TABLE_FORCE = """\
-    SET foreign_key_checks = 0;
-    DROP TABLE IF EXISTS `{table}`;
-    SET foreign_key_checks = 1;
-    """
-    SELECT_COUNT = """\
-    SELECT COUNT(*) FROM `{table}`
-    """
-    SELECT_NONE = """\
-    SELECT * FROM `{table}` LIMIT 0,0
-    """
-    SHOW_PRIMARY_KEY = """\
-    SHOW INDEXES FROM `{table}`
-    WHERE Key_name = 'PRIMARY'
-    """
-    SHOW_TABLES = """\
-    SHOW TABLES
-    """
+    __metaclass__ = TableMetaclass
 
-    base_package = None
-    surrogate_key_column = "id"
-    natural_key_column = None
-    source_db = None
-    source_query = None
+    # All these attributes should get populated by the metaclass.
+    __columns__ = NotImplemented
+    __primarykey__ = NotImplemented
+    __tablename__ = NotImplemented
 
-    __description = None
+    # These attributes aren't touched by the metaclass.
+    __source__ = None
+    __tableargs__ = {
+        "ENGINE": "InnoDB",
+        "CHARSET": "utf8",
+        "COLLATE": "utf8_bin",
+    }
 
-    def __init__(self, *args, **kwargs):
-        if 'connection' in kwargs:
-            self.connection = kwargs['connection']
-        self.warehouse_connection = DB(settings.pylytics_db)
-        self.class_name = self.__class__.__name__
-        self.table_name = camelcase_to_underscore(self.class_name)
-        self.dim_or_fact = None
-        if "base_package" in kwargs:
-            self.base_package = kwargs["base_package"]
-        if "surrogate_key_column" in kwargs:
-            self.surrogate_key_column = kwargs["surrogate_key_column"]
-        if "natural_key_column" in kwargs:
-            self.natural_key_column = kwargs["natural_key_column"]
-
-    def __getattr__(self, name):
-        if not name.startswith("log_"):
-            raise AttributeError(name)
-
-        # Grab everything after the underscore, e.g. log_info -> info
-        level = name[4:]
-
-        # Close over the level and self.table_name variables
-        def log_closure(msg, *args, **kwargs):
-            __traceback_hide__ = True
-
-            # Collect extra metadata to attach to log record.
-            stack = inspect.stack()
-            top_frame = stack[1][0]
-            code = top_frame.f_code
-            func_name = code.co_name
-            file_name = "".join(code.co_filename.partition("pylytics")[1:])
-            extra = {
-                "culprit": "%s in %s" % (func_name, file_name),
-                "stack": [(frame[0], frame[2]) for frame in stack[1:]],
-                "table": self.table_name,
-            }
-
-            # Look up the appropriate log function and call it
-            # with the extra metadata attached.
-            log_x = getattr(log, level)
-            log_x(msg, *args, extra=extra, **kwargs)
-
-        return log_closure
-
-    @property
-    def table_stem(self):
-        stem = self.table_name
-        for prefix in ("dim_", "fact_"):
-            if stem.startswith(prefix):
-                stem = stem[len(prefix):]
-        for suffix in ("_dim", "_fact"):
-            if stem.endswith(suffix):
-                stem = stem[:-len(suffix)]
-        return stem
-
-    @property
-    def description(self):
-        """ Lazily fetch and return the current table description
-        from the database.
-        """
-        if self.__description is None:
-            sql = self.DESCRIBE.format(table=self.table_name)
-            self.__description = self.connection.execute(sql)
-        return self.__description
-
-    @property
-    def column_names(self):
-        """ Tuple of all column names within this table.
-        """
-        return tuple(column[0] for column in self.description)
-
-    @property
-    def ddl_file_path(self):
-        """ The expected absolute file path of the SQL file containing the
-        CREATE TABLE statement for this table.
-        """
-        parts = [self.dim_or_fact, 'sql', "%s.sql" % self.table_name]
-        if self.base_package:
-            module = import_module("test.unit.library.fixtures")
-            parts.insert(0, os.path.dirname(module.__file__))
-        return os.path.join(*parts)
-
-    def load_ddl(self):
-        """ Load DDL from SQL file associated with this table.
-        """
-        path = self.ddl_file_path
-        self.log_info("Loading SQL from %s", path)
-        try:
-            with open(path) as f:
-                sql = f.read()
-        except IOError as error:
-            self.log_error("Unable to load DDL from file %s", error)
-            raise
-        else:
-            return sql.strip()
+    INSERT = "INSERT"
 
     @classmethod
-    def _values_placeholder(cls, length):
-        """
-        Returns a placeholder string of the specified length (to use within a
-        MySQL INSERT query).
+    def create_trigger(cls):
+        """ There's a constraint in earlier versions of MySQL where only one
+        timestamp column can have a CURRENT_TIMESTAMP default value.
 
-        Example usage:
-        > self._values_placeholder(3)
-        Returns:
-        > '%s, %s, %s'
+        These triggers get around that problem.
 
         """
-        return ", ".join(["%s"] * length)
+        drop_trigger = """\
+        DROP TRIGGER IF EXISTS created_timestamp_{tablename}
+        """
+        create_trigger = """\
+        CREATE TRIGGER created_timestamp_{tablename}
+        BEFORE INSERT ON {tablename}
+        FOR EACH ROW BEGIN
+            IF NEW.created = '0000-00-00 00:00:00' THEN
+                SET NEW.created = NOW();
+            END IF;
+        END
+        """
+        min_version = settings.MYSQL_MIN_VERSION        
+        if min_version and StrictVersion(Warehouse.version) >= StrictVersion(
+                settings.MYSQL_MIN_VERSION):
+            return
 
-    @property
-    def frequency(self):
-        """
-        This needs thinking about ... what if you wanted to run each Sunday?
-        """
-        return datetime.timedelta(days=1)
+        connection = Warehouse.get()
+        with closing(connection.cursor()) as cursor:
+            for query in (drop_trigger, create_trigger):
+                try:
+                    cursor.execute(query.format(tablename=cls.__tablename__))
+                except Exception as exception:
+                    classify_error(exception)
+                    raise exception
 
-    def test(self):
+    @classmethod
+    def build(cls):
+        """ Create this table. Override this method to also create
+        dependent tables and any related views that do not already exist.
         """
-        This needs to be overridden for each instance of Table.
-        """
-        warnings.simplefilter('always')
-        warnings.warn("There is no test for this class!", Warning)
-
-    def drop(self, force=False):
-        """
-        Drops the table.
-
-        If 'force' is True, ignores the foreign key constraints and forces the
-        table to be deleted.
-
-        """
-        if force:
-            self.log_info("Dropping table (with force)")
-            sql = self.DROP_TABLE_FORCE.format(table=self.table_name)
-        else:
-            self.log_info("Dropping table")
-            sql = self.DROP_TABLE.format(table=self.table_name)
         try:
-            self.connection.execute(sql)
-        except IntegrityError:
-            self.log_error("Table could not be deleted due to foreign key "
-                           "constraints, try removing the fact tables first")
+            # If this uses the staging table or similar, we can
+            # automatically build this here too.
+            cls.__source__.build()
+        except AttributeError:
+            pass
+        cls.create_table(if_not_exists=True)
+        cls.create_trigger()
 
-    def exists(self):
-        """ Determine whether or not the table exists and return a boolean
-        to indicate which.
+    @classmethod
+    def create_table(cls, if_not_exists=False):
+        """ Create this table in the current data warehouse.
         """
-        statement = self.SELECT_NONE.format(table=self.table_name)
-        try:
-            self.connection.execute(statement)
-        except NoSuchTableError:
-            return False
+        if if_not_exists:
+            verb = "CREATE TABLE IF NOT EXISTS"
         else:
-            return True
+            verb = "CREATE TABLE"
+        columns = ",\n  ".join(col.expression for col in cls.__columns__)
+        sql = "%s %s (\n  %s\n)" % (verb, cls.__tablename__, columns)
+        for key, value in cls.__tableargs__.items():
+            sql += " %s=%s" % (key, value)
 
-    def count(self):
-        """ Return a count of the number of rows present in this table.
-        """
-        sql = self.SELECT_COUNT.format(table=self.table_name)
-        return self.connection.execute(sql)[0][0]
-
-    def primary_key(self):
-        """ Fetch the name of the primary key column for this table.
-        """
-        sql = self.SHOW_PRIMARY_KEY.format(table=self.table_name)
-        rows, columns, _ = self.connection.execute(sql, get_cols=True)
-        if rows:
-            return rows[0][columns.index("Column_name")]
-        else:
-            return None
-
-    def build(self, sql=None):
-        """ Ensure the table is built, attempting to create it if necessary.
-
-        Returns: `True` if the table already existed or was successfully
-                 built, `False` otherwise.
-
-        """
-        # If the table already exists, exit as successful.
-        if self.exists():
-            self.log_debug("Table already exists")
-            return True
-
-        # Load SQL from file if none is supplied.
-        if sql is None:
+        connection = Warehouse.get()
+        with closing(connection.cursor()) as cursor:
             try:
-                sql = self.load_ddl()
-            except IOError:
-                return False
+                cursor.execute(sql)
+            except Exception as exception:
+                classify_error(exception)
+                raise exception
 
-        self.log_debug("Executing SQL: %s", sql)
-        try:
-            self.connection.execute(sql)
-        except Exception as error:
-            self.log_error("SQL execution error: %s", error)
-            self.connection.rollback()
-            return False
+    @classmethod
+    def drop_table(cls, if_exists=False):
+        """ Drop this table from the current data warehouse.
+        """
+        if if_exists:
+            verb = "DROP TABLE IF EXISTS"
         else:
-            self.connection.commit()
-            self.log_info("Table successfully built")
-            return True
+            verb = "DROP TABLE"
+        sql = "%s %s" % (verb, cls.__tablename__)
 
-    def _fetch(self, *args, **kwargs):
-        """ Fetch data from the appropriate source, as described by
-        the `source_db` attribute.
+        connection = Warehouse.get()
+        with closing(connection.cursor()) as cursor:
+            try:
+                cursor.execute(sql)
+            except:
+                connection.rollback()
+            else:
+                connection.commit()
+
+    @classmethod
+    def table_exists(cls):
+        """ Check if this table exists in the current data warehouse.
         """
-        if self.source_db == STAGING:
-            staging_kwargs = filter_dict(kwargs, "staging_")
-            rows = self._fetch_from_staging(*args, **staging_kwargs)
+        return cls.__tablename__ in Warehouse.table_names
+
+    @classmethod
+    def fetch(cls, since=None, historical=False):
+        """ Fetch data from the source defined for this table and
+        yield as each is received.
+        """
+        source = cls.__historical_source__ if historical else cls.__source__
+        if source:
+            try:
+                for inst in source.select(cls, since=since):
+                    yield inst
+            except Exception as error:
+                log.error("Error raised while fetching data: (%s: %s)",
+                          error.__class__.__name__, error,
+                          extra={"table": cls.__tablename__})
+                raise
+            else:
+                # Only mark as finished if we've not had errors.
+                source.finish(cls)
         else:
-            source_kwargs = filter_dict(kwargs, "source_")
-            rows = self._fetch_from_source(*args, **source_kwargs)
-        return rows
+            raise NotImplementedError("No data source defined")
 
-    def _fetch_from_source(self, *args, **kwargs):
-        """ Fetch data from a SQL data source as described by the `source_db`
-        and `source_query` attributes. Should return a `SourceData` instance.
+    @classmethod
+    def insert(cls, *instances):
+        """ Insert one or more instances into the table as records.
         """
-        self.log_error("Cannot fetch rows from source database")
+        if instances:
+            columns = [column for column in cls.__columns__
+                       if not isinstance(column, AutoColumn)]
+            sql = "%s INTO %s (\n  %s\n)\n" % (
+                cls.INSERT, escaped(cls.__tablename__),
+                ",\n  ".join(escaped(column.name) for column in columns))
+            link = "VALUES"
+            for instance in instances:
+                values = []
+                for column in columns:
+                    value = instance[column.name]
+                    values.append(dump(value))
+                sql += link + (" (\n  %s\n)" % ",\n  ".join(values))
+                link = ","
 
-    def _fetch_from_staging(self, *args, **kwargs):
-        """ Fetch data from staging table and inflate it ready for insertion.
-        Should return a `SourceData` instance.
+            connection = Warehouse.get()
+            with closing(connection.cursor()) as cursor:
+                try:
+                    cursor.execute(sql)
+                except:
+                    connection.rollback()
+                else:
+                    connection.commit()
+
+    @classmethod
+    def update(cls, since=None, historical=False):
+        """ Fetch some data from source and insert it directly into the table.
         """
-        self.log_error("Cannot fetch rows from staging table")
+        instances = list(cls.fetch(since=since, historical=historical))
+        count = len(instances)
+        log.info("Fetched %s record%s", count, "" if count == 1 else "s",
+                 extra={"table": cls.__tablename__})
+        cls.insert(*instances)
 
-    def _insert(self, data):
-        """ Insert rows from the supplied `SourceData` instance into the table.
+    def __getitem__(self, column_name):
+        """ Get a value by table column name.
         """
-        self.log_error("Cannot insert rows into table")
+        for key in dir(self):
+            if not key.startswith("_"):
+                column = getattr(self.__class__, key, None)
+                if isinstance(column, Column) and column.name == column_name:
+                    value = getattr(self, key)
+                    return None if value is column else value
+        raise KeyError("No such table column '%s'" % column_name)
 
-    def update(self):
-        """ Update the table by fetching data from its designated origin and
-        inserting it into the table.
+    def __setitem__(self, column_name, value):
+        """ Set a value by table column name.
         """
-        rows = self._fetch(staging_delete=True)
-        # Insert data
-        if rows:
-            self.log_debug("Updating table")
-            self._insert(rows)
-            self.log_debug("Update complete")
-        else:
-            self.log_debug("No update required - nothing to insert")
-
-
-class SourceData(object):
-
-    def __init__(self, **kwargs):
-        self.column_names = kwargs.get("column_names")
-        self.column_types = kwargs.get("column_types")
-        self.rows = kwargs.get("rows")
-
-    def __len__(self):
-        return len(self.rows)
+        for key in dir(self):
+            if not key.startswith("_"):
+                column = getattr(self.__class__, key, None)
+                if isinstance(column, Column) and column.name == column_name:
+                    setattr(self, key, value)
+                    return
+        raise KeyError("No such table column '%s'" % column_name)
