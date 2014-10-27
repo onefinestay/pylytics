@@ -75,8 +75,17 @@ class Fact(Table):
             dimension.update(since=since)
         return super(Fact, cls).update(since)
 
+    # TODO Consider adding historical to dimensions.
     @classmethod
     def historical(cls):
+        """ Historical is only intended to be run once to populate a fact
+        table with historical data after creation.
+
+        Some fact tables won't have a historical query either because
+        historical data isn't available, or there is no interest in the
+        historical data.
+
+        """
         cls.update(historical=True)
 
     @classmethod
