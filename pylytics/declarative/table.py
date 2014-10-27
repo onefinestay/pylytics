@@ -170,13 +170,14 @@ class Table(object):
         return cls.__tablename__ in Warehouse.table_names
 
     @classmethod
-    def fetch(cls, since=None):
+    def fetch(cls, since=None, historical=False):
         """ Fetch data from the source defined for this table and
         yield as each is received.
         """
-        if cls.__source__:
+        source = cls.__historical_source__ if historical else cls.__source__
+        if source:
             try:
-                for inst in cls.__source__.select(cls, since=since):
+                for inst in source.select(cls, since=since):
                     yield inst
             except Exception as error:
                 log.error("Error raised while fetching data: (%s: %s)",
@@ -185,7 +186,7 @@ class Table(object):
                 raise
             else:
                 # Only mark as finished if we've not had errors.
-                cls.__source__.finish(cls)
+                source.finish(cls)
         else:
             raise NotImplementedError("No data source defined")
 
@@ -218,10 +219,10 @@ class Table(object):
                     connection.commit()
 
     @classmethod
-    def update(cls, since=None):
+    def update(cls, since=None, historical=False):
         """ Fetch some data from source and insert it directly into the table.
         """
-        instances = list(cls.fetch(since=since))
+        instances = list(cls.fetch(since=since, historical=historical))
         count = len(instances)
         log.info("Fetched %s record%s", count, "" if count == 1 else "s",
                  extra={"table": cls.__tablename__})

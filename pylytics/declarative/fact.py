@@ -41,8 +41,11 @@ class Fact(Table):
     # in by the TableMetaclass on creation.
     __dimensionkeys__ = NotImplemented
     __metrics__ = NotImplemented
+
+    # These attributes aren't touched by the metaclass.
     __dimension_selector__ = DimensionSelector()
     __schedule__ = Schedule()
+    __historical_source__ = None
 
     id = PrimaryKey()
     created = CreatedTimestamp()
@@ -71,6 +74,10 @@ class Fact(Table):
         for dimension in unique_dimensions:
             dimension.update(since=since)
         return super(Fact, cls).update(since)
+
+    @classmethod
+    def historical(cls):
+        cls.update(historical=True)
 
     @classmethod
     def create_or_replace_rolling_view(cls):
@@ -132,6 +139,7 @@ class Fact(Table):
             # database will 'go away'.
             # TODO These should be dynamically sized based on the
             # max_packet_size.
+            # TODO Move this batching into a separate method.
             batch_size = 100
             batch_number = int(math.ceil(len(instances) / float(batch_size)))
             batches = [instances[i * batch_size:(i + 1) * batch_size] for i in xrange(batch_number)]
