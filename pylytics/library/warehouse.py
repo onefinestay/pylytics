@@ -22,6 +22,7 @@ class Warehouse(object):
     """
 
     __connection = None
+    __version = None
 
     @classmethod
     def get(cls):
@@ -40,6 +41,7 @@ class Warehouse(object):
         table operations.
         """
         cls.__connection = connection
+        cls.__version = None
 
     @classproperty
     def table_names(cls):
@@ -50,3 +52,11 @@ class Warehouse(object):
         with closing(connection.cursor()) as cursor:
             cursor.execute("SHOW TABLES")
             return [record[0] for record in cursor]
+
+    @classproperty
+    def version(cls):
+        """ Returns the MySQL server version number."""
+        if not cls.__version:
+            cls.__version = "{}.{}.{}".format(*cls.get().get_server_version())
+
+        return cls.__version

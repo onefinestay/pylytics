@@ -33,6 +33,7 @@ class Settings(object):
     modules = [
         "settings",               # local application settings
         "default_settings",       # default application settings
+        "system_settings",        # sytem settings (unlikely to be overriden)
     ]
 
     if os.environ.get('PYLYTICS_TEST', '0') == '1':

@@ -1,9 +1,11 @@
 from contextlib import closing
 from datetime import date
+from distutils.version import StrictVersion
 import logging
 
 from column import *
 from exceptions import classify_error
+from settings import settings
 from utils import _camel_to_snake, dump, escaped
 from warehouse import Warehouse
 
@@ -111,6 +113,40 @@ class Table(object):
     INSERT = "INSERT"
 
     @classmethod
+    def create_trigger(cls):
+        """ There's a constraint in earlier versions of MySQL where only one
+        timestamp column can have a CURRENT_TIMESTAMP default value.
+
+        These triggers get around that problem.
+
+        """
+        drop_trigger = """\
+        DROP TRIGGER IF EXISTS created_timestamp_{tablename}
+        """
+        create_trigger = """\
+        CREATE TRIGGER created_timestamp_{tablename}
+        BEFORE INSERT ON {tablename}
+        FOR EACH ROW BEGIN
+            IF NEW.created = '0000-00-00 00:00:00' THEN
+                SET NEW.created = NOW();
+            END IF;
+        END
+        """
+        min_version = settings.MYSQL_MIN_VERSION        
+        if min_version and StrictVersion(Warehouse.version) >= StrictVersion(
+                settings.MYSQL_MIN_VERSION):
+            return
+
+        connection = Warehouse.get()
+        with closing(connection.cursor()) as cursor:
+            for query in (drop_trigger, create_trigger):
+                try:
+                    cursor.execute(query.format(tablename=cls.__tablename__))
+                except Exception as exception:
+                    classify_error(exception)
+                    raise exception
+
+    @classmethod
     def build(cls):
         """ Create this table. Override this method to also create
         dependent tables and any related views that do not already exist.
@@ -122,6 +158,7 @@ class Table(object):
         except AttributeError:
             pass
         cls.create_table(if_not_exists=True)
+        cls.create_trigger()
 
     @classmethod
     def create_table(cls, if_not_exists=False):
