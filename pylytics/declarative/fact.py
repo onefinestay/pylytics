@@ -41,8 +41,11 @@ class Fact(Table):
     # in by the TableMetaclass on creation.
     __dimensionkeys__ = NotImplemented
     __metrics__ = NotImplemented
+
+    # These attributes aren't touched by the metaclass.
     __dimension_selector__ = DimensionSelector()
     __schedule__ = Schedule()
+    __historical_source__ = None
 
     id = PrimaryKey()
     created = CreatedTimestamp()
@@ -60,7 +63,10 @@ class Fact(Table):
         # cls.create_or_replace_midnight_view() -- only if a date column is defined
 
     @classmethod
-    def update(cls, since=None):
+    def update(cls, since=None, historical=False):
+        if not (cls.__historical_source__ if historical else cls.__source__):
+            # Bail early before building dimensions.
+            raise NotImplementedError("No data source defined")
 
         # Remove any duplicate dimensions.
         unique_dimensions = []
@@ -70,7 +76,20 @@ class Fact(Table):
 
         for dimension in unique_dimensions:
             dimension.update(since=since)
-        return super(Fact, cls).update(since)
+        return super(Fact, cls).update(since=since, historical=historical)
+
+    # TODO Consider adding historical to dimensions.
+    @classmethod
+    def historical(cls):
+        """ Historical is only intended to be run once to populate a fact
+        table with historical data after creation.
+
+        Some fact tables won't have a historical query either because
+        historical data isn't available, or there is no interest in the
+        historical data.
+
+        """
+        cls.update(historical=True)
 
     @classmethod
     def create_or_replace_rolling_view(cls):
@@ -132,6 +151,7 @@ class Fact(Table):
             # database will 'go away'.
             # TODO These should be dynamically sized based on the
             # max_packet_size.
+            # TODO Move this batching into a separate method.
             batch_size = 100
             batch_number = int(math.ceil(len(instances) / float(batch_size)))
             batches = [instances[i * batch_size:(i + 1) * batch_size] for i in xrange(batch_number)]

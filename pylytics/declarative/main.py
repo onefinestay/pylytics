@@ -214,6 +214,8 @@ def main():
     if command == 'update':
         commander.run('build', *args['fact'])
         commander.run('update', *args['fact'])
+    elif command == 'historical':
+        commander.run('historical', *args['fact'])
     elif command == 'build':
         commander.run('build', *args['fact'])
     else:
