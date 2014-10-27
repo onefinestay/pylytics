@@ -63,7 +63,10 @@ class Fact(Table):
         # cls.create_or_replace_midnight_view() -- only if a date column is defined
 
     @classmethod
-    def update(cls, since=None):
+    def update(cls, since=None, historical=False):
+        if not (cls.__historical_source__ if historical else cls.__source__):
+            # Bail early before building dimensions.
+            raise NotImplementedError("No data source defined")
 
         # Remove any duplicate dimensions.
         unique_dimensions = []
@@ -73,7 +76,7 @@ class Fact(Table):
 
         for dimension in unique_dimensions:
             dimension.update(since=since)
-        return super(Fact, cls).update(since)
+        return super(Fact, cls).update(since=since, historical=historical)
 
     # TODO Consider adding historical to dimensions.
     @classmethod
