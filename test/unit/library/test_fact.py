@@ -49,7 +49,7 @@ class Date(Dimension):
 
     # TODO This is an old school dimension. Should be using CallableSource.
     @classmethod
-    def fetch(cls, since=None):
+    def fetch(cls, since=None, historical=False):
         """ Create date instances as there's no remote data source
         for this one.
         """
