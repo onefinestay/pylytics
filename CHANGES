@@ -1,3 +1,14 @@
+Version 1.0.0
+-------------
+- Complete rework of pylytics to be more declarative in nature.
+- Declaring facts and dimensions is more akin to using an ORM.
+- More fine grained control of table and column attributes.
+- Better support has been added for non-SQL data sources.
+- Pipelining has been added through 'expansions'.
+- MySQLdb has been replaced with Oracle's Python connector for MySQL.
+- Tests added for large-ish data extractions and transformations.
+
+
 Version 0.7.0
 -------------
 

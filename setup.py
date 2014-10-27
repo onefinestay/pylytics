@@ -39,7 +39,7 @@ setup(
     author='onefinestay',
     author_email='engineering@onefinestay.com',
     classifiers=[
-      "Development Status :: 3 - Alpha",
+      "Development Status :: 4 - Beta",
       "Programming Language :: Python :: 2.7",
       "Intended Audience :: Developers",
       "Natural Language :: English",
@@ -54,15 +54,10 @@ setup(
     long_description=open(make_abs('README.rst')).read(),
     name='pylytics',
     packages=find_packages(exclude=("test", "test.*")),
-    entry_points={
-        'console_scripts': [
-            'init_pylytics_staging_table = pylytics.library.admin:init_tables',
-        ]
-    },
     scripts=[
         'pylytics/bin/pylytics-admin.py',
     ],
     url='https://github.com/onefinestay/pylytics',
-    version='0.7.0',
+    version='1.0.0',
     zip_safe=False,
     )
