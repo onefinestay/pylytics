@@ -33,7 +33,7 @@ class Dimension(Table):
                              "natural key for dimension "
                              "'%s'" % (value_type.__name__, cls.__name__))
 
-        sql = 'SELECT {primary_key} FROM {table_name} WHERE {selector} AND `applicable_from` = (SELECT max(`applicable_from`) FROM {table_name} WHERE {selector} AND `applicable_from` < "{timestamp}")'.format(
+        sql = 'SELECT {primary_key} FROM {table_name} WHERE {selector} AND `applicable_from` = (SELECT max(`applicable_from`) FROM {table_name} WHERE {selector} AND `applicable_from` <= "{timestamp}")'.format(
             primary_key=escaped(cls.__primarykey__.name),
             table_name=escaped(cls.__tablename__),
             selector=" OR ".join("%s = %s" % (escaped(key.name), dump(value)) for key in natural_keys),

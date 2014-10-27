@@ -31,9 +31,9 @@ class Settings(object):
     # modules may exist.
     #
     modules = [
-        "settings",               # local application settings
-        "default_settings",       # default application settings
-        "system_settings",        # sytem settings (unlikely to be overriden)
+        "settings",                         # local application settings
+        "default_settings",                 # default application settings
+        "pylytics.library.system_settings", # sytem settings (rarely overriden)
     ]
 
     if os.environ.get('PYLYTICS_TEST', '0') == '1':

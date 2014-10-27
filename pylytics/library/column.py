@@ -189,7 +189,7 @@ class CreatedTimestamp(AutoColumn):
         # CURRENT_TIMESTAMP` column can exist. So we use a trigger to
         # update this column.
         min_version = settings.MYSQL_MIN_VERSION
-        if min_version and StrictVersion(Warehouse.version) >= StrictVersion(
-                min_version):
+        if min_version and (StrictVersion(Warehouse.version) >= StrictVersion(
+                min_version)):
             return "DEFAULT CURRENT_TIMESTAMP"
         return "DEFAULT 0"
