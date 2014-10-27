@@ -1,16 +1,4 @@
 Getting Started
 ===============
 
-.. toctree::
-   :maxdepth: 2
-   :numbered:
-   
-   creating-new-project
-   project-settings
-   writing-facts-and-dims
-   running-scripts
-   querying
-   connection-library
-   setup-exit-scripts
-   timezone-support
-   logging
+Pylytics v1.0 is significantly improved from v0.7. New documentation will follow shortly.

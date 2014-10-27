@@ -11,11 +11,11 @@ import datetime
 import pytest
 from mysql.connector.errors import OperationalError
 
-from pylytics.declarative.column import Column, DimensionKey, NaturalKey
-from pylytics.declarative.dimension import Dimension
-from pylytics.declarative.fact import Fact
-from pylytics.declarative.warehouse import Warehouse
-from pylytics.declarative.main import enable_logging
+from pylytics.library.column import Column, DimensionKey, NaturalKey
+from pylytics.library.dimension import Dimension
+from pylytics.library.fact import Fact
+from pylytics.library.warehouse import Warehouse
+from pylytics.library.main import enable_logging
 
 
 # The fact table generated is MAX_ITERATIONS ^ 2.

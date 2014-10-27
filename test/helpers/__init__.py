@@ -2,8 +2,8 @@ import warnings
 
 from mysql import connector
 
-from pylytics.declarative.connection import get_named_connection
-from pylytics.declarative.settings import settings
+from pylytics.library.connection import get_named_connection
+from pylytics.library.settings import settings
 
 
 def execute(connection, statement):
