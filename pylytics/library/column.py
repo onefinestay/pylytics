@@ -150,21 +150,6 @@ class PrimaryKey(AutoColumn):
                 " AUTO_INCREMENT PRIMARY KEY")
 
 
-class CreatedTimestamp(AutoColumn):
-    """ An auto-populated timestamp column for storing when the
-    record was created.
-    """
-
-    __columnblock__ = 6
-
-    def __init__(self, name="created", order=None, comment=None):
-        Column.__init__(self, name, datetime, order=order, comment=comment)
-
-    @property
-    def default_clause(self):
-        return "DEFAULT CURRENT_TIMESTAMP"
-
-
 class ApplicableFrom(Column):
     """ This is a special column which is only used in dimensions.
     
@@ -179,6 +164,21 @@ class ApplicableFrom(Column):
     def __init__(self, name="applicable_from", order=None, comment=None):
         Column.__init__(self, name, datetime, optional=False, order=order,
                         comment=comment)
+
+    @property
+    def default_clause(self):
+        return "DEFAULT CURRENT_TIMESTAMP"
+
+
+class CreatedTimestamp(AutoColumn):
+    """ An auto-populated timestamp column for storing when the
+    record was created.
+    """
+
+    __columnblock__ = 6
+
+    def __init__(self, name="created", order=None, comment=None):
+        Column.__init__(self, name, datetime, order=order, comment=comment)
 
     @property
     def default_clause(self):

@@ -2,7 +2,6 @@ import warnings
 
 from mysql import connector
 
-from pylytics.library.connection import get_named_connection
 from pylytics.library.settings import settings
 
 

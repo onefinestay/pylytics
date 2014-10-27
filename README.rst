@@ -40,3 +40,13 @@ Pylytics v1 uses Oracle's Python MySQL adapter. It can be installed using pip, b
 Depending on your version of pip, you may need to install the requirements as follows::
 
     pip install -r requirements.txt --allow-external mysql-connector-python
+
+
+Supported MySQL version
+***********************
+
+Pylytics requires a MySQL database of version greater than 5.6.5 for inserting data into.
+
+This is because TIMESTAMP column functionality was changed with that version.
+
+Backwards compatibility may be added at some point for older MySQL versions.
