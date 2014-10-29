@@ -2,6 +2,8 @@
 Utilities for making database connections easier.
 """
 
+import os
+
 from mysql import connector
 
 from settings import settings
@@ -13,6 +15,9 @@ def get_named_connection(connection_name):
                          "your settings in settings.py".format(database))
     else:
         kwargs = settings.DATABASES[connection_name]
+        client_config = settings.CLIENT_CONFIG
+        if client_config and os.path.exists(client_config):
+            kwargs['option_files'] = client_config
         # TODO We can use settings.settings to get our defaults from there.
         return connector.connect(
             connection_timeout=3000,
