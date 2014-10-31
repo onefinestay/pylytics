@@ -186,7 +186,6 @@ class Fact(Table):
                 except Exception as e:
                     classify_error(e)
                     log.error(e)
-                    # TODO We want to log the sql to file.
                     connection.rollback()
                 else:
                     connection.commit()

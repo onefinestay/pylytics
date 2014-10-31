@@ -2,6 +2,7 @@ import argparse
 import datetime
 import inspect
 import logging
+from logging.handlers import TimedRotatingFileHandler
 import sys
 
 from pytz import UTC
@@ -151,16 +152,20 @@ class Commander(object):
         Warehouse.get().close()
 
 
+# TODO Make this configurable via settings.py.
 def enable_logging():
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(ColourFormatter())
-    log.addHandler(handler)
+    default_handler = logging.StreamHandler(sys.stdout)
+    default_handler.setFormatter(ColourFormatter())
+    log.addHandler(default_handler)
+
+    error_handler = logging.handlers.TimedRotatingFileHandler(
+        filename='pylytics.log', when='D', backupCount=7)
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    error_handler.setFormatter(formatter)
+    error_handler.setLevel(logging.ERROR)
+    log.addHandler(error_handler)
+
     log.setLevel(logging.DEBUG if __debug__ else logging.INFO)
-    # We currently use info, debug, error, warning.
-    # We need our log config to be somewhere else.
-    # For writing failed writes ... should really be using error?
-    # Shouldn't reserve levels for a certain situation.
-    # `Critical` would be suitable though.
 
 
 def main():
