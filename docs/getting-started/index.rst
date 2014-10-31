@@ -8,3 +8,4 @@ Documentation to create:
 * Scheduling (inheritance and overloading timezones)
 * Writing facts and dimensions
 * Source types (DatabaseSource and CallableSource)
+* 3rd Party Visualisation tools (e.g. Saiku)
