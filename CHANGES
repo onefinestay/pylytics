@@ -1,3 +1,9 @@
+Version 1.0.1
+-------------
+- Added support for mysql client config files.
+- SQL source queries now store the results in memory to prevent read timeouts.
+
+
 Version 1.0.0
 -------------
 - Complete rework of pylytics to be more declarative in nature.
