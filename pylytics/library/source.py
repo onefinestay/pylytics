@@ -92,13 +92,16 @@ class DatabaseSource(Source):
             **{key: dump(value) for key, value in params.items()})
 
         with NamedConnection(database) as connection:
-            # We don't use a buffered cursor here, because we don't know
-            # how big the query is / how much memory the host machine has.
-            cursor = connection.cursor(dictionary=True)
-            cursor.execute(query)
-            for row in cursor:
-                yield row
-            cursor.close()
+            with closing(connection.cursor(dictionary=True)) as cursor:
+                cursor.execute(query)
+                rows = []
+                for row in cursor:
+                    # Dump the rows immediately into memory, otherwise
+                    # the connection might timeout.
+                    rows.append(row)
+
+        for row in rows:
+            yield row
 
 
 class CallableSource(Source):

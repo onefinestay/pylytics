@@ -152,7 +152,7 @@ class Fact(Table):
             # TODO These should be dynamically sized based on the
             # max_packet_size.
             # TODO Move this batching into a separate method.
-            batch_size = 100
+            batch_size = 1000
             batch_number = int(math.ceil(len(instances) / float(batch_size)))
             batches = [instances[i * batch_size:(i + 1) * batch_size] for i in xrange(batch_number)]
 
