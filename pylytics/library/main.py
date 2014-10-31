@@ -201,17 +201,17 @@ def main():
     # of any load errors.
     enable_logging()
 
+    # Prepend an extra settings file if one is specified.
+    settings_module = args["settings"]
+    if settings_module:
+        settings.prepend(Settings.load(settings_module))
+
     # Attempt to configure Sentry logging.
     sentry_dsn = settings.SENTRY_DSN
     if sentry_dsn:
         # Only import raven if we're actually going to use it.
         from raven.handlers.logging import SentryHandler
         log.addHandler(SentryHandler(sentry_dsn))
-
-    # Prepend an extra settings file if one is specified.
-    settings_module = args["settings"]
-    if settings_module:
-        settings.prepend(Settings.load(settings_module))
 
     command = args['command'][0]
     commander = Commander(settings.pylytics_db)
