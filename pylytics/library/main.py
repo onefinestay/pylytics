@@ -28,6 +28,13 @@ TITLE = r"""
 """
 
 
+def get_all_permissions():
+    """Return a list with all role permissions 
+       All files in security folder have a set_role function that need to be executed
+       to get SecurityRole objects
+    """
+    pass
+
 def get_all_fact_classes():
     """Return all of the fact classes available."""
     fact = __import__('fact')
@@ -166,6 +173,9 @@ def enable_logging():
 
 def main():
     """ Main function called by the manage.py from the project directory.
+        TODO: Call get_all_permissions and create_mondrian_schema 
+        (Now it will only create the permissions part, but in the future 
+         all this file should be generated)
     """
     parser = argparse.ArgumentParser(
         description = "Run fact scripts.")
@@ -211,7 +221,6 @@ def main():
 
     command = args['command'][0]
     commander = Commander(settings.pylytics_db)
-    permissions = Permissions(settings.pylytics_mondrian_schema_file)
 
     if command == 'update':
         commander.run('build', *args['fact'])
@@ -220,8 +229,6 @@ def main():
         commander.run('historical', *args['fact'])
     elif command == 'build':
         commander.run('build', *args['fact'])
-    elif command == 'permissions':
-        commander.run('permissions', *args['fact'])
     else:
         log.error("Unknown command: %s", command)
 
