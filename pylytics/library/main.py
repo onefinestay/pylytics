@@ -111,6 +111,7 @@ class Commander(object):
     def run(self, command, *facts):
         """ Run command for each fact in facts.
         """
+
         _connection = connection.get_named_connection(settings.pylytics_db)
         Warehouse.use(_connection)
 
@@ -210,6 +211,7 @@ def main():
 
     command = args['command'][0]
     commander = Commander(settings.pylytics_db)
+    permissions = Permissions(settings.pylytics_mondrian_schema_file)
 
     if command == 'update':
         commander.run('build', *args['fact'])
@@ -218,6 +220,8 @@ def main():
         commander.run('historical', *args['fact'])
     elif command == 'build':
         commander.run('build', *args['fact'])
+    elif command == 'permissions':
+        commander.run('permissions', *args['fact'])
     else:
         log.error("Unknown command: %s", command)
 
