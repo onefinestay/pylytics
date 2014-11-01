@@ -11,8 +11,8 @@ from settings import settings
 
 def get_named_connection(connection_name):
     if connection_name not in (settings.DATABASES.keys()):
-        raise ValueError("The database {} isn't recognised - check "
-                         "your settings in settings.py".format(database))
+        raise ValueError("The database {} isn't recognised - check your "
+                         "settings in settings.py".format(connection_name))
     else:
         kwargs = settings.DATABASES[connection_name]
         client_config = settings.CLIENT_CONFIG

@@ -29,7 +29,7 @@ class Store(Dimension):
 
     store_id = NaturalKey('store_id', int, size=10)
     manager = Column('manager', str, size=100)
-    
+
 
 class Product(Dimension):
     __source__ = NotImplemented

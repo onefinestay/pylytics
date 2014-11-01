@@ -55,6 +55,12 @@ class _ColumnSet(object):
     def natural_keys(self):
         return [c for c in self.columns if isinstance(c, NaturalKey)]
 
+    @property
+    def composite_key(self):
+        """Returns the values which make up the composite unique key."""
+        _ = (AutoColumn, ApplicableFrom, HashKey)
+        return [c for c in self.columns if not isinstance(c, _)]
+
 
 class TableMetaclass(type):
     """ Metaclass for constructing all Table classes. This applies number
@@ -84,6 +90,8 @@ class TableMetaclass(type):
             cls.__metrics__ = column_set.metrics
         if "__naturalkeys__" in dir(cls):
             cls.__naturalkeys__ = column_set.natural_keys
+        if "__compositekey__" in dir(cls):
+            cls.__compositekey__ = column_set.composite_key
 
         return cls
 
@@ -234,6 +242,7 @@ class Table(object):
         if instances:
             columns = [column for column in cls.__columns__
                        if not isinstance(column, AutoColumn)]
+
             sql = "%s INTO %s (\n  %s\n)\n" % (
                 cls.INSERT, escaped(cls.__tablename__),
                 ",\n  ".join(escaped(column.name) for column in columns))

@@ -41,6 +41,7 @@ class Fact(Table):
     # in by the TableMetaclass on creation.
     __dimensionkeys__ = NotImplemented
     __metrics__ = NotImplemented
+    __compositekey__ = NotImplemented
 
     # These attributes aren't touched by the metaclass.
     __dimension_selector__ = DimensionSelector()
@@ -48,7 +49,11 @@ class Fact(Table):
     __historical_source__ = None
 
     id = PrimaryKey()
+    hash_key = HashKey()
     created = CreatedTimestamp()
+
+    def __init__(self, *args, **kwargs):
+        self['hash_key'] = "UNHEX(SHA1(CONCAT(%s)))" % ', '.join([escaped(c.name) for c in self.__compositekey__])
 
     @classmethod
     def build(cls):
