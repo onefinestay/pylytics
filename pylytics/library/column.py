@@ -153,7 +153,7 @@ class PrimaryKey(AutoColumn):
 
 class HashKey(Column):
     """ A hash of the user defined columns is used as the unique key in
-    dimension tables.
+    dimension and fact tables.
 
     This is because composite unique keys in MySQL have a
     size limit, which means that composite unique keys consisting of a lot of

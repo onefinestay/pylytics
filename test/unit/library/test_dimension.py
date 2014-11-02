@@ -57,7 +57,7 @@ class TestEvolvingDimensions(object):
         assert self._fetch_store_row_count() == 1
 
     def test_duplicate_insert(self, empty_warehouse, store, modified_store):
-        """ Insert a Dimension twice.
+        """ Insert a Dimension twice. The row shouldn't be duplicated.
         """
         Warehouse.use(empty_warehouse)
         Store.build()
