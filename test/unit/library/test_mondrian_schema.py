@@ -1,7 +1,7 @@
 
 
 def test_create_mondrian_empty_list():
-    ''' Test if create_mondrian creates an empty file
+    ''' Test if create_mondrian creates an empty file when input is an empty list
     '''
     pass
 
