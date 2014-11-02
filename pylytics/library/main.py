@@ -159,7 +159,7 @@ def enable_logging():
     log.addHandler(default_handler)
 
     error_handler = logging.handlers.TimedRotatingFileHandler(
-        filename='pylytics.log', when='D', backupCount=7)
+        filename='/tmp/pylytics.log', when='D', backupCount=7)
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     error_handler.setFormatter(formatter)
     error_handler.setLevel(logging.ERROR)
