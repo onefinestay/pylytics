@@ -7,7 +7,7 @@ from exceptions import classify_error
 from schedule import Schedule
 from selector import DimensionSelector
 from table import Table
-from utils import dump, escaped
+from utils import dump, escaped, raw_sql
 from warehouse import Warehouse
 
 
@@ -41,6 +41,7 @@ class Fact(Table):
     # in by the TableMetaclass on creation.
     __dimensionkeys__ = NotImplemented
     __metrics__ = NotImplemented
+    __compositekey__ = NotImplemented
 
     # These attributes aren't touched by the metaclass.
     __dimension_selector__ = DimensionSelector()
@@ -48,7 +49,11 @@ class Fact(Table):
     __historical_source__ = None
 
     id = PrimaryKey()
+    hash_key = HashKey()
     created = CreatedTimestamp()
+
+    def __init__(self, *args, **kwargs):
+        self['hash_key'] = raw_sql("UNHEX(SHA1(CONCAT_WS(',', %s)))" % ', '.join(["IFNULL(%s,'NULL')" % escaped(c.name) for c in self.__compositekey__]))
 
     @classmethod
     def build(cls):
@@ -143,19 +148,11 @@ class Fact(Table):
         if instances:
             columns = [column for column in cls.__columns__
                        if not isinstance(column, AutoColumn)]
-            sql = "INSERT INTO %s (\n  %s\n)\n" % (
-                escaped(cls.__tablename__),
+            sql = "%s INTO %s (\n  %s\n)\n" % (
+                cls.INSERT, escaped(cls.__tablename__),
                 ",\n  ".join(escaped(column.name) for column in columns))
 
-            # We can't insert too many at once, otherwise the target
-            # database will 'go away'.
-            # TODO These should be dynamically sized based on the
-            # max_packet_size.
-            # TODO Move this batching into a separate method.
-            batch_size = 1000
-            batch_number = int(math.ceil(len(instances) / float(batch_size)))
-            batches = [instances[i * batch_size:(i + 1) * batch_size] for i in xrange(batch_number)]
-
+            batches = cls.batch(instances)
             for iteration, batch in enumerate(batches, start=1):
                 log.debug('Inserting batch %s' % (iteration),
                           extra={"table": cls.__tablename__})
@@ -178,7 +175,6 @@ class Fact(Table):
                             values.append(dump(value))
                     insert_statement += link + (" (\n  %s\n)" % ",\n  ".join(values))
                     link = ","
-
                 connection = Warehouse.get()
                 try:
                     with closing(connection.cursor()) as cursor:
@@ -186,7 +182,6 @@ class Fact(Table):
                 except Exception as e:
                     classify_error(e)
                     log.error(e)
-                    # TODO We want to log the sql to file.
                     connection.rollback()
                 else:
                     connection.commit()
