@@ -15,15 +15,13 @@ class Dimension(Table):
     __naturalkeys__ = NotImplemented
     __compositekey__ = NotImplemented
 
-    INSERT = "INSERT IGNORE"
-
     id = PrimaryKey()
     hash_key = HashKey()
     applicable_from = ApplicableFrom()
     created = CreatedTimestamp()
 
     def __init__(self, *args, **kwargs):
-        self['hash_key'] = raw_sql("UNHEX(SHA1(CONCAT(%s)))" % ', '.join(["IFNULL(%s,'NULL')" % escaped(c.name) for c in self.__compositekey__]))
+        self['hash_key'] = raw_sql("UNHEX(SHA1(CONCAT_WS(',', %s)))" % ', '.join(["IFNULL(%s,'NULL')" % escaped(c.name) for c in self.__compositekey__]))
 
     @classmethod
     def __subquery__(cls, value, timestamp):

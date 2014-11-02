@@ -2,9 +2,10 @@ from contextlib import closing
 from datetime import date
 from distutils.version import StrictVersion
 import logging
+import math
 
 from column import *
-from exceptions import classify_error
+from exceptions import classify_error, BrokenPipeError
 from settings import settings
 from utils import _camel_to_snake, dump, escaped
 from warehouse import Warehouse
@@ -118,7 +119,7 @@ class Table(object):
         "COLLATE": "utf8_bin",
     }
 
-    INSERT = "INSERT"
+    INSERT = "INSERT IGNORE"
 
     @classmethod
     def create_trigger(cls):
@@ -234,6 +235,14 @@ class Table(object):
                 source.finish(cls)
         else:
             raise NotImplementedError("No data source defined")
+    
+    @classmethod
+    def batch(cls, instances):
+        """ Subdivides instances into smaller batches ready for insertion."""
+        batch_size = settings.BATCH_SIZE
+        batch_number = int(math.ceil(len(instances) / float(batch_size)))
+        batches = [instances[i * batch_size:(i + 1) * batch_size] for i in xrange(batch_number)]
+        return batches
 
     @classmethod
     def insert(cls, *instances):
@@ -246,23 +255,47 @@ class Table(object):
             sql = "%s INTO %s (\n  %s\n)\n" % (
                 cls.INSERT, escaped(cls.__tablename__),
                 ",\n  ".join(escaped(column.name) for column in columns))
-            link = "VALUES"
-            for instance in instances:
-                values = []
-                for column in columns:
-                    value = instance[column.name]
-                    values.append(dump(value))
-                sql += link + (" (\n  %s\n)" % ",\n  ".join(values))
-                link = ","
 
-            connection = Warehouse.get()
-            with closing(connection.cursor()) as cursor:
-                try:
-                    cursor.execute(sql)
-                except:
-                    connection.rollback()
-                else:
-                    connection.commit()
+            insert_statement = sql
+            link = "VALUES"
+
+            batches = cls.batch(instances)
+            for iteration, batch in enumerate(batches, start=1):
+                log.debug('Inserting batch %s' % (iteration),
+                          extra={"table": cls.__tablename__})
+
+                for instance in batch:
+                    values = []
+                    for column in columns:
+                        value = instance[column.name]
+                        values.append(dump(value))
+                    sql += link + (" (\n  %s\n)" % ",\n  ".join(values))
+                    link = ","
+
+                for i in range(1, 3):
+                    connection = Warehouse.get()
+                    try:
+                        cursor = connection.cursor()
+                        cursor.execute(sql)
+                        cursor.close()
+
+                    except Exception as e:
+                        classify_error(e)
+                        if e.__class__ == BrokenPipeError and i == 1:
+                            log.info(
+                                'Trying once more with a fresh connection',
+                                extra={"table": cls.__tablename__}
+                                )
+                            connection.close()
+                        else:
+                            log.error(e)
+                            return
+                    else:
+                        connection.commit()
+                        break
+
+        log.debug('Finished updating %s' % cls.__tablename__,
+                  extra={"table": cls.__tablename__})
 
     @classmethod
     def update(cls, since=None, historical=False):
