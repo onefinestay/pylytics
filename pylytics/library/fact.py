@@ -7,7 +7,7 @@ from exceptions import classify_error
 from schedule import Schedule
 from selector import DimensionSelector
 from table import Table
-from utils import dump, escaped
+from utils import dump, escaped, raw_sql
 from warehouse import Warehouse
 
 
@@ -53,7 +53,7 @@ class Fact(Table):
     created = CreatedTimestamp()
 
     def __init__(self, *args, **kwargs):
-        self['hash_key'] = "UNHEX(SHA1(CONCAT(%s)))" % ', '.join([escaped(c.name) for c in self.__compositekey__])
+        self['hash_key'] = raw_sql("UNHEX(SHA1(CONCAT(%s)))" % ', '.join(["IFNULL(%s,'NULL')" % escaped(c.name) for c in self.__compositekey__]))
 
     @classmethod
     def build(cls):
@@ -183,7 +183,6 @@ class Fact(Table):
                             values.append(dump(value))
                     insert_statement += link + (" (\n  %s\n)" % ",\n  ".join(values))
                     link = ","
-
                 connection = Warehouse.get()
                 try:
                     with closing(connection.cursor()) as cursor:

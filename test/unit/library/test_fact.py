@@ -90,6 +90,7 @@ class Date(Dimension):
         self.quarter_name = "Q{}".format(quarter)        # e.g. Q1
         self.full_quarter = '{0}-{1}'.format(date_obj.year, quarter)
         self.year = date_obj.year
+        super(Date, self).__init__()
 
 
 @pytest.fixture
