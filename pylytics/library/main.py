@@ -3,6 +3,7 @@ import datetime
 import inspect
 import logging
 from logging.handlers import TimedRotatingFileHandler
+import os
 import sys
 
 from pytz import UTC
@@ -204,7 +205,7 @@ def main():
     # Prepend an extra settings file if one is specified.
     settings_module = args["settings"]
     if settings_module:
-        settings.prepend(Settings.load(settings_module))
+        settings.prepend(Settings.load(settings_module, from_path=True))
 
     # Attempt to configure Sentry logging.
     sentry_dsn = settings.SENTRY_DSN

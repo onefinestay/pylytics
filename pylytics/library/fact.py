@@ -182,6 +182,7 @@ class Fact(Table):
                 except Exception as e:
                     classify_error(e)
                     log.error(e)
+                    log.error(insert_statement)
                     connection.rollback()
                 else:
                     connection.commit()
