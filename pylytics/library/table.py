@@ -59,7 +59,7 @@ class _ColumnSet(object):
     @property
     def composite_key(self):
         """Returns the values which make up the composite unique key."""
-        _ = (AutoColumn, ApplicableFrom, HashKey)
+        _ = (AutoColumn, ApplicableFrom, HashKey, Metric)
         return [c for c in self.columns if not isinstance(c, _)]
 
 
