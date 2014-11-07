@@ -1,3 +1,8 @@
+Version 1.0.2
+-------------
+- Added support for composite unique keys.
+
+
 Version 1.0.1
 -------------
 - Added support for mysql client config files.
