@@ -69,7 +69,10 @@ class TableMetaclass(type):
     """
 
     def __new__(mcs, name, bases, attributes):
-        attributes.setdefault("__tablename__", _camel_to_snake(name))
+        tablename = _camel_to_snake(name)
+        if 'dimension' in [i.__name__.lower() for i in bases]:
+            tablename += '_dimension'
+        attributes.setdefault("__tablename__", tablename)
 
         column_set = _ColumnSet()
         for base in bases:
