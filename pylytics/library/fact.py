@@ -60,12 +60,6 @@ class Fact(Table):
         for dimension_key in cls.__dimensionkeys__:
             dimension_key.dimension.build()
         super(Fact, cls).build()
-        # TODO: copy view functionality to here
-        # TODO: Fix the rolling view for when the same dimensions is used
-        # twice. The problem is having multiple join clauses.
-        # Need something like this instead - INNER JOIN X AS Y ON ...
-        # cls.create_or_replace_rolling_view()
-        # cls.create_or_replace_midnight_view() -- only if a date column is defined
 
     @classmethod
     def update(cls, since=None, historical=False):
@@ -95,51 +89,6 @@ class Fact(Table):
 
         """
         cls.update(historical=True)
-
-    @classmethod
-    def create_or_replace_rolling_view(cls):
-        """ Build a base level view against the table that explodes all
-        dimension data into one wider set of columns.
-        """
-        fact_table_name = cls.__tablename__
-        view_name = _raw_name(fact_table_name) + "_rolling_view"
-        columns = ["`fact`.`id` AS fact_id"]
-        clauses = ["CREATE OR REPLACE VIEW {view} AS",
-                   "SELECT\n    {columns}",
-                   "FROM {source} AS fact"]
-        for fact_column in cls.__columns__:
-            if isinstance(fact_column, DimensionKey):
-                dimension = fact_column.dimension
-                table_name = dimension.__tablename__
-                escaped_table_name = escaped(table_name)
-                for dim_column in dimension.__columns__:
-                    column_name = dim_column.name
-                    alias = _column_name(table_name, column_name)
-                    columns.append("%s.%s AS %s" % (
-                        escaped_table_name,
-                        escaped(column_name),
-                        escaped(alias)))
-                clauses.append("INNER JOIN %s ON %s.`id` = `fact`.%s" % (
-                    escaped_table_name, escaped_table_name,
-                    escaped(fact_column.name)))
-            elif isinstance(fact_column, Metric):
-                columns.append("`fact`.%s AS %s" % (
-                    escaped(fact_column.name),
-                    escaped(_raw_name(fact_column.name))))
-        sql = "\n".join(clauses).format(
-            view=escaped(view_name),
-            source=escaped(fact_table_name),
-            columns=",\n    ".join(columns))
-
-        connection = Warehouse.get()
-        try:
-            with closing(connection.cursor()) as cursor:
-                cursor.execute(sql)
-        except:
-            # TODO We want to log the sql to file.
-            connection.rollback()
-        else:
-            connection.commit()
 
     @classmethod
     def insert(cls, *instances):
