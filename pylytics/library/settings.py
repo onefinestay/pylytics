@@ -2,6 +2,7 @@
 
 from __future__ import unicode_literals
 
+import imp
 import logging
 import os
 from importlib import import_module
@@ -52,11 +53,11 @@ class Settings(object):
         listed in `modules`.
         """
         if cls.__instance is None:
-            cls.__instance = cls.load(*cls.modules)
+            cls.__instance = cls.load(cls.modules)
         return cls.__instance
 
     @classmethod
-    def load(cls, *modules):
+    def load(cls, modules, from_path=False):
         """ Load settings from one or more settings modules.
 
         This routine will attempt to load each settings module
@@ -70,7 +71,11 @@ class Settings(object):
         inst = cls()
         for module_name in modules:
             try:
-                module = import_module(module_name)
+                if from_path:
+                    path, filename = os.path.split(module_name)
+                    module = imp.load_source(filename.split('.')[0], path)
+                else:
+                    module = import_module(module_name)
             except ImportError:
                 log.debug("[%s] No settings found for '%s'", bright_black('✗'),
                     module_name)

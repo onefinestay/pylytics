@@ -46,6 +46,13 @@ class DatabaseGoneAwayError(OperationalError):
     code = 2006
 
 
+class BrokenPipeError(OperationalError):
+    """ Raised when the connection dies, usually from a stale connection being
+    used.
+    """
+    code = 2055
+
+
 class NoSuchTableError(ProgrammingError):
     """ Raised when a reference is made to a non-existent table.
 
@@ -62,7 +69,7 @@ def classify_error(error):
     """
     if isinstance(error, OperationalError):
         for error_class in [CantCreateTableError, BadNullError, BadFieldError,
-                            DatabaseGoneAwayError]:        
+                            DatabaseGoneAwayError, BrokenPipeError]:
             if error.args[0] == error_class.code:
                 error.__class__ = error_class
 

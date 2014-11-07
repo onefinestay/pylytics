@@ -7,7 +7,7 @@ from exceptions import classify_error
 from schedule import Schedule
 from selector import DimensionSelector
 from table import Table
-from utils import dump, escaped
+from utils import dump, escaped, raw_sql
 from warehouse import Warehouse
 
 
@@ -41,6 +41,7 @@ class Fact(Table):
     # in by the TableMetaclass on creation.
     __dimensionkeys__ = NotImplemented
     __metrics__ = NotImplemented
+    __compositekey__ = NotImplemented
 
     # These attributes aren't touched by the metaclass.
     __dimension_selector__ = DimensionSelector()
@@ -48,19 +49,17 @@ class Fact(Table):
     __historical_source__ = None
 
     id = PrimaryKey()
+    hash_key = HashKey()
     created = CreatedTimestamp()
+
+    def __init__(self, *args, **kwargs):
+        self['hash_key'] = raw_sql("UNHEX(SHA1(CONCAT_WS(',', %s)))" % ', '.join(["IFNULL(%s,'NULL')" % escaped(c.name) for c in self.__compositekey__]))
 
     @classmethod
     def build(cls):
         for dimension_key in cls.__dimensionkeys__:
             dimension_key.dimension.build()
         super(Fact, cls).build()
-        # TODO: copy view functionality to here
-        # TODO: Fix the rolling view for when the same dimensions is used
-        # twice. The problem is having multiple join clauses.
-        # Need something like this instead - INNER JOIN X AS Y ON ...
-        # cls.create_or_replace_rolling_view()
-        # cls.create_or_replace_midnight_view() -- only if a date column is defined
 
     @classmethod
     def update(cls, since=None, historical=False):
@@ -92,70 +91,17 @@ class Fact(Table):
         cls.update(historical=True)
 
     @classmethod
-    def create_or_replace_rolling_view(cls):
-        """ Build a base level view against the table that explodes all
-        dimension data into one wider set of columns.
-        """
-        fact_table_name = cls.__tablename__
-        view_name = _raw_name(fact_table_name) + "_rolling_view"
-        columns = ["`fact`.`id` AS fact_id"]
-        clauses = ["CREATE OR REPLACE VIEW {view} AS",
-                   "SELECT\n    {columns}",
-                   "FROM {source} AS fact"]
-        for fact_column in cls.__columns__:
-            if isinstance(fact_column, DimensionKey):
-                dimension = fact_column.dimension
-                table_name = dimension.__tablename__
-                escaped_table_name = escaped(table_name)
-                for dim_column in dimension.__columns__:
-                    column_name = dim_column.name
-                    alias = _column_name(table_name, column_name)
-                    columns.append("%s.%s AS %s" % (
-                        escaped_table_name,
-                        escaped(column_name),
-                        escaped(alias)))
-                clauses.append("INNER JOIN %s ON %s.`id` = `fact`.%s" % (
-                    escaped_table_name, escaped_table_name,
-                    escaped(fact_column.name)))
-            elif isinstance(fact_column, Metric):
-                columns.append("`fact`.%s AS %s" % (
-                    escaped(fact_column.name),
-                    escaped(_raw_name(fact_column.name))))
-        sql = "\n".join(clauses).format(
-            view=escaped(view_name),
-            source=escaped(fact_table_name),
-            columns=",\n    ".join(columns))
-
-        connection = Warehouse.get()
-        try:
-            with closing(connection.cursor()) as cursor:
-                cursor.execute(sql)
-        except:
-            # TODO We want to log the sql to file.
-            connection.rollback()
-        else:
-            connection.commit()
-
-    @classmethod
     def insert(cls, *instances):
         """ Insert fact instances (overridden to handle Dimensions correctly)
         """
         if instances:
             columns = [column for column in cls.__columns__
                        if not isinstance(column, AutoColumn)]
-            sql = "INSERT INTO %s (\n  %s\n)\n" % (
-                escaped(cls.__tablename__),
+            sql = "%s INTO %s (\n  %s\n)\n" % (
+                cls.INSERT, escaped(cls.__tablename__),
                 ",\n  ".join(escaped(column.name) for column in columns))
 
-            # We can't insert too many at once, otherwise the target
-            # database will 'go away'.
-            # TODO These should be dynamically sized based on the
-            # max_packet_size.
-            # TODO Move this batching into a separate method.
-            batch_size = 1000
-            batch_number = int(math.ceil(len(instances) / float(batch_size)))
-            batches = [instances[i * batch_size:(i + 1) * batch_size] for i in xrange(batch_number)]
-
+            batches = cls.batch(instances)
             for iteration, batch in enumerate(batches, start=1):
                 log.debug('Inserting batch %s' % (iteration),
                           extra={"table": cls.__tablename__})
@@ -178,7 +124,6 @@ class Fact(Table):
                             values.append(dump(value))
                     insert_statement += link + (" (\n  %s\n)" % ",\n  ".join(values))
                     link = ","
-
                 connection = Warehouse.get()
                 try:
                     with closing(connection.cursor()) as cursor:
@@ -186,7 +131,7 @@ class Fact(Table):
                 except Exception as e:
                     classify_error(e)
                     log.error(e)
-                    # TODO We want to log the sql to file.
+                    log.error(insert_statement)
                     connection.rollback()
                 else:
                     connection.commit()
