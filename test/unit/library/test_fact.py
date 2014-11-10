@@ -188,7 +188,7 @@ def test_can_create_dimension_only_if_not_exists(empty_warehouse):
 
 
 def test_dimension_has_sensible_defaults():
-    assert Place.__tablename__ == "place"
+    assert Place.__tablename__ == "place_dimension"
     columns = Place.__columns__
     assert columns[0].name == "id"
     assert columns[-1].name == "created"
