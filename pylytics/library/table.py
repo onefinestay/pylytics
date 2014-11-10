@@ -69,7 +69,10 @@ class TableMetaclass(type):
     """
 
     def __new__(mcs, name, bases, attributes):
-        attributes.setdefault("__tablename__", _camel_to_snake(name))
+        tablename = _camel_to_snake(name)
+        if 'dimension' in [i.__name__.lower() for i in bases]:
+            tablename += '_dimension'
+        attributes.setdefault("__tablename__", tablename)
 
         column_set = _ColumnSet()
         for base in bases:
@@ -256,27 +259,27 @@ class Table(object):
                 cls.INSERT, escaped(cls.__tablename__),
                 ",\n  ".join(escaped(column.name) for column in columns))
 
-            insert_statement = sql
-            link = "VALUES"
-
             batches = cls.batch(instances)
             for iteration, batch in enumerate(batches, start=1):
                 log.debug('Inserting batch %s' % (iteration),
                           extra={"table": cls.__tablename__})
+
+                insert_statement = sql
+                link = "VALUES"
 
                 for instance in batch:
                     values = []
                     for column in columns:
                         value = instance[column.name]
                         values.append(dump(value))
-                    sql += link + (" (\n  %s\n)" % ",\n  ".join(values))
+                    insert_statement += link + (" (\n  %s\n)" % ",\n  ".join(values))
                     link = ","
 
                 for i in range(1, 3):
                     connection = Warehouse.get()
                     try:
                         cursor = connection.cursor()
-                        cursor.execute(sql)
+                        cursor.execute(insert_statement)
                         cursor.close()
 
                     except Exception as e:
