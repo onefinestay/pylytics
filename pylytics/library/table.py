@@ -1,8 +1,12 @@
 from contextlib import closing
 from datetime import date
 from distutils.version import StrictVersion
+from functools import partial
 import logging
 import math
+import time
+
+from pathos import multiprocessing
 
 from column import *
 from exceptions import classify_error, BrokenPipeError
@@ -12,6 +16,21 @@ from warehouse import Warehouse
 
 
 log = logging.getLogger("pylytics")
+
+
+def get_insert_statements(batch, insert_header, columns):
+    insert_statement = insert_header
+    link = "VALUES"
+
+    for instance in batch:
+        values = []
+        for column in columns:
+            value = instance[column.name]
+            values.append(dump(value))
+        insert_statement += link + (" (\n  %s\n)" % ",\n  ".join(values))
+        link = ","
+
+    return insert_statement
 
 
 class _ColumnSet(object):
@@ -255,25 +274,51 @@ class Table(object):
             columns = [column for column in cls.__columns__
                        if not isinstance(column, AutoColumn)]
 
-            sql = "%s INTO %s (\n  %s\n)\n" % (
+            insert_header = "%s INTO %s (\n  %s\n)\n" % (
                 cls.INSERT, escaped(cls.__tablename__),
                 ",\n  ".join(escaped(column.name) for column in columns))
 
+            ###################################################################
+
+            # This operation is CPU bound.
+            # Strip this back as much as possible, and make it a library
+            # function?
+
             batches = cls.batch(instances)
-            for iteration, batch in enumerate(batches, start=1):
+
+            insert_statements = []
+            cores = multiprocessing.cpu_count() if settings.ENABLE_MP else 1
+
+            p_get_insert_statements = partial(
+                get_insert_statements,
+                insert_header=insert_header,
+                columns=columns,
+                )
+
+            pool = multiprocessing.Pool(cores)
+            for batch in batches:
+                pool.apply_async(
+                    p_get_insert_statements,
+                    args = (batch,),
+                    callback=(lambda x: insert_statements.append(x)),
+                    )
+
+            while True:
+                i = len(insert_statements)
+                b = len(batches)
+                log.info('%s batches have finished out of %s.' % (i, b),
+                         extra={"table": cls.__tablename__})
+                if i == b:
+                    break
+                else:
+                    time.sleep(1)
+
+            ###################################################################
+
+            for iteration, insert_statement in enumerate(insert_statements,
+                                                         start=1):
                 log.debug('Inserting batch %s' % (iteration),
                           extra={"table": cls.__tablename__})
-
-                insert_statement = sql
-                link = "VALUES"
-
-                for instance in batch:
-                    values = []
-                    for column in columns:
-                        value = instance[column.name]
-                        values.append(dump(value))
-                    insert_statement += link + (" (\n  %s\n)" % ",\n  ".join(values))
-                    link = ","
 
                 for i in range(1, 3):
                     connection = Warehouse.get()

@@ -52,7 +52,7 @@ class Source(object):
         pass
 
     @classmethod
-    def select(cls, for_class, since=None):
+    def select(cls, for_class, since=None):        
         for record in cls.execute(since=since):
             dict_record = dict(record)
             cls._apply_expansions(dict_record)
