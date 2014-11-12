@@ -1,11 +1,13 @@
 from contextlib import closing
+from functools import partial
+import itertools
 import json
 import logging
 
 from column import *
 from connection import NamedConnection
 from table import Table
-from utils import dump
+from utils import batch_process, dump
 from warehouse import Warehouse
 
 
@@ -26,6 +28,13 @@ def hydrated(cls, data):
         except KeyError:
             log.debug("No column found for key '%s'", key)
     return inst
+
+
+def hydrated_batch(cls, rows):
+    results = []
+    for row in rows:
+        results.append(hydrated(cls, row))
+    return results
 
 
 class Source(object):
@@ -52,11 +61,24 @@ class Source(object):
         pass
 
     @classmethod
-    def select(cls, for_class, since=None):        
-        for record in cls.execute(since=since):
+    def select(cls, for_class, since=None):
+        records = cls.execute(since=since)
+
+        expanded_records = []
+        for record in records:
             dict_record = dict(record)
             cls._apply_expansions(dict_record)
-            yield hydrated(for_class, dict_record.items())
+            expanded_records.append(dict_record.items())
+
+        # We have to do this so multiprocessing will work.
+        # When we define a Source, it returns a modified Source class, which
+        # causes pickle to complain.
+        for_class.__source__ = None
+        for_class.__historical_source__ = None
+
+        results = batch_process(expanded_records, hydrated_batch, for_class)
+        # Combine the results into one list.
+        return list(itertools.chain(*results))
 
     @classmethod
     def _apply_expansions(cls, data):
@@ -100,8 +122,7 @@ class DatabaseSource(Source):
                     # the connection might timeout.
                     rows.append(row)
 
-        for row in rows:
-            yield row
+        return rows
 
 
 class CallableSource(Source):
@@ -119,8 +140,7 @@ class CallableSource(Source):
         _callable = getattr(cls, "_callable")
         args = getattr(cls, "args", [])
         kwargs = getattr(cls, "kwargs", {})
-        for row in _callable(*args, **kwargs):
-            yield list(row)
+        return _callable(*args, **kwargs)
 
 
 class Staging(Source, Table):

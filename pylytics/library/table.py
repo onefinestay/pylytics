@@ -11,7 +11,7 @@ from pathos import multiprocessing
 from column import *
 from exceptions import classify_error, BrokenPipeError
 from settings import settings
-from utils import _camel_to_snake, dump, escaped
+from utils import _camel_to_snake, batch_up, dump, escaped
 from warehouse import Warehouse
 
 
@@ -257,14 +257,6 @@ class Table(object):
                 source.finish(cls)
         else:
             raise NotImplementedError("No data source defined")
-    
-    @classmethod
-    def batch(cls, instances):
-        """ Subdivides instances into smaller batches ready for insertion."""
-        batch_size = settings.BATCH_SIZE
-        batch_number = int(math.ceil(len(instances) / float(batch_size)))
-        batches = [instances[i * batch_size:(i + 1) * batch_size] for i in xrange(batch_number)]
-        return batches
 
     @classmethod
     def insert(cls, *instances):
@@ -280,11 +272,10 @@ class Table(object):
 
             ###################################################################
 
-            # This operation is CPU bound.
-            # Strip this back as much as possible, and make it a library
-            # function?
+            # This operation is CPU bound - multiprocessing can help
+            # considerably on a powerful machine.
 
-            batches = cls.batch(instances)
+            batches = batch_up(instances, 100)
 
             insert_statements = []
             cores = multiprocessing.cpu_count() if settings.ENABLE_MP else 1
