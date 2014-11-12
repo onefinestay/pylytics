@@ -11,7 +11,7 @@ from pathos import multiprocessing
 from column import *
 from exceptions import classify_error, BrokenPipeError
 from settings import settings
-from utils import _camel_to_snake, batch_up, dump, escaped
+from utils import _camel_to_snake, batch_process, batch_up, dump, escaped
 from warehouse import Warehouse
 
 
@@ -30,7 +30,7 @@ def get_insert_statements(batch, insert_header, columns):
         insert_statement += link + (" (\n  %s\n)" % ",\n  ".join(values))
         link = ","
 
-    return insert_statement
+    return [insert_statement]
 
 
 class _ColumnSet(object):
@@ -245,8 +245,8 @@ class Table(object):
         source = cls.__historical_source__ if historical else cls.__source__
         if source:
             try:
-                for inst in source.select(cls, since=since):
-                    yield inst
+                rows = source.select(cls, since=since)
+                return rows
             except Exception as error:
                 log.error("Error raised while fetching data: (%s: %s)",
                           error.__class__.__name__, error,
@@ -275,10 +275,8 @@ class Table(object):
             # This operation is CPU bound - multiprocessing can help
             # considerably on a powerful machine.
 
-            batches = batch_up(instances, 100)
-
-            insert_statements = []
-            cores = multiprocessing.cpu_count() if settings.ENABLE_MP else 1
+            log.info('Preparing insert statements.',
+                     extra={"table": cls.__tablename__})
 
             p_get_insert_statements = partial(
                 get_insert_statements,
@@ -286,25 +284,15 @@ class Table(object):
                 columns=columns,
                 )
 
-            pool = multiprocessing.Pool(cores)
-            for batch in batches:
-                pool.apply_async(
-                    p_get_insert_statements,
-                    args = (batch,),
-                    callback=(lambda x: insert_statements.append(x)),
-                    )
-
-            while True:
-                i = len(insert_statements)
-                b = len(batches)
-                log.info('%s batches have finished out of %s.' % (i, b),
-                         extra={"table": cls.__tablename__})
-                if i == b:
-                    break
-                else:
-                    time.sleep(1)
+            insert_statements = batch_process(
+                instances,
+                p_get_insert_statements,
+                tablename=cls.__tablename__
+                )
 
             ###################################################################
+
+            b_insert_statements = batch_up(insert_statements, settings.BATCH_SIZE)
 
             for iteration, insert_statement in enumerate(insert_statements,
                                                          start=1):

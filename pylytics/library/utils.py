@@ -1,4 +1,5 @@
 import datetime
+import itertools
 import logging
 import math
 import re
@@ -72,36 +73,50 @@ def batch_up(iterable, batch_size):
     return batches
 
 
-def batch_process(iterable, function, for_class):
+def batch_process(iterable, function, *args, **kwargs):
     """
     Uses multiprocessing to asynchronously process the data in `iterable`, by
     splitting it into batches, and passing it to `function`.
 
     Returns:
-        A list of results from each batch.
+        A combined list of the results from each batch.
 
     """
     cores = multiprocessing.cpu_count() if settings.ENABLE_MP else 1
     batch_size = int(math.ceil(float(len(iterable)) / cores))
-    batches = batch_up(iterable, batch_size)
 
     results = []
+
+    if not batch_size:
+        return results
+
+    batches = batch_up(iterable, batch_size)
 
     pool = multiprocessing.Pool(cores)
     for batch in batches:
         pool.apply_async(
             function,
-            args = (for_class, batch),
+            args = args + (batch,),
             callback=(lambda x: results.append(x)),
             )
 
+    increment = 0
+    no_of_batches = len(batches)
     while True:
         i = len(results)
-        b = len(batches)
-        # log.info('%s batches have finished out of %s.' % (i, b))
-        if i == b:
+
+        if i > increment:
+            log.info('%s of %s batches have finished.' % (i, no_of_batches),
+                     extra={"table": kwargs['tablename']})
+            increment += 1
+
+        if i == no_of_batches:
             break
         else:
             time.sleep(1)
 
-    return results
+    flattened = []
+    for i in results:
+        flattened.extend(i)
+
+    return flattened

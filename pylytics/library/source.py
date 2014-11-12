@@ -19,7 +19,6 @@ def hydrated(cls, data):
     """ Inflate the data provided into an instance of a table class
     by mapping key to column name.
     """
-    log.debug("Hydrating data %s", data)
     inst = cls()
     # TODO Isn't dict(data).items() redundant?
     for key, value in dict(data).items():
@@ -76,9 +75,9 @@ class Source(object):
         for_class.__source__ = None
         for_class.__historical_source__ = None
 
-        results = batch_process(expanded_records, hydrated_batch, for_class)
-        # Combine the results into one list.
-        return list(itertools.chain(*results))
+        log.info('Hydrating data.', extra={"table": for_class.__tablename__})
+        return batch_process(expanded_records, hydrated_batch, for_class,
+            tablename=for_class.__tablename__)
 
     @classmethod
     def _apply_expansions(cls, data):
