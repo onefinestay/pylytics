@@ -9,7 +9,7 @@ def get_now():
     and rounded down to the nearest 10 minutes.
 
     """
-    now = datetime.datetime.now(tz=UTC).time()
+    now = datetime.datetime.now(tz=UTC).timetz()
     now.replace(second=0)
     now.replace(microsecond=0)
     now.replace(minute=(now.minute - now.minute % 10))
