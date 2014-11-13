@@ -10,10 +10,11 @@ def get_now():
 
     """
     now = datetime.datetime.now(tz=UTC).timetz()
-    now.replace(second=0)
-    now.replace(microsecond=0)
-    now.replace(minute=(now.minute - now.minute % 10))
-    return now
+    return now.replace(
+        minute=(now.minute - now.minute % 10),
+        second=0,
+        microsecond=0,
+        )
 
 
 class Schedule(object):
