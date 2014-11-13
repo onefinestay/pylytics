@@ -1,3 +1,8 @@
+Version 1.0.4
+-------------
+- Fixes to scheduling, and increased coverage.
+
+
 Version 1.0.3
 -------------
 - Dimension table names now end in _dimension by default.
