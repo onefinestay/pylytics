@@ -15,6 +15,9 @@ class Dimension(Table):
     __naturalkeys__ = NotImplemented
     __compositekey__ = NotImplemented
 
+    __source__ = None
+    __historical_source__ = None
+
     id = PrimaryKey()
     hash_key = HashKey()
     applicable_from = ApplicableFrom()

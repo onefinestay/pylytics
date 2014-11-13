@@ -7,7 +7,7 @@ from exceptions import classify_error
 from schedule import Schedule
 from selector import DimensionSelector
 from table import Table
-from utils import dump, escaped, raw_sql
+from utils import batch_up, dump, escaped, raw_sql
 from warehouse import Warehouse
 
 
@@ -101,7 +101,7 @@ class Fact(Table):
                 cls.INSERT, escaped(cls.__tablename__),
                 ",\n  ".join(escaped(column.name) for column in columns))
 
-            batches = cls.batch(instances)
+            batches = batch_up(instances, 1000)
             for iteration, batch in enumerate(batches, start=1):
                 log.debug('Inserting batch %s' % (iteration),
                           extra={"table": cls.__tablename__})

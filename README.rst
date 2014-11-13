@@ -39,9 +39,9 @@ Installing the MySQL connector
 
 Pylytics v1 uses Oracle's Python MySQL adapter. It can be installed using pip, but isn't hosted on PyPi.
 
-Depending on your version of pip, you may need to install the requirements as follows::
+Depending on your version of pip, you may need to install the requirements as follows, which allows externally hosted packages to be installed::
 
-    pip install -r requirements.txt --allow-external mysql-connector-python
+    pip install -r requirements.txt --allow-external mysql-connector-python pp
 
 
 Supported MySQL version

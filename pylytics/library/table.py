@@ -1,17 +1,36 @@
 from contextlib import closing
 from datetime import date
 from distutils.version import StrictVersion
+from functools import partial
 import logging
 import math
+import time
+
+from pathos import multiprocessing
 
 from column import *
 from exceptions import classify_error, BrokenPipeError
 from settings import settings
-from utils import _camel_to_snake, dump, escaped
+from utils import _camel_to_snake, batch_process, batch_up, dump, escaped
 from warehouse import Warehouse
 
 
 log = logging.getLogger("pylytics")
+
+
+def get_insert_statements(batch, insert_header, columns):
+    insert_statement = insert_header
+    link = "VALUES"
+
+    for instance in batch:
+        values = []
+        for column in columns:
+            value = instance[column.name]
+            values.append(dump(value))
+        insert_statement += link + (" (\n  %s\n)" % ",\n  ".join(values))
+        link = ","
+
+    return [insert_statement]
 
 
 class _ColumnSet(object):
@@ -226,8 +245,8 @@ class Table(object):
         source = cls.__historical_source__ if historical else cls.__source__
         if source:
             try:
-                for inst in source.select(cls, since=since):
-                    yield inst
+                rows = source.select(cls, since=since)
+                return rows
             except Exception as error:
                 log.error("Error raised while fetching data: (%s: %s)",
                           error.__class__.__name__, error,
@@ -238,14 +257,6 @@ class Table(object):
                 source.finish(cls)
         else:
             raise NotImplementedError("No data source defined")
-    
-    @classmethod
-    def batch(cls, instances):
-        """ Subdivides instances into smaller batches ready for insertion."""
-        batch_size = settings.BATCH_SIZE
-        batch_number = int(math.ceil(len(instances) / float(batch_size)))
-        batches = [instances[i * batch_size:(i + 1) * batch_size] for i in xrange(batch_number)]
-        return batches
 
     @classmethod
     def insert(cls, *instances):
@@ -255,25 +266,38 @@ class Table(object):
             columns = [column for column in cls.__columns__
                        if not isinstance(column, AutoColumn)]
 
-            sql = "%s INTO %s (\n  %s\n)\n" % (
+            insert_header = "%s INTO %s (\n  %s\n)\n" % (
                 cls.INSERT, escaped(cls.__tablename__),
                 ",\n  ".join(escaped(column.name) for column in columns))
 
-            batches = cls.batch(instances)
-            for iteration, batch in enumerate(batches, start=1):
+            ###################################################################
+
+            # This operation is CPU bound - multiprocessing can help
+            # considerably on a powerful machine.
+
+            log.info('Preparing insert statements.',
+                     extra={"table": cls.__tablename__})
+
+            p_get_insert_statements = partial(
+                get_insert_statements,
+                insert_header=insert_header,
+                columns=columns,
+                )
+
+            insert_statements = batch_process(
+                instances,
+                p_get_insert_statements,
+                tablename=cls.__tablename__
+                )
+
+            ###################################################################
+
+            b_insert_statements = batch_up(insert_statements, settings.BATCH_SIZE)
+
+            for iteration, insert_statement in enumerate(insert_statements,
+                                                         start=1):
                 log.debug('Inserting batch %s' % (iteration),
                           extra={"table": cls.__tablename__})
-
-                insert_statement = sql
-                link = "VALUES"
-
-                for instance in batch:
-                    values = []
-                    for column in columns:
-                        value = instance[column.name]
-                        values.append(dump(value))
-                    insert_statement += link + (" (\n  %s\n)" % ",\n  ".join(values))
-                    link = ","
 
                 for i in range(1, 3):
                     connection = Warehouse.get()
