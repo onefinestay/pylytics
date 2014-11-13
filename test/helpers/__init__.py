@@ -13,6 +13,7 @@ def execute(connection, statement):
     cursor.close()
 
 
+# TODO This is redundant now - use get_named_connection instead.
 def db_fixture(database):
     """ Create and return a database fixture based on details from the
     global database settings.

@@ -5,14 +5,7 @@ import pytest
 from pylytics.library.dimension import Dimension
 from pylytics.library.column import Column, NaturalKey
 from pylytics.library.warehouse import Warehouse
-
-
-# TODO This needs to go somewhere shared.
-class Store(Dimension):
-    __source__ = NotImplemented
-
-    store_id = NaturalKey('store_id', int, size=10)
-    manager = Column('manager', str, size=100)
+from test.dummy_project import Store
 
 
 @pytest.fixture

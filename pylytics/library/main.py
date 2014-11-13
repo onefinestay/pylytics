@@ -56,21 +56,6 @@ def print_summary(errors):
         log.info("\n".join(items))
 
 
-def valid_time_range(start_time, end_time, delta):
-    # We have to convert time objects to datetime so timedeltas can be used.
-    fake_date = datetime.date(2000, 1, 1)
-    start = datetime.datetime.combine(fake_date, start_time)
-    end = datetime.datetime.combine(fake_date, end_time)
-
-    while start < end:
-        yield start.time()
-        start += delta
-
-        if start.date().day == 2:
-            # Time has wrapped around.
-            break
-
-
 def find_scheduled(all_fact_classes):
     """
     Finds which facts are scheduled to run now.
@@ -85,21 +70,8 @@ def find_scheduled(all_fact_classes):
     """
     facts_to_update = []
 
-    now = datetime.datetime.now(tz=UTC).time()
-    now.replace(second=0)
-    now.replace(microsecond=0)
-    now.replace(minute=(now.minute - now.minute % 10))
-
     for fact in all_fact_classes:
-        starts = fact.__scheduled__.starts_tzaware
-        ends = fact.__scheduled__.ends_tzaware
-        repeats = fact.__scheduled__.repeats
-
-        if starts > current_time:
-            continue
-        elif ends < current_time:
-            continue
-        elif current_time in valid_time_range(start, ends, repeats):
+        if fact.__schedule__.should_run:
             facts_to_update.append(fact)
 
     return facts_to_update
