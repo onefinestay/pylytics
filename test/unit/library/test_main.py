@@ -7,7 +7,7 @@ from pytz import UTC
 from pylytics.library.main import find_scheduled
 from pylytics.library.schedule import Schedule
 
-from test.dummy_project import Product, Sales, Store
+from test.dummy_project import Sales
 
 
 @pytest.mark.parametrize(('schedule', 'should_run'), [
@@ -36,7 +36,6 @@ from test.dummy_project import Product, Sales, Store
 def test_find_scheduled(get_now, schedule, should_run):
     get_now.return_value = time(hour=1, tzinfo=UTC)
 
-    SalesMock = Mock(Sales)
     SalesMock = Mock(Sales)
     SalesMock.__schedule__ = schedule
 
