@@ -1,20 +1,44 @@
 from datetime import time, timedelta
 
-from pylytics.library.main import valid_time_range
+from mock import Mock, patch
+import pytest
+from pytz import UTC
+
+from pylytics.library.main import find_scheduled
+from pylytics.library.schedule import Schedule
+
+from test.dummy_project import Sales
 
 
-def test_valid_time_range():
-    start_time = time(hour=0)
-    end_time = time(hour=23, minute=59)
-    delta = timedelta(minutes=30)
+@pytest.mark.parametrize(('schedule', 'should_run'), [
+    (
+        Schedule(repeats=timedelta(hours=1)),
+        True
+    ),
+    (
+        Schedule(repeats=timedelta(minutes=10)),
+        True
+    ),
+    (
+        Schedule(starts=time(hour=2, tzinfo=UTC)),
+        False
+    ),
+    (
+        Schedule(repeats=timedelta(hours=2)),
+        False
+    ),
+    (
+        Schedule(),  # Defaults to just running at midnight.
+        False
+    ),
+])
+@patch('pylytics.library.schedule.get_now')
+def test_find_scheduled(get_now, schedule, should_run):
+    get_now.return_value = time(hour=1, tzinfo=UTC)
 
-    values = []
-    for i in valid_time_range(start_time, end_time, delta):
-        values.append(i)
+    SalesMock = Mock(Sales)
+    SalesMock.__schedule__ = schedule
 
-    # Test a range of values.
-    assert start_time in values
-    assert time(hour=0, minute=30) in values
-    assert time(hour=6) in values
-    assert time(hour=23, minute=30) in values
-    assert len(values) == 48
+    scheduled_facts = find_scheduled([SalesMock])
+    present = SalesMock in scheduled_facts
+    assert present == should_run

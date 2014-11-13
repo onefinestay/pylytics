@@ -11,38 +11,15 @@ import datetime
 import pytest
 from mysql.connector.errors import OperationalError
 
-from pylytics.library.column import Column, DimensionKey, NaturalKey
-from pylytics.library.dimension import Dimension
-from pylytics.library.fact import Fact
 from pylytics.library.warehouse import Warehouse
 from pylytics.library.main import enable_logging
+from test.dummy_project import Product, Sales, Store
 
 
 # The fact table generated is MAX_ITERATIONS ^ 2.
 MAX_ITERATIONS = 1001
 
 log = logging.getLogger("pylytics")
-
-
-class Store(Dimension):
-    __source__ = NotImplemented
-
-    store_id = NaturalKey('store_id', int, size=10)
-    manager = Column('manager', str, size=100)
-
-
-class Product(Dimension):
-    __source__ = NotImplemented
-
-    product_id = NaturalKey('product_id', int, size=10)
-    product_name = Column('product_name', str, size=100)
-
-
-class Sales(Fact):
-    __source__ = NotImplemented
-    
-    product = DimensionKey('product', Product)
-    store = DimensionKey('store', Store)
 
 
 def _generate_store():
