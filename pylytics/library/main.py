@@ -91,9 +91,9 @@ def find_scheduled(all_fact_classes):
     now.replace(minute=(now.minute - now.minute % 10))
 
     for fact in all_fact_classes:
-        starts = fact.__scheduled__.starts_tzaware
-        ends = fact.__scheduled__.ends_tzaware
-        repeats = fact.__scheduled__.repeats
+        starts = fact.__schedule__.starts_tzaware
+        ends = fact.__schedule__.ends_tzaware
+        repeats = fact.__schedule__.repeats
 
         if starts > current_time:
             continue
