@@ -20,19 +20,24 @@ class Schedule(object):
     """
     Used for scheduling when facts will update.
 
-    The assumption here is that facts will update at least once a day.
+    The assumption here is that facts will update at least once a day i.e.
+    even if Schedule isn't specified, the fact will still run at midnight
+    each day.
 
     """
 
     def __init__(self, starts=datetime.time(hour=0),
-                 ends=datetime.time(hour=23, minute=59), repeats=None,
+                 ends=datetime.time(hour=23, minute=59),
+                 repeats=datetime.timedelta(days=1),
                  timezone=UTC):
         """
         Args:
             starts:
-                A time object for the earliest time the fact will update.
+                A time object for the earliest time the fact will update each
+                day.
             ends:
-                A time object for the latest time the fact will update.
+                A time object for the latest time the fact will update each
+                day.
             repeats:
                 A timedelta object, representing when the fact will update.
                 For example timedelta(minute=30) will update every 30 minutes
@@ -75,7 +80,7 @@ class Schedule(object):
 
     @property
     def should_run(self):
-        """ Returns True of False depending on if this fact should run or not.
+        """ Returns True or False depending on if this fact should run or not.
         """
         now = get_now()
         starts = self.starts_tzaware
