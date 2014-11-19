@@ -58,6 +58,6 @@ setup(
         'pylytics/bin/pylytics-admin.py',
     ],
     url='https://github.com/onefinestay/pylytics',
-    version='1.0.4.1',
+    version='1.0.5',
     zip_safe=False,
     )

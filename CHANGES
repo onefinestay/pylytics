@@ -1,3 +1,8 @@
+Version 1.0.5
+---------------
+- Extra rows can now be added to the result of a query.
+
+
 Version 1.0.4.1
 ---------------
 - Hot fix for v.1.0.4.
