@@ -53,10 +53,12 @@ class Source(object):
 
     @classmethod
     def select(cls, for_class, since=None):
-        for record in cls.execute(since=since):
-            dict_record = dict(record)
-            cls._apply_expansions(dict_record)
-            yield hydrated(for_class, dict_record.items())
+        for source in (cls.execute(since=since),
+                       getattr(cls, 'extra_rows', [])):
+            for record in source:
+                dict_record = dict(record)
+                cls._apply_expansions(dict_record)
+                yield hydrated(for_class, dict_record.items())
 
     @classmethod
     def _apply_expansions(cls, data):
@@ -120,7 +122,7 @@ class CallableSource(Source):
         args = getattr(cls, "args", [])
         kwargs = getattr(cls, "kwargs", {})
         for row in _callable(*args, **kwargs):
-            yield list(row)
+            yield row
 
 
 class Staging(Source, Table):

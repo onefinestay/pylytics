@@ -31,7 +31,7 @@ class Warehouse(object):
         """
         if cls.__connection is None:
             log.warning("No data warehouse connection defined")
-        if not cls.__connection.is_connected():
+        elif not cls.__connection.is_connected():
             cls.__connection.reconnect(attempts=5)
         return cls.__connection
 
