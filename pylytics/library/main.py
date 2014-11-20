@@ -30,6 +30,13 @@ TITLE = r"""
 """
 
 
+def get_all_permissions():
+    """Return a list with all role permissions 
+       All files in security folder have a set_role function that need to be executed
+       to get SecurityRole objects
+    """
+    pass
+
 def get_all_fact_classes():
     """Return all of the fact classes available."""
     fact = __import__('fact')
@@ -85,6 +92,7 @@ class Commander(object):
     def run(self, command, *facts):
         """ Run command for each fact in facts.
         """
+
         _connection = connection.get_named_connection(settings.pylytics_db)
         Warehouse.use(_connection)
 
@@ -143,6 +151,9 @@ def enable_logging():
 
 def main():
     """ Main function called by the manage.py from the project directory.
+        TODO: Call get_all_permissions and create_mondrian_schema 
+        (Now it will only create the permissions part, but in the future 
+         all this file should be generated)
     """
     parser = argparse.ArgumentParser(
         description = "Run fact scripts.")
