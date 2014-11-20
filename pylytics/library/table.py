@@ -7,7 +7,8 @@ import math
 from column import *
 from exceptions import classify_error, BrokenPipeError
 from settings import settings
-from utils import _camel_to_snake, dump, escaped
+from template import TemplateConstructor
+from utils import _camel_to_snake, _camel_to_title_case, dump, escaped
 from warehouse import Warehouse
 
 
@@ -73,6 +74,7 @@ class TableMetaclass(type):
         if 'dimension' in [i.__name__.lower() for i in bases]:
             tablename += '_dimension'
         attributes.setdefault("__tablename__", tablename)
+        attributes.setdefault("__schemaname__", _camel_to_title_case(name))
 
         column_set = _ColumnSet()
         for base in bases:
@@ -309,6 +311,10 @@ class Table(object):
         log.info("Fetched %s record%s", count, "" if count == 1 else "s",
                  extra={"table": cls.__tablename__})
         cls.insert(*instances)
+
+    @classmethod
+    def template(cls):
+        print TemplateConstructor(cls).rendered
 
     def __getitem__(self, column_name):
         """ Get a value by table column name.

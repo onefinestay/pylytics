@@ -1,0 +1,9 @@
+<Cube name="{{ table.__schemaname__ }}">
+    <Table name="{{ table.__tablename__ }}" schema="olap"/>
+    {% for dimension in table.__dimensionkeys__ %}
+    <DimensionUsage source="{{ dimension.__schemaname__}}" name="{{ dimension.__schemaname__}}" foreignKey="{{ dimension.name }}" caption="{{ dimension.__schemaname__}}"/>
+    {%- endfor %}
+    {% for metric in table.__metrics__ %}
+    <Measure name="{{ metric.__schemaname__ }}" column="{{ metric.name }}" aggregator="count"/>
+    {%- endfor %}
+</Cube>

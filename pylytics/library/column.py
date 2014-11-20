@@ -49,6 +49,7 @@ class Column(object):
         self.default = default
         self.order = order
         self.comment = comment
+        self.__schemaname__ = name.replace('_', ' ')
 
     def __repr__(self):
         return self.expression

@@ -1,0 +1,8 @@
+<Dimension name="{{ table.__schemaname__ }}" type="StandardDimension">
+    {% for column in table.__compositekey__ %}
+    <Hierarchy name="{{ column.__schemaname__ }}" hasAll="true" allLevelName="All" primaryKey="id">
+        <Table name="{{ table.__tablename__ }}" schema="olap"/>
+        <Level name="{{ column.__schemaname__ }}" table="{{ table.__tablename__ }}" column="{{ column.name }}" uniqueMembers="false" levelType="Regular" type="{{ column.__schematype__ }}"/>
+    </Hierarchy>
+    {% endfor %}
+</Dimension>
