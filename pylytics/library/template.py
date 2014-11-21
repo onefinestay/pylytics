@@ -4,7 +4,6 @@ In the future the XSD file for the Mondrian schema might be used.
 
 """
 
-from inspect import getmro
 import os
 
 from jinja2 import Template
@@ -18,9 +17,11 @@ def get_template(mondrian_version=3):
 
     Args:
         mondrian_version:
-            Either 3 or 4.
+            Only 3 at the moment (version 4 coming soon).
 
     """
+    if mondrian_version != 3:
+        raise ValueError('Only Mondrian version 3 is currently supported.')
     path = os.path.join(
         os.path.dirname(__file__),
         TEMPLATE_DIR,
@@ -36,7 +37,6 @@ class TemplateConstructor(object):
 
     def __init__(self, table, mondrian_version=3, *args, **kwargs):
         self.table = table
-        base_names = [i.__name__ for i in getmro(table)]
         self.template = get_template(mondrian_version)
 
     @property
