@@ -13,12 +13,10 @@ from jinja2 import Template
 TEMPLATE_DIR = '../conf/mondrian_templates/'
 
 
-def get_template(table_type, mondrian_version=3):
+def get_template(mondrian_version=3):
     """ Returns a Jinja template for the Mondrian XML.
 
     Args:
-        table_type:
-            Either 'cube' or 'dimension'.
         mondrian_version:
             Either 3 or 4.
 
@@ -27,7 +25,7 @@ def get_template(table_type, mondrian_version=3):
         os.path.dirname(__file__),
         TEMPLATE_DIR,
         'mondrian_{}'.format(mondrian_version),
-        '{}.jinja'.format(table_type)
+        'cube.jinja'
         )
     with open(path) as template:
         contents = template.read()
@@ -39,8 +37,7 @@ class TemplateConstructor(object):
     def __init__(self, table, mondrian_version=3, *args, **kwargs):
         self.table = table
         base_names = [i.__name__ for i in getmro(table)]
-        table_type = 'cube' if 'Fact' in base_names  else 'dimension'
-        self.template = get_template(table_type, mondrian_version)
+        self.template = get_template(mondrian_version)
 
     @property
     def rendered(self):
