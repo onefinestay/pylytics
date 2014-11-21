@@ -1,6 +1,6 @@
 <Schema name="olap">
 
-    /* Dimensions */
+    <!-- Dimensions -->
     {% for dimension in table.__dimensionkeys__ %}
     <Dimension name="{{ dimension.dimension.__schemaname__ }}" type="StandardDimension">
         {%- for column in dimension.dimension.__compositekey__ %}
@@ -12,7 +12,7 @@
     </Dimension>
     {% endfor %}
 
-    /* Cubes */
+    <!-- Cubes -->
     <Cube name="{{ table.__schemaname__ }}">
         <Table name="{{ table.__tablename__ }}" schema="olap"/>
         {%- for dimension in table.__dimensionkeys__ %}
