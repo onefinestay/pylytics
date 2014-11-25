@@ -23,6 +23,12 @@ def _camel_to_snake(s):
     return "_".join(map(string.lower, _camel_words.split(s)[1::2]))
 
 
+def _camel_to_title_case(s):
+    """ Convert CamelCase to Title Case.
+    """
+    return " ".join(_camel_words.split(s)[1::2])
+
+
 def escaped(s):
     """ Quote a string in backticks and double all backticks in the
     original string. This is used to ensure that odd characters and

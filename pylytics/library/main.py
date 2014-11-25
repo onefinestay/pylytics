@@ -85,9 +85,6 @@ class Commander(object):
     def run(self, command, *facts):
         """ Run command for each fact in facts.
         """
-        _connection = connection.get_named_connection(settings.pylytics_db)
-        Warehouse.use(_connection)
-
         all_fact_classes = get_all_fact_classes()
 
         # Normalise the collection of facts supplied to remove duplicates,
@@ -110,6 +107,10 @@ class Commander(object):
             # Remove any duplicates:
             facts_to_run = list(set(facts_to_run))
 
+        if command != 'template':
+            _connection = connection.get_named_connection(settings.pylytics_db)
+            Warehouse.use(_connection)
+
         # Execute the command on each fact class.
         for fact_class in facts_to_run:
             try:
@@ -120,9 +121,10 @@ class Commander(object):
             else:
                 command_function()
 
-        # Close the Warehouse connection.
-        log.info('Closing Warehouse connection.')
-        Warehouse.get().close()
+        if command != 'template':
+            # Close the Warehouse connection.
+            log.info('Closing Warehouse connection.')
+            Warehouse.get().close()
 
 
 # TODO Make this configurable via settings.py.
@@ -189,13 +191,11 @@ def main():
     command = args['command'][0]
     commander = Commander(settings.pylytics_db)
 
-    if command == 'update':
+    if command in ('update', 'historical'):
         commander.run('build', *args['fact'])
-        commander.run('update', *args['fact'])
-    elif command == 'historical':
-        commander.run('historical', *args['fact'])
-    elif command == 'build':
-        commander.run('build', *args['fact'])
+        commander.run(command, *args['fact'])
+    elif command in ('build', 'template'):
+        commander.run(command, *args['fact'])
     else:
         log.error("Unknown command: %s", command)
 
