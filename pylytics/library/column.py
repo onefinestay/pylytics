@@ -1,9 +1,6 @@
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
-from distutils.version import StrictVersion
 
-from warehouse import Warehouse
-from settings import settings
 from utils import dump, escaped
 
 
@@ -204,11 +201,4 @@ class CreatedTimestamp(AutoColumn):
 
     @property
     def default_clause(self):
-        # There's a limitation in older MySQL versions where only one `DEFAULT
-        # CURRENT_TIMESTAMP` column can exist. So we use a trigger to
-        # update this column.
-        min_version = settings.MYSQL_MIN_VERSION
-        if min_version and (StrictVersion(Warehouse.version) >= StrictVersion(
-                min_version)):
-            return "DEFAULT CURRENT_TIMESTAMP"
         return "DEFAULT 0"
