@@ -1,5 +1,13 @@
+Version 1.0.6
+-------------
+- 'template' command added to manage.py. This can be used to auto generate the
+  XML for Mondrian.
+- All MySQL versions now use triggers to handle `applicable_from` in dimension
+  tables.
+
+
 Version 1.0.5
----------------
+-------------
 - Extra rows can now be added to the result of a query.
 
 
