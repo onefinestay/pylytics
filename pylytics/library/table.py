@@ -1,6 +1,4 @@
 from contextlib import closing
-from datetime import date
-from distutils.version import StrictVersion
 import logging
 import math
 
@@ -144,11 +142,6 @@ class Table(object):
             END IF;
         END
         """
-        min_version = settings.MYSQL_MIN_VERSION        
-        if min_version and StrictVersion(Warehouse.version) >= StrictVersion(
-                settings.MYSQL_MIN_VERSION):
-            return
-
         connection = Warehouse.get()
         with closing(connection.cursor()) as cursor:
             for query in (drop_trigger, create_trigger):
