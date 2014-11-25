@@ -2,6 +2,7 @@ include *.py
 include *.txt
 include *.rst
 include *.cnf
+include *.jinja
 include CHANGES
 include LICENSE
 recursive-include docs *.py
