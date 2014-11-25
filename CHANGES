@@ -1,3 +1,8 @@
+Version 1.0.7
+-------------
+- Adding jinja template to release manifest.
+
+
 Version 1.0.6
 -------------
 - 'template' command added to manage.py. This can be used to auto generate the
