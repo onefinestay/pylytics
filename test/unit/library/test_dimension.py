@@ -32,7 +32,7 @@ def null_store():
     return obj
 
 
-class __TestEvolvingDimensions(object):
+class TestEvolvingDimensions(object):
 
     def _fetch_store_row_count(self):
         connection = Warehouse.get()
