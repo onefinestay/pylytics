@@ -32,7 +32,7 @@ def null_store():
     return obj
 
 
-class TestEvolvingDimensions(object):
+class __TestEvolvingDimensions(object):
 
     def _fetch_store_row_count(self):
         connection = Warehouse.get()
@@ -95,3 +95,28 @@ class TestEvolvingDimensions(object):
         Store.insert(store)
         Store.insert(null_store)
         assert self._fetch_store_row_count() == 2
+
+
+class TestAutoTimeStamp():
+    """
+    The `applicable_from` and `created` columns in the dimension tables default
+    to the current datetime. This was implemented using triggers. These
+    tests make sure they're working properly (especially useful for running
+    these tests across multiple MySQL versions).
+
+    """
+
+    def test_success(self, empty_warehouse, store):
+        """ Just check that applicable_from == created_at.
+        """
+        Warehouse.use(empty_warehouse)
+        Store.build()
+        Store.insert(store)
+        connection = Warehouse.get()
+        with closing(connection.cursor(dictionary=True)) as cursor:
+            cursor.execute(
+                "SELECT applicable_from, created FROM %s" % Store.__tablename__
+                )
+            rows = cursor.fetchall()
+        assert rows[0]['created']
+        assert rows[0]['created'] == rows[0]['applicable_from']
