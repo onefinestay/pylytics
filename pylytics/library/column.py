@@ -16,9 +16,10 @@ _type_map = {
    float: "DOUBLE",
    int: "INT",
    long: "INT",
-   str: "VARCHAR(%s)",
    timedelta: "TIME",
    time: "TIME",
+   basestring: "VARCHAR(%s)",
+   str: "VARCHAR(%s)",
    unicode: "VARCHAR(%s)",
    bytearray: "VARBINARY(%s)"
 }
@@ -31,6 +32,7 @@ class Column(object):
 
     __columnblock__ = 5
     default_size = {
+        basestring: 40,
         str: 40,
         unicode: 40,
         Decimal: (6, 2),
