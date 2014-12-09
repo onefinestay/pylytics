@@ -114,12 +114,15 @@ class Fact(Table):
                     for column in columns:
                         value = instance[column.name]
                         if isinstance(column, DimensionKey):
-                            values.append(
-                                "(%s)" % column.dimension.__subquery__(
-                                    value,
-                                    instance.__dimension_selector__.timestamp(instance) # TODO This is a bit messy - shouldn't have to pass the instance back in.
+                            if not value and column.optional:
+                                values.append(dump(value))
+                            else:
+                                values.append(
+                                    "(%s)" % column.dimension.__subquery__(
+                                        value,
+                                        instance.__dimension_selector__.timestamp(instance) # TODO This is a bit messy - shouldn't have to pass the instance back in.
+                                        )
                                     )
-                                )
                         else:
                             values.append(dump(value))
                     insert_statement += link + (" (\n  %s\n)" % ",\n  ".join(values))
