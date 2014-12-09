@@ -40,7 +40,7 @@ class Column(object):
         }
 
     def __init__(self, name, type, size=None, optional=False,
-                 default=NotImplemented, order=None, comment=None, null=None):
+                 default=NotImplemented, order=None, comment=None):
         self.name = name
         self.type = type
         self.size = size
@@ -108,8 +108,10 @@ class DimensionKey(Column):
 
     __columnblock__ = 3
 
-    def __init__(self, name, dimension, order=None, comment=None, null=None):
-        Column.__init__(self, name, int, order=order, comment=comment)
+    def __init__(self, name, dimension, order=None, comment=None,
+                 optional=False):
+        Column.__init__(self, name, int, order=order, comment=comment,
+                        optional=optional)
         self.dimension = dimension
 
     @property
