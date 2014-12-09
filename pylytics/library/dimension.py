@@ -33,7 +33,7 @@ class Dimension(Table):
         # matches on either str or unicode.
         natural_keys = [key for key in cls.__naturalkeys__
                         if (key.type is value_type or
-                            issubclass(value_type, key.type)]
+                            issubclass(value_type, key.type))]
         if not natural_keys:
             raise ValueError("Value type '%s' does not match type of any "
                              "natural key for dimension "
