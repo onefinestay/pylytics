@@ -29,8 +29,11 @@ class Dimension(Table):
         fact INSERT. Does not append parentheses or a LIMIT clause.
         """
         value_type = type(value)
+        # We also check for subclasses for situations like basestring, which
+        # matches on either str or unicode.
         natural_keys = [key for key in cls.__naturalkeys__
-                        if key.type is value_type]
+                        if (key.type is value_type or
+                            issubclass(value_type, key.type)]
         if not natural_keys:
             raise ValueError("Value type '%s' does not match type of any "
                              "natural key for dimension "
