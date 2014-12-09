@@ -1,3 +1,8 @@
+Version 1.0.9
+-------------
+- Changes to trigger creation behaviour.
+
+
 Version 1.0.8
 -------------
 - Dimension keys are now nullable.
