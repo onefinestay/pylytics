@@ -1,3 +1,8 @@
+Version 1.0.8
+-------------
+- Dimension keys are now nullable.
+
+
 Version 1.0.7
 -------------
 - Adding jinja template to release manifest.
