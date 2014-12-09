@@ -3,7 +3,7 @@ import logging
 import math
 
 from column import *
-from exceptions import classify_error, BrokenPipeError
+from exceptions import classify_error, BrokenPipeError, ExistingTriggerError
 from settings import settings
 from template import TemplateConstructor
 from utils import _camel_to_snake, _camel_to_title_case, dump, escaped
@@ -132,10 +132,7 @@ class Table(object):
         These triggers get around that problem.
 
         """
-        drop_trigger = """\
-        DROP TRIGGER IF EXISTS created_timestamp_{tablename}
-        """
-        create_trigger = """\
+        trigger = """\
         CREATE TRIGGER created_timestamp_{tablename}
         BEFORE INSERT ON {tablename}
         FOR EACH ROW BEGIN
@@ -146,12 +143,14 @@ class Table(object):
         """
         connection = Warehouse.get()
         with closing(connection.cursor()) as cursor:
-            for query in (drop_trigger, create_trigger):
-                try:
-                    cursor.execute(query.format(tablename=cls.__tablename__))
-                except Exception as exception:
-                    classify_error(exception)
-                    raise exception
+            try:
+                cursor.execute(trigger.format(tablename=cls.__tablename__))
+            except Exception as exception:
+                classify_error(exception)
+                if exception.__class__ == ExistingTriggerError:
+                    # The trigger already exists.
+                    return
+                raise exception
 
     @classmethod
     def build(cls):

@@ -62,6 +62,13 @@ class NoSuchTableError(ProgrammingError):
     code = 1146
 
 
+class ExistingTriggerError(ProgrammingError):
+    """ Raised when a user is trying to create a trigger when one already
+    exists.
+    """
+    code = 1235
+
+
 def classify_error(error):
     """ Alter the class of an error to something specific instead of the
     generic error raised. This enables errors to be caught more cleanly
@@ -74,6 +81,7 @@ def classify_error(error):
                 error.__class__ = error_class
 
     if isinstance(error, ProgrammingError):
-        for error_class in [NoSuchTableError, TableExistsError]:        
+        for error_class in [NoSuchTableError, TableExistsError,
+                            ExistingTriggerError]:
             if error.args[0] == error_class.code:
                 error.__class__ = error_class
