@@ -1,0 +1,26 @@
+<Schema name="olap">
+
+    <!-- Dimensions -->
+    {% for dimension in table.__dimensionkeys__ %}
+    <Dimension name="{{ dimension.dimension.__schemaname__ }}" type="StandardDimension">
+        {%- for column in dimension.dimension.__compositekey__ %}
+        <Hierarchy name="{{ column.__schemaname__ }}" hasAll="true" allLevelName="All" primaryKey="id">
+            <Table name="{{ dimension.dimension.__tablename__ }}" schema="olap"/>
+            <Level name="{{ column.__schemaname__ }}" table="{{ dimension.dimension.__tablename__ }}" column="{{ column.name }}" uniqueMembers="false" levelType="Regular" type="String"/>
+        </Hierarchy>
+        {%- endfor %}
+    </Dimension>
+    {% endfor %}
+
+    <!-- Cubes -->
+    <Cube name="{{ table.__schemaname__ }}">
+        <Table name="{{ table.__tablename__ }}" schema="olap"/>
+        {%- for dimension in table.__dimensionkeys__ %}
+        <DimensionUsage source="{{ dimension.dimension.__schemaname__}}" name="{{ dimension.dimension.__schemaname__}}" foreignKey="{{ dimension.name }}" caption="{{ dimension.dimension.__schemaname__}}"/>
+        {%- endfor %}
+        {%- for metric in table.__metrics__ %}
+        <Measure name="{{ metric.__schemaname__ }}" column="{{ metric.name }}" aggregator="count"/>
+        {%- endfor %}
+    </Cube>
+
+</Schema>

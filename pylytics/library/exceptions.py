@@ -46,6 +46,13 @@ class DatabaseGoneAwayError(OperationalError):
     code = 2006
 
 
+class BrokenPipeError(OperationalError):
+    """ Raised when the connection dies, usually from a stale connection being
+    used.
+    """
+    code = 2055
+
+
 class NoSuchTableError(ProgrammingError):
     """ Raised when a reference is made to a non-existent table.
 
@@ -55,6 +62,13 @@ class NoSuchTableError(ProgrammingError):
     code = 1146
 
 
+class ExistingTriggerError(ProgrammingError):
+    """ Raised when a user is trying to create a trigger when one already
+    exists.
+    """
+    code = 1235
+
+
 def classify_error(error):
     """ Alter the class of an error to something specific instead of the
     generic error raised. This enables errors to be caught more cleanly
@@ -62,11 +76,12 @@ def classify_error(error):
     """
     if isinstance(error, OperationalError):
         for error_class in [CantCreateTableError, BadNullError, BadFieldError,
-                            DatabaseGoneAwayError]:        
+                            DatabaseGoneAwayError, BrokenPipeError]:
             if error.args[0] == error_class.code:
                 error.__class__ = error_class
 
     if isinstance(error, ProgrammingError):
-        for error_class in [NoSuchTableError, TableExistsError]:        
+        for error_class in [NoSuchTableError, TableExistsError,
+                            ExistingTriggerError]:
             if error.args[0] == error_class.code:
                 error.__class__ = error_class

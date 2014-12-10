@@ -4,6 +4,8 @@ include *.rst
 include *.cnf
 include CHANGES
 include LICENSE
+recursive-include pylytics *.cnf
+recursive-include pylytics *.jinja
 recursive-include docs *.py
 recursive-include docs *.rst
 recursive-include docs *.bat

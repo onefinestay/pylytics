@@ -10,10 +10,23 @@ EPOCH = datetime(1970, 1, 1, 1, 1)
 _camel_words = re.compile(r"([A-Z][a-z0-9_]+)")
 
 
+class raw_sql(str):
+    """ A custom type used for strings which shouldn't be escaped by pylytics
+    before inserting into MySQL.
+    """
+    pass
+
+
 def _camel_to_snake(s):
     """ Convert CamelCase to snake_case.
     """
     return "_".join(map(string.lower, _camel_words.split(s)[1::2]))
+
+
+def _camel_to_title_case(s):
+    """ Convert CamelCase to Title Case.
+    """
+    return " ".join(_camel_words.split(s)[1::2])
 
 
 def escaped(s):
@@ -33,6 +46,8 @@ def dump(value):
         return "1"
     elif value is False:
         return "0"
+    elif isinstance(value, raw_sql):
+        return value
     elif isinstance(value, str):
         return "'%s'" % value.encode("utf-8").replace("'", "''")
     elif isinstance(value, unicode):

@@ -1,12 +1,12 @@
 from contextlib import closing
-from datetime import date
-from distutils.version import StrictVersion
 import logging
+import math
 
 from column import *
-from exceptions import classify_error
+from exceptions import classify_error, BrokenPipeError, ExistingTriggerError
 from settings import settings
-from utils import _camel_to_snake, dump, escaped
+from template import TemplateConstructor
+from utils import _camel_to_snake, _camel_to_title_case, dump, escaped
 from warehouse import Warehouse
 
 
@@ -55,6 +55,12 @@ class _ColumnSet(object):
     def natural_keys(self):
         return [c for c in self.columns if isinstance(c, NaturalKey)]
 
+    @property
+    def composite_key(self):
+        """Returns the values which make up the composite unique key."""
+        _ = (AutoColumn, ApplicableFrom, HashKey, Metric)
+        return [c for c in self.columns if not isinstance(c, _)]
+
 
 class TableMetaclass(type):
     """ Metaclass for constructing all Table classes. This applies number
@@ -62,7 +68,11 @@ class TableMetaclass(type):
     """
 
     def __new__(mcs, name, bases, attributes):
-        attributes.setdefault("__tablename__", _camel_to_snake(name))
+        tablename = _camel_to_snake(name)
+        if 'dimension' in [i.__name__.lower() for i in bases]:
+            tablename += '_dimension'
+        attributes.setdefault("__tablename__", tablename)
+        attributes.setdefault("__schemaname__", _camel_to_title_case(name))
 
         column_set = _ColumnSet()
         for base in bases:
@@ -84,6 +94,8 @@ class TableMetaclass(type):
             cls.__metrics__ = column_set.metrics
         if "__naturalkeys__" in dir(cls):
             cls.__naturalkeys__ = column_set.natural_keys
+        if "__compositekey__" in dir(cls):
+            cls.__compositekey__ = column_set.composite_key
 
         return cls
 
@@ -110,7 +122,7 @@ class Table(object):
         "COLLATE": "utf8_bin",
     }
 
-    INSERT = "INSERT"
+    INSERT = "INSERT IGNORE"
 
     @classmethod
     def create_trigger(cls):
@@ -120,10 +132,7 @@ class Table(object):
         These triggers get around that problem.
 
         """
-        drop_trigger = """\
-        DROP TRIGGER IF EXISTS created_timestamp_{tablename}
-        """
-        create_trigger = """\
+        trigger = """\
         CREATE TRIGGER created_timestamp_{tablename}
         BEFORE INSERT ON {tablename}
         FOR EACH ROW BEGIN
@@ -132,19 +141,16 @@ class Table(object):
             END IF;
         END
         """
-        min_version = settings.MYSQL_MIN_VERSION        
-        if min_version and StrictVersion(Warehouse.version) >= StrictVersion(
-                settings.MYSQL_MIN_VERSION):
-            return
-
         connection = Warehouse.get()
         with closing(connection.cursor()) as cursor:
-            for query in (drop_trigger, create_trigger):
-                try:
-                    cursor.execute(query.format(tablename=cls.__tablename__))
-                except Exception as exception:
-                    classify_error(exception)
-                    raise exception
+            try:
+                cursor.execute(trigger.format(tablename=cls.__tablename__))
+            except Exception as exception:
+                classify_error(exception)
+                if exception.__class__ == ExistingTriggerError:
+                    # The trigger already exists.
+                    return
+                raise exception
 
     @classmethod
     def build(cls):
@@ -226,6 +232,14 @@ class Table(object):
                 source.finish(cls)
         else:
             raise NotImplementedError("No data source defined")
+    
+    @classmethod
+    def batch(cls, instances):
+        """ Subdivides instances into smaller batches ready for insertion."""
+        batch_size = settings.BATCH_SIZE
+        batch_number = int(math.ceil(len(instances) / float(batch_size)))
+        batches = [instances[i * batch_size:(i + 1) * batch_size] for i in xrange(batch_number)]
+        return batches
 
     @classmethod
     def insert(cls, *instances):
@@ -234,26 +248,51 @@ class Table(object):
         if instances:
             columns = [column for column in cls.__columns__
                        if not isinstance(column, AutoColumn)]
+
             sql = "%s INTO %s (\n  %s\n)\n" % (
                 cls.INSERT, escaped(cls.__tablename__),
                 ",\n  ".join(escaped(column.name) for column in columns))
-            link = "VALUES"
-            for instance in instances:
-                values = []
-                for column in columns:
-                    value = instance[column.name]
-                    values.append(dump(value))
-                sql += link + (" (\n  %s\n)" % ",\n  ".join(values))
-                link = ","
 
-            connection = Warehouse.get()
-            with closing(connection.cursor()) as cursor:
-                try:
-                    cursor.execute(sql)
-                except:
-                    connection.rollback()
-                else:
-                    connection.commit()
+            batches = cls.batch(instances)
+            for iteration, batch in enumerate(batches, start=1):
+                log.debug('Inserting batch %s' % (iteration),
+                          extra={"table": cls.__tablename__})
+
+                insert_statement = sql
+                link = "VALUES"
+
+                for instance in batch:
+                    values = []
+                    for column in columns:
+                        value = instance[column.name]
+                        values.append(dump(value))
+                    insert_statement += link + (" (\n  %s\n)" % ",\n  ".join(values))
+                    link = ","
+
+                for i in range(1, 3):
+                    connection = Warehouse.get()
+                    try:
+                        cursor = connection.cursor()
+                        cursor.execute(insert_statement)
+                        cursor.close()
+
+                    except Exception as e:
+                        classify_error(e)
+                        if e.__class__ == BrokenPipeError and i == 1:
+                            log.info(
+                                'Trying once more with a fresh connection',
+                                extra={"table": cls.__tablename__}
+                                )
+                            connection.close()
+                        else:
+                            log.error(e)
+                            return
+                    else:
+                        connection.commit()
+                        break
+
+        log.debug('Finished updating %s' % cls.__tablename__,
+                  extra={"table": cls.__tablename__})
 
     @classmethod
     def update(cls, since=None, historical=False):
@@ -264,6 +303,10 @@ class Table(object):
         log.info("Fetched %s record%s", count, "" if count == 1 else "s",
                  extra={"table": cls.__tablename__})
         cls.insert(*instances)
+
+    @classmethod
+    def template(cls):
+        print TemplateConstructor(cls).rendered
 
     def __getitem__(self, column_name):
         """ Get a value by table column name.

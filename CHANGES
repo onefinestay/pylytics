@@ -1,3 +1,52 @@
+Version 1.0.9
+-------------
+- Changes to trigger creation behaviour.
+
+
+Version 1.0.8
+-------------
+- Dimension keys are now nullable.
+
+
+Version 1.0.7
+-------------
+- Adding jinja template to release manifest.
+
+
+Version 1.0.6
+-------------
+- 'template' command added to manage.py. This can be used to auto generate the
+  XML for Mondrian.
+- All MySQL versions now use triggers to handle `applicable_from` in dimension
+  tables.
+
+
+Version 1.0.5
+-------------
+- Extra rows can now be added to the result of a query.
+
+
+Version 1.0.4.1
+---------------
+- Hot fix for v.1.0.4.
+
+
+Version 1.0.4
+-------------
+- Fixes to scheduling, and increased coverage.
+
+
+Version 1.0.3
+-------------
+- Dimension table names now end in _dimension by default.
+- Fixed minor bug when inserting dimensions.
+
+
+Version 1.0.2
+-------------
+- Added support for composite unique keys.
+
+
 Version 1.0.1
 -------------
 - Added support for mysql client config files.

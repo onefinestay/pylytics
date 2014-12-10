@@ -1,14 +1,11 @@
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
-from distutils.version import StrictVersion
 
-from warehouse import Warehouse
-from settings import settings
 from utils import dump, escaped
 
 
 __all__ = ['Column', 'NaturalKey', 'DimensionKey', 'Metric', 'AutoColumn',
-           'PrimaryKey', 'CreatedTimestamp', 'ApplicableFrom']
+           'PrimaryKey', 'HashKey', 'CreatedTimestamp', 'ApplicableFrom']
 
 
 _type_map = {
@@ -19,10 +16,12 @@ _type_map = {
    float: "DOUBLE",
    int: "INT",
    long: "INT",
-   str: "VARCHAR(%s)",
    timedelta: "TIME",
    time: "TIME",
+   basestring: "VARCHAR(%s)",
+   str: "VARCHAR(%s)",
    unicode: "VARCHAR(%s)",
+   bytearray: "VARBINARY(%s)"
 }
 
 
@@ -33,13 +32,15 @@ class Column(object):
 
     __columnblock__ = 5
     default_size = {
+        basestring: 40,
         str: 40,
         unicode: 40,
-        Decimal: (6, 2)
+        Decimal: (6, 2),
+        bytearray: 20
         }
 
     def __init__(self, name, type, size=None, optional=False,
-                 default=NotImplemented, order=None, comment=None, null=None):
+                 default=NotImplemented, order=None, comment=None):
         self.name = name
         self.type = type
         self.size = size
@@ -47,6 +48,7 @@ class Column(object):
         self.default = default
         self.order = order
         self.comment = comment
+        self.__schemaname__ = name.replace('_', ' ')
 
     def __repr__(self):
         return self.expression
@@ -98,10 +100,6 @@ class NaturalKey(Column):
 
     __columnblock__ = 2
 
-    @property
-    def expression(self):
-        return super(NaturalKey, self).expression + " UNIQUE KEY"
-
 
 class DimensionKey(Column):
     """ A Fact column that is used to hold a foreign key referencing
@@ -110,8 +108,10 @@ class DimensionKey(Column):
 
     __columnblock__ = 3
 
-    def __init__(self, name, dimension, order=None, comment=None, null=None):
-        Column.__init__(self, name, int, order=order, comment=comment)
+    def __init__(self, name, dimension, order=None, comment=None,
+                 optional=False):
+        Column.__init__(self, name, int, order=order, comment=comment,
+                        optional=optional)
         self.dimension = dimension
 
     @property
@@ -153,16 +153,37 @@ class PrimaryKey(AutoColumn):
                 " AUTO_INCREMENT PRIMARY KEY")
 
 
+class HashKey(Column):
+    """ A hash of the user defined columns is used as the unique key in
+    dimension and fact tables.
+
+    This is because composite unique keys in MySQL have a
+    size limit, which means that composite unique keys consisting of a lot of
+    columns will likely fail. Also, the hash value can be used to verify data
+    integrity.
+
+    """
+    __columnblock__ = 6
+
+    def __init__(self, name="hash_key", order=None, comment=None):
+        Column.__init__(self, name, bytearray, optional=False, size=20,
+                        order=order, comment=comment)
+
+    @property
+    def expression(self):
+        return super(HashKey, self).expression + " UNIQUE KEY"
+
+
 class ApplicableFrom(Column):
     """ This is a special column which is only used in dimensions.
-    
+
     Some dimension rows are only applicable over certain time periods. This
     column allows facts to match on dimensions rows, not just just based on
     dimension values, but also when that dimension is valid.
 
     """
 
-    __columnblock__ = 6
+    __columnblock__ = 7
 
     def __init__(self, name="applicable_from", order=None, comment=None):
         Column.__init__(self, name, datetime, optional=False, order=order,
@@ -178,18 +199,11 @@ class CreatedTimestamp(AutoColumn):
     record was created.
     """
 
-    __columnblock__ = 7
+    __columnblock__ = 8
 
     def __init__(self, name="created", order=None, comment=None):
         Column.__init__(self, name, datetime, order=order, comment=comment)
 
     @property
     def default_clause(self):
-        # There's a limitation in older MySQL versions where only one `DEFAULT
-        # CURRENT_TIMESTAMP` column can exist. So we use a trigger to
-        # update this column.
-        min_version = settings.MYSQL_MIN_VERSION
-        if min_version and (StrictVersion(Warehouse.version) >= StrictVersion(
-                min_version)):
-            return "DEFAULT CURRENT_TIMESTAMP"
         return "DEFAULT 0"
