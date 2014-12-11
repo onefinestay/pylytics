@@ -3,8 +3,8 @@ Source Types
 
 Each fact and dimension has to specify a source for extracting data from.
 
-DimensionSource
-***************
+DatabaseSource
+**************
 
 `DimensionSource` makes use of connections defined in `DATABASES` in `settings.py` to make queries to a MySQL database.
 

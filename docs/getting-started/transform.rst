@@ -12,7 +12,7 @@ Each row which comes from the source is passed through this pipeline.
 
 The pipeline consists of a number of expansions, which transform the data. At the end of the pipeline, the data is ready to the loaded.
 
-The expansions are simple, testable functions way. For example::
+The expansions are simple, testable functions. For example::
 
     # transform.py
 
