@@ -52,6 +52,6 @@ For example::
 
         ...
 
-Both DimensionSource and CallableSource accept the ``expansions`` argument.
+Both DatabaseSource and CallableSource accept the ``expansions`` argument.
 
 The expansions are processed in the order they appear in the list.

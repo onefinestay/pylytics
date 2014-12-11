@@ -6,7 +6,7 @@ Each fact and dimension has to specify a source for extracting data from.
 DatabaseSource
 **************
 
-`DimensionSource` makes use of connections defined in `DATABASES` in `settings.py` to make queries to a MySQL database.
+`DatabaseSource` makes use of connections defined in `DATABASES` in `settings.py` to make queries to a MySQL database.
 
 Declaring
 ~~~~~~~~~
