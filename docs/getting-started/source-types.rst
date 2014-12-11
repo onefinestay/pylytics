@@ -19,7 +19,7 @@ Here are some examples of how a `DatabaseSource` can be defined::
 
         __source__ = DatabaseSource(
             database="sales",
-            query="SELECT * FROM managers"
+            query="SELECT name AS manager FROM managers"
         )
 
         manager = NaturalKey('manager', basestring)
