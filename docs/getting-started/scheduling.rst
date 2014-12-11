@@ -21,7 +21,7 @@ Here is an example fact which uses scheduling::
 
     class Sales(Fact):
 
-        __source__ = DatabaseSource(
+        __source__ = DatabaseSource.define(
             database="sales",
             query="SELECT * FROM sales_table"
         )
@@ -56,3 +56,8 @@ This schedule would look like::
                             ends=time(hour=4))
 
 The smallest permissible `repeats` value is 10 minutes. It's unlikely any fact will need to be updated more frequently than this.
+
+Default schedule
+****************
+
+If no ``Schedule`` is defined, the fact will just be scheduled to run at midnight every day.

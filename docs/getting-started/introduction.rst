@@ -4,7 +4,7 @@ Introduction
 What is pylytics?
 *****************
 
-Pylytics is a tool for processing data into a star schema. The industry term for this is an ETL tool (extract, transform, load).
+pylytics is a tool for processing data into a star schema. The industry term for this is an ETL tool (extract, transform, load).
 
 * Extract - pull the data from a range of different sources (SQL, flat files, APIs).
 * Transform - clean the data, and prepare it for populating fact and dimension tables.

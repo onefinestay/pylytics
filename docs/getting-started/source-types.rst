@@ -17,7 +17,7 @@ Here are some examples of how a `DatabaseSource` can be defined::
 
     class Manager(Dimension):
 
-        __source__ = DatabaseSource(
+        __source__ = DatabaseSource.define(
             database="sales",
             query="SELECT name AS manager FROM managers"
         )
@@ -58,7 +58,7 @@ Here are some examples of how a `CallableSource` can be defined::
 
     class StoreSize(Dimension):
 
-        __source__ = CallableSource(
+        __source__ = CallableSource.define(
             _callable=staticmethod(my_simple_datasource)
             )
 
@@ -69,7 +69,7 @@ Here are some examples of how a `CallableSource` can be defined::
 
     class StoreOpenWeekends(Dimension):
 
-        __source__ = CallableSource(
+        __source__ = CallableSource.define(
             _callable=staticmethod(
                 lambda: [{'open_weekends': True}, {'open_weekends': False}]
                 )
