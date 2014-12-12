@@ -39,9 +39,9 @@ It will update every hour.
 There are three arguments you can pass into Schedule:
 
 * repeats
-* starts 
+* starts
 * ends
-* timezone 
+* timezone
 
 repeats
 ~~~~~~~
@@ -52,7 +52,7 @@ If `starts` is 3pm, and `ends` is 4pm, and `repeats` is 30 minutes, then the fac
 
 This schedule would look like::
 
-    __schedule__ = Schedule(repeats=timedelta(hours=1), starts=time(hour=3),
+    __schedule__ = Schedule(repeats=timedelta(minutes=30), starts=time(hour=3),
                             ends=time(hour=4))
 
 The smallest permissible `repeats` value is 10 minutes. It's unlikely any fact will need to be updated more frequently than this.
