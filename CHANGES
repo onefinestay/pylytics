@@ -1,3 +1,9 @@
+Version 1.0.11
+--------------
+- Checking for table and trigger existing before trying to create, to avoid
+  meta data lock issues.
+
+
 Version 1.0.10
 --------------
 - Documentation and improved project template.
