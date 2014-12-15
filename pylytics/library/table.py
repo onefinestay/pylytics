@@ -114,7 +114,6 @@ class Table(object):
     __columns__ = NotImplemented
     __primarykey__ = NotImplemented
     __tablename__ = NotImplemented
-    __triggername__ = NotImplemented
 
     # These attributes aren't touched by the metaclass.
     __source__ = None
