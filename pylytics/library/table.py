@@ -3,7 +3,7 @@ import logging
 import math
 
 from column import *
-from exceptions import classify_error, BrokenPipeError, ExistingTriggerError
+from exceptions import classify_error, BrokenPipeError
 from settings import settings
 from template import TemplateConstructor
 from utils import (_camel_to_snake, _camel_to_title_case, dump, escaped,
@@ -58,12 +58,6 @@ class _ColumnSet(object):
 
     @property
     def composite_key(self):
-        """Returns the values which make up the composite unique key."""
-        _ = (AutoColumn, ApplicableFrom, HashKey, Metric)
-        return [c for c in self.columns if not isinstance(c, _)]
-
-    @property
-    def trigger_name(self):
         """Returns the values which make up the composite unique key."""
         _ = (AutoColumn, ApplicableFrom, HashKey, Metric)
         return [c for c in self.columns if not isinstance(c, _)]
