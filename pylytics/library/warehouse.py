@@ -1,17 +1,10 @@
 from contextlib import closing
 import logging
 
+from utils import classproperty
+
 
 log = logging.getLogger("pylytics")
-
-
-class classproperty(object):
-
-    def __init__(self, func):
-        self.func = func
-
-    def __get__(self, inst, cls):
-        return self.func(cls)
 
 
 class Warehouse(object):
@@ -51,6 +44,17 @@ class Warehouse(object):
         connection = cls.get()
         with closing(connection.cursor()) as cursor:
             cursor.execute("SHOW TABLES")
+            return [record[0] for record in cursor]
+
+    @classproperty
+    def trigger_names(cls):
+        """ List of trigger names which exist in the database.
+        """
+        connection = cls.get()
+        with closing(connection.cursor()) as cursor:
+            cursor.execute("""
+                SELECT trigger_name FROM information_schema.triggers
+                """)
             return [record[0] for record in cursor]
 
     @classproperty
