@@ -11,11 +11,12 @@ import pytest
 from pylytics.library.warehouse import Warehouse
 from pylytics.library.source import DatabaseSource, Staging
 from pylytics.library.column import (Column, DimensionKey, Metric,
-                                         NaturalKey)
+                                     NaturalKey)
 from pylytics.library.dimension import Dimension
 from pylytics.library.fact import Fact
 from pylytics.library.utils import escaped
 from pylytics.library.exceptions import TableExistsError
+from test.dummy_project import Sales
 
 
 log = logging.getLogger("pylytics")
@@ -170,21 +171,14 @@ def test_cannot_create_a_column_with_an_odd_type():
 
 def test_can_create_dimension(empty_warehouse):
     Warehouse.use(empty_warehouse)
-    Date.create_table()
-    assert Date.table_exists()
+    assert Date.create_table()
+    assert Date.table_exists
 
 
 def test_cannot_create_dimension_twice(empty_warehouse):
     Warehouse.use(empty_warehouse)
-    Date.create_table()
-    with pytest.raises(TableExistsError):
-        Date.create_table()
-
-
-def test_can_create_dimension_only_if_not_exists(empty_warehouse):
-    Warehouse.use(empty_warehouse)
-    Date.create_table()
-    Date.create_table(if_not_exists=True)
+    assert Date.create_table()
+    assert not Date.create_table()
 
 
 def test_dimension_has_sensible_defaults():
@@ -198,24 +192,24 @@ def test_can_drop_dimension(empty_warehouse):
     Warehouse.use(empty_warehouse)
     Date.create_table()
     Date.drop_table()
-    assert not Date.table_exists()
+    assert not Date.table_exists
 
 
 def test_can_create_fact_if_no_dimensions_exist(empty_warehouse):
     Warehouse.use(empty_warehouse)
     BoringEvent.build()
-    assert BoringEvent.table_exists()
-    assert Date.table_exists()
-    assert Place.table_exists()
+    assert BoringEvent.table_exists
+    assert Date.table_exists
+    assert Place.table_exists
 
 
 def test_can_create_fact_if_some_dimensions_exist(empty_warehouse):
     Warehouse.use(empty_warehouse)
     Date.create_table()
     BoringEvent.build()
-    assert BoringEvent.table_exists()
-    assert Date.table_exists()
-    assert Place.table_exists()
+    assert BoringEvent.table_exists
+    assert Date.table_exists
+    assert Place.table_exists
 
 
 def test_can_create_fact_if_all_dimensions_exist(empty_warehouse):
@@ -223,9 +217,9 @@ def test_can_create_fact_if_all_dimensions_exist(empty_warehouse):
     Date.create_table()
     Place.create_table()
     BoringEvent.build()
-    assert BoringEvent.table_exists()
-    assert Date.table_exists()
-    assert Place.table_exists()
+    assert BoringEvent.table_exists
+    assert Date.table_exists
+    assert Place.table_exists
 
 
 @pytest.mark.usefixtures("place_source")
@@ -305,3 +299,19 @@ def test_can_insert_fact_record_from_staging_source(empty_warehouse):
     # mysql returns unicode as bytearrays.
     assert datum["colour_of_stuff"].decode('utf8') == u"grün"
     assert datum["size_of_stuff"].decode('utf8') == "37kg"
+
+
+def test_create_trigger(empty_warehouse):
+    """ Make sure a trigger can be created.
+    """
+    Warehouse.use(empty_warehouse)
+    Sales.build()
+    assert Sales.trigger_name in Warehouse.trigger_names
+
+
+def test_create_duplicate_trigger(empty_warehouse):
+    """ Make sure a trigger isn't created if one already exists.
+    """
+    Warehouse.use(empty_warehouse)
+    Sales.build()
+    assert not Sales.create_trigger()
