@@ -61,4 +61,4 @@ def test_isolation(get_all_fact_classes):
     get_all_fact_classes.return_value = [FirstFact, SecondFact]
     commander = Commander()
     commander.run('update', 'FirstFact', 'SecondFact')
-    assert SecondTest.update.called
+    assert SecondFact.update.called
