@@ -4,7 +4,7 @@ from mock import Mock, patch
 import pytest
 from pytz import UTC
 
-from pylytics.library.main import find_scheduled, Commander
+from pylytics.library.main import find_scheduled, Commander, enable_logging
 from pylytics.library.fact import Fact
 from pylytics.library.schedule import Schedule
 
@@ -50,9 +50,11 @@ def test_isolation(get_all_fact_classes):
     """ Make sure that subsequent facts get called, even if the first
     fact fails.
     """
+    enable_logging()
 
     class FirstFact(Fact):
-        def update(self):
+        @classmethod
+        def update(cls):
             raise Exception
 
     class SecondFact(Fact):
