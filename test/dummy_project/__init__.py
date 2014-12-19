@@ -6,7 +6,7 @@ and not in conftest.
 
 """
 
-from pylytics.library.column import Column, DimensionKey, NaturalKey
+from pylytics.library.column import Column, DimensionKey, Metric, NaturalKey
 from pylytics.library.dimension import Dimension
 from pylytics.library.fact import Fact
 
@@ -30,3 +30,10 @@ class Sales(Fact):
 
     product = DimensionKey('product', Product)
     store = DimensionKey('store', Store)
+
+
+class Stock(Fact):
+    __source__ = NotImplemented
+
+    product = DimensionKey('product', Product)
+    quantity = Metric('quantity', int)
