@@ -3,10 +3,7 @@ import datetime
 import inspect
 import logging
 from logging.handlers import TimedRotatingFileHandler
-import os
 import sys
-
-from pytz import UTC
 
 import connection
 from log import ColourFormatter, bright_white
@@ -79,9 +76,6 @@ def find_scheduled(all_fact_classes):
 
 class Commander(object):
 
-    def __init__(self, db_name):
-        self.db_name = db_name
-
     def run(self, command, *facts):
         """ Run command for each fact in facts.
         """
@@ -118,8 +112,15 @@ class Commander(object):
             except AttributeError:
                 log.error("Cannot find command %s for fact class %s",
                           command, fact_class)
-            else:
+                continue
+
+            try:
                 command_function()
+            except Exception as exception:
+                # Catch all exceptions so one failed command doesn't bring
+                # down all facts.
+                log.error("%s.%s failed: %s, %s", fact_class, command,
+                    exception.__class__, exception.message)
 
         if command != 'template':
             # Close the Warehouse connection.
@@ -189,7 +190,7 @@ def main():
         log.addHandler(SentryHandler(sentry_dsn))
 
     command = args['command'][0]
-    commander = Commander(settings.pylytics_db)
+    commander = Commander()
 
     if command in ('update', 'historical'):
         commander.run('build', *args['fact'])
