@@ -80,7 +80,6 @@ class Commander(object):
         """ Run command for each fact in facts.
         """
         all_fact_classes = get_all_fact_classes()
-        import pdb; pdb.set_trace()
 
         # Normalise the collection of facts supplied to remove duplicates,
         # expand "all" and report unknown facts.
