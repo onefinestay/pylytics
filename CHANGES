@@ -1,3 +1,9 @@
+Version 1.0.12
+--------------
+- Improved the output of the 'template' command - Mondrian level types are now
+  added automatically.
+
+
 Version 1.0.11
 --------------
 - Checking for table and trigger existing before trying to create, to avoid
