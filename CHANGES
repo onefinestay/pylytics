@@ -1,3 +1,9 @@
+Version 1.0.13
+--------------
+- Making sure that if multiple facts are updated at once, one failing doesn't
+  call them all to fail.
+
+
 Version 1.0.12
 --------------
 - Improved the output of the 'template' command - Mondrian level types are now
