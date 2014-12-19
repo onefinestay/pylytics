@@ -4,12 +4,14 @@ In the future the XSD file for the Mondrian schema might be used.
 
 """
 
-import os
-
-from jinja2 import Template
+from jinja2 import Environment, PackageLoader
 
 
-TEMPLATE_DIR = '../conf/mondrian_templates/'
+def level_type(level_type):
+    """ Custom filter for mapping the pylytics dimension type to a Mondrian
+    type.
+    """
+    return ('Numeric' if level_type is int else 'String')
 
 
 def get_template(mondrian_version=3):
@@ -22,15 +24,14 @@ def get_template(mondrian_version=3):
     """
     if mondrian_version != 3:
         raise ValueError('Only Mondrian version 3 is currently supported.')
-    path = os.path.join(
-        os.path.dirname(__file__),
-        TEMPLATE_DIR,
-        'mondrian_{}'.format(mondrian_version),
-        'cube.jinja'
+    env = Environment(
+        loader=PackageLoader(
+            'pylytics.conf.mondrian_templates',
+            'mondrian_%i' % mondrian_version
+            ),
         )
-    with open(path) as template:
-        contents = template.read()
-    return Template(contents)
+    env.filters['level_type'] = level_type
+    return env.get_template('cube.jinja')
 
 
 class TemplateConstructor(object):
