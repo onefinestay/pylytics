@@ -1,5 +1,5 @@
 pytz
 iso8601
 raven
-mysql-connector-python==2.0.1
+mysql-connector-python=>2.0.2
 Jinja2==2.7.2
