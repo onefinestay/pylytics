@@ -1,3 +1,9 @@
+Version 1.0.14
+--------------
+- Fixing error in requirements file. Only latest MySQL adapter is hosted by
+  Oracle.
+
+
 Version 1.0.13
 --------------
 - Making sure that if multiple facts are updated at once, one failing doesn't
@@ -91,7 +97,7 @@ Version 0.7.0
 -------------
 
 - Logging added (including Sentry integration).
-- CLI changed to `manage.py command fact`, so beware - CRONs need updating. 
+- CLI changed to `manage.py command fact`, so beware - CRONs need updating.
 - Automatic view generation.
 
 
