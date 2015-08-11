@@ -1,3 +1,9 @@
+Version 1.0.15
+--------------
+- All natural keys in dimensions have indexes now - massive performance
+  improvement for inserting fact rows.
+
+
 Version 1.0.14
 --------------
 - Fixing error in requirements file. Only latest MySQL adapter is hosted by
