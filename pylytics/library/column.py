@@ -100,6 +100,13 @@ class NaturalKey(Column):
 
     __columnblock__ = 2
 
+    @property
+    def index_expression(self):
+        """ All Natural Keys have indexes created for them by appending
+        this to the CREATE table statement.
+        """
+        return ('INDEX `%s` (`%s`)' % (self.name, self.name))
+
 
 class DimensionKey(Column):
     """ A Fact column that is used to hold a foreign key referencing

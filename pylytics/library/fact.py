@@ -127,6 +127,7 @@ class Fact(Table):
                             values.append(dump(value))
                     insert_statement += link + (" (\n  %s\n)" % ",\n  ".join(values))
                     link = ","
+
                 connection = Warehouse.get()
                 try:
                     with closing(connection.cursor()) as cursor:
