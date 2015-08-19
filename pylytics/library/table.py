@@ -194,8 +194,17 @@ class Table(object):
             return False
 
         verb = "CREATE TABLE"
-        columns = ",\n  ".join(col.expression for col in cls.__columns__)
-        sql = "%s %s (\n  %s\n)" % (verb, cls.__tablename__, columns)
+        columns = [col.expression for col in cls.__columns__]
+
+        if hasattr(cls, '__naturalkeys__'):
+            indexes = [col.index_expression for col in cls.__naturalkeys__]
+        else:
+            indexes = []
+
+        body = ",\n  ".join(columns + indexes)
+
+        sql = "%s %s (\n  %s\n)" % (verb, cls.__tablename__, body)
+
         for key, value in cls.__tableargs__.items():
             sql += " %s=%s" % (key, value)
 
@@ -254,7 +263,7 @@ class Table(object):
                 source.finish(cls)
         else:
             raise NotImplementedError("No data source defined")
-    
+
     @classmethod
     def batch(cls, instances):
         """ Subdivides instances into smaller batches ready for insertion."""
