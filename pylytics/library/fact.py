@@ -73,7 +73,7 @@ class Fact(Table):
         for dimension_key in cls.__dimensionkeys__:
             if dimension_key.dimension not in unique_dimensions:
                 unique_dimensions.append(dimension_key.dimension)
-        #
+
         for dimension in unique_dimensions:
             dimension.update(since=since)
         return super(Fact, cls).update(since=since, historical=historical)
