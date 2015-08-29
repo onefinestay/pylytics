@@ -1,3 +1,8 @@
+Version 1.1.0
+--------------
+- Using unicode for the main internals.
+
+
 Version 1.0.15
 --------------
 - All natural keys in dimensions have indexes now - massive performance
