@@ -75,7 +75,7 @@ class Fact(Table):
                 unique_dimensions.append(dimension_key.dimension)
 
         for dimension in unique_dimensions:
-            dimension.update(since=since)
+            dimension.update(since=since, historical=historical)
         return super(Fact, cls).update(since=since, historical=historical)
 
     # TODO Consider adding historical to dimensions.
