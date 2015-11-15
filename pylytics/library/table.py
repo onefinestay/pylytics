@@ -117,6 +117,7 @@ class Table(object):
     __tablename__ = NotImplemented
 
     # These attributes aren't touched by the metaclass.
+    __historical_source__ = None
     __source__ = None
     __tableargs__ = {
         "ENGINE": "InnoDB",
@@ -249,7 +250,8 @@ class Table(object):
         """ Fetch data from the source defined for this table and
         yield as each is received.
         """
-        source = cls.__historical_source__ if historical else cls.__source__
+        source = (cls.__historical_source__ if historical and
+                  cls.__historical_source__ else cls.__source__)
         if source:
             try:
                 for inst in source.select(cls, since=since):

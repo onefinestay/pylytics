@@ -47,7 +47,6 @@ class Fact(Table):
     # These attributes aren't touched by the metaclass.
     __dimension_selector__ = DimensionSelector()
     __schedule__ = Schedule()
-    __historical_source__ = None
 
     id = PrimaryKey()
     hash_key = HashKey()
