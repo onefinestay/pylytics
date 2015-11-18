@@ -130,6 +130,18 @@ class DimensionKey(Column):
         return super(DimensionKey, self).expression + ", " + foreign_key
 
 
+class DegenerateDimension(Column):
+    """ A Fact column that is used to hold a dimension value in the fact table
+    rather than having a foreign key to a separate dimension table. Use it
+    sparingly. It makes sense for dimensions such as 'order number' in a sales
+    fact. Each row will have a unique order number, so moving it out into a
+    separate dimension table doesn't save any space, and results in an
+    unnecessary join.
+    """
+
+    __columnblock__ = 3
+
+
 class Metric(Column):
     """ A column used to store fact metrics.
     """

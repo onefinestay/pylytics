@@ -47,17 +47,6 @@ class Fact(Table):
     __dimension_selector__ = DimensionSelector()
     __schedule__ = Schedule()
 
-    id = PrimaryKey()
-    hash_key = HashKey()
-    created = CreatedTimestamp()
-
-    def __init__(self, *args, **kwargs):
-        values = ', '.join(
-            ["IFNULL(%s,'NULL')" % escaped(c.name) for c in
-             self.__compositekey__]
-            )
-        self['hash_key'] = raw_sql("UNHEX(SHA1(CONCAT_WS(',', %s)))" % values)
-
     @classmethod
     def build(cls):
         for dimension_key in cls.__dimensionkeys__:
