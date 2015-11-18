@@ -22,7 +22,7 @@ This will make sure that the relevant tables have been created for the facts spe
 
 
 update
-~~~~~
+~~~~~~
 
 This command automatically calls `build` before executing. It updates your fact and dimension tables.
 
@@ -38,7 +38,21 @@ historical
 
 Facts are usually built each day by running *update*. However, in some cases it's useful to be able to rebuild the tables (for example, if the project is just starting off, or data loss has occurred).
 
-If no `historical_source_query` is defined for the fact, then it raises a warning.
+When the `update` command is run, it gets data from the `__source__` property of the Fact and Dimension classes.
+
+With the `historical` command, it first looks for a `__historical_source__` property of the Fact and Dimension classes. If it exists then it is used instead of `__source__`. Here is an example::
+
+    class Sales(Fact):
+
+        __source__ = DatabaseSource.define(
+            database="sales",
+            query="SELECT * FROM sales_table WHERE created > NOW() - INTERVAL 1 DAY"
+        )
+
+        __historical_source__ = DatabaseSource.define(
+            database="sales",
+            query="SELECT * FROM sales_table"
+        )
 
 
 Specifying the settings file location
