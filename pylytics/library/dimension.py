@@ -15,6 +15,10 @@ class Dimension(Table):
     __naturalkeys__ = NotImplemented
     __compositekey__ = NotImplemented
 
+    # Generic columns.
+    id = PrimaryKey()
+    hash_key = HashKey()
+    created = CreatedTimestamp()
     applicable_from = ApplicableFrom()
 
     @classmethod

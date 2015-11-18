@@ -127,10 +127,6 @@ class Table(object):
 
     INSERT = "INSERT IGNORE"
 
-    id = PrimaryKey()
-    hash_key = HashKey()
-    created = CreatedTimestamp()
-
     def __init__(self, *args, **kwargs):
         values = ', '.join(
             ["IFNULL(%s,'NULL')" % escaped(c.name) for c in

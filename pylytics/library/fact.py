@@ -7,7 +7,7 @@ from exceptions import classify_error
 from schedule import Schedule
 from selector import DimensionSelector
 from table import Table
-from utils import dump, escaped, raw_sql
+from utils import dump, escaped
 from warehouse import Warehouse
 
 
@@ -46,6 +46,11 @@ class Fact(Table):
     # These attributes aren't touched by the metaclass.
     __dimension_selector__ = DimensionSelector()
     __schedule__ = Schedule()
+
+    # Generic columns.
+    id = PrimaryKey()
+    hash_key = HashKey()
+    created = CreatedTimestamp()
 
     @classmethod
     def build(cls):
