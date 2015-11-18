@@ -6,11 +6,5 @@ DATABASES = {
         "user": "root",
         "passwd": "",
         "db": "test_warehouse",
-    },
-    "middle_earth": {
-        "host": "localhost",
-        "user": "root",
-        "passwd": "",
-        "db": "middle_earth",
-    },
+    }
 }
