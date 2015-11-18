@@ -95,3 +95,30 @@ class TestEvolvingDimensions(object):
         Store.insert(store)
         Store.insert(null_store)
         assert self._fetch_store_row_count() == 2
+
+################################################################################
+
+def test_can_create_dimension(empty_warehouse):
+    Warehouse.use(empty_warehouse)
+    assert Store.create_table()
+    assert Store.table_exists
+
+
+def test_cannot_create_dimension_twice(empty_warehouse):
+    Warehouse.use(empty_warehouse)
+    assert Store.create_table()
+    assert not Store.create_table()
+
+
+def test_dimension_has_sensible_defaults():
+    assert Store.__tablename__ == "store_dimension"
+    columns = Store.__columns__
+    assert columns[0].name == "id"
+    assert columns[-1].name == "created"
+
+
+def test_can_drop_dimension(empty_warehouse):
+    Warehouse.use(empty_warehouse)
+    Store.create_table()
+    Store.drop_table()
+    assert not Store.table_exists
