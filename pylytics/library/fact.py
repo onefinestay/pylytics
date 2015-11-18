@@ -1,6 +1,5 @@
 from __future__ import unicode_literals
 from contextlib import closing
-import math
 import logging
 
 from column import *
@@ -63,7 +62,8 @@ class Fact(Table):
 
     @classmethod
     def update(cls, since=None, historical=False):
-        if not (cls.__historical_source__ if historical else cls.__source__):
+        if not (cls.__historical_source__ if historical and
+                cls.__historical_source__ else cls.__source__):
             # Bail early before building dimensions.
             raise NotImplementedError("No data source defined")
 

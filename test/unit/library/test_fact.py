@@ -4,7 +4,12 @@ from __future__ import unicode_literals
 
 from contextlib import closing
 import logging
+import mock
 
+from pylytics.library.column import DimensionKey
+from pylytics.library.dimension import Dimension
+from pylytics.library.fact import Fact
+from pylytics.library.source import CallableSource
 from pylytics.library.warehouse import Warehouse
 from test.dummy_project import Product, Sales, Stock, Store, PRODUCTS
 
@@ -87,3 +92,68 @@ class TestTriggers(object):
         Warehouse.use(empty_warehouse)
         Sales.build()
         assert not Sales.create_trigger()
+
+
+class TestHistoricalSource(object):
+    """ Make sure the correct sources are being called during a historical
+    update.
+    """
+
+    def test_historical_source_called(self, empty_warehouse):
+        callable_mock = mock.Mock(side_effect=lambda: [])
+
+        class Dummy(Fact):
+            __historical_source__ = CallableSource.define(
+                _callable=staticmethod(callable_mock)
+            )
+
+        Dummy.historical()
+        assert callable_mock.called
+
+    def test_update_source_called(self, empty_warehouse):
+        callable_mock = mock.Mock(side_effect=lambda: [])
+
+        class Dummy(Fact):
+            __source__ = CallableSource.define(
+                _callable=staticmethod(callable_mock)
+            )
+
+        Dummy.update()
+        assert callable_mock.called
+
+    def test_dimension_source(self, empty_warehouse):
+        """ When `historical` is called on a fact, then
+        `__historical_source__` is triggered on the fact and corresponding
+        dimensions if available, otherwise `__source__`.
+        """
+        mock_1 = mock.Mock(side_effect=lambda: [])
+        mock_2 = mock.Mock(side_effect=lambda: [])
+        mock_3 = mock.Mock(side_effect=lambda: [])
+
+        class FirstDimension(Dimension):
+            __historical_source__ = CallableSource.define(
+                _callable=staticmethod(mock_1)
+            )
+            __source__ = CallableSource.define(
+                _callable=staticmethod(mock_2)
+            )
+
+        class SecondDimension(Dimension):
+            __source__ = CallableSource.define(
+                _callable=staticmethod(mock_3)
+            )
+
+        class Dummy(Fact):
+            __source__ = CallableSource.define(
+                _callable=staticmethod(lambda: [])
+            )
+            first_dimension = DimensionKey('first_dimension', FirstDimension)
+            second_dimension = DimensionKey('second_dimension', SecondDimension)
+
+        Dummy.historical()
+        assert mock_1.called
+        assert mock_3.called
+
+        Dummy.update()
+        assert mock_2.called
+        assert mock_3.called
