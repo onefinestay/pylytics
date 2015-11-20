@@ -23,6 +23,8 @@ PRODUCTS = [
     {'product_id': 2, 'manager': 'Cheese'}
 ]
 
+################################################################################
+# Dimensions
 
 class Store(Dimension):
 
@@ -44,6 +46,9 @@ class Product(Dimension):
     product_name = Column('product_name', str, size=100)
 
 
+################################################################################
+# Facts
+
 class Sales(Fact):
 
     __source__ = NotImplemented
@@ -55,6 +60,14 @@ class Sales(Fact):
 class Stock(Fact):
 
     __source__ = NotImplemented
+
+    product = DimensionKey('product', Product)
+    quantity = Metric('quantity', int)
+
+
+class StockReplace(Fact):
+
+    INSERT = 'REPLACE'
 
     product = DimensionKey('product', Product)
     quantity = Metric('quantity', int)

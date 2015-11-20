@@ -48,6 +48,6 @@ In situations where the metrics do change, you can use the 'REPLACE INTO' syntax
 
     class MyFact(Fact):
 
-        INSERT = 'REPLACE INTO'
+        INSERT = 'REPLACE'
 
         # ...
