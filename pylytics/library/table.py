@@ -8,7 +8,7 @@ from exceptions import classify_error, BrokenPipeError
 from settings import settings
 from template import TemplateConstructor
 from utils import (_camel_to_snake, _camel_to_title_case, dump, escaped,
-                   classproperty)
+                   classproperty, raw_sql)
 from warehouse import Warehouse
 
 
@@ -117,6 +117,7 @@ class Table(object):
     __tablename__ = NotImplemented
 
     # These attributes aren't touched by the metaclass.
+    __historical_source__ = None
     __source__ = None
     __tableargs__ = {
         "ENGINE": "InnoDB",
@@ -125,6 +126,13 @@ class Table(object):
     }
 
     INSERT = "INSERT IGNORE"
+
+    def __init__(self, *args, **kwargs):
+        values = ', '.join(
+            ["IFNULL(%s,'NULL')" % escaped(c.name) for c in
+            self.__compositekey__]
+            )
+        self['hash_key'] = raw_sql("UNHEX(SHA1(CONCAT_WS(',', %s)))" % values)
 
     @classproperty
     def trigger_name(cls):
@@ -172,18 +180,12 @@ class Table(object):
         """ Create this table. Override this method to also create
         dependent tables and any related views that do not already exist.
         """
-        try:
-            # If this uses the staging table or similar, we can
-            # automatically build this here too.
-            cls.__source__.build()
-        except AttributeError:
-            pass
         cls.create_table()
         cls.create_trigger()
 
     @classmethod
     def create_table(cls):
-        """ Create this table in the current data warehouse.
+        """ Create this table in the current datawarehouse.
 
         Returns:
             True if the table was created, or False if the table already
@@ -249,7 +251,8 @@ class Table(object):
         """ Fetch data from the source defined for this table and
         yield as each is received.
         """
-        source = cls.__historical_source__ if historical else cls.__source__
+        source = (cls.__historical_source__ if historical and
+                  cls.__historical_source__ else cls.__source__)
         if source:
             try:
                 for inst in source.select(cls, since=since):

@@ -1,9 +1,8 @@
 from __future__ import unicode_literals
-import datetime
 
 from column import *
 from table import Table
-from utils import dump, escaped, raw_sql
+from utils import dump, escaped
 
 
 class Dimension(Table):
@@ -16,13 +15,11 @@ class Dimension(Table):
     __naturalkeys__ = NotImplemented
     __compositekey__ = NotImplemented
 
+    # Generic columns.
     id = PrimaryKey()
     hash_key = HashKey()
-    applicable_from = ApplicableFrom()
     created = CreatedTimestamp()
-
-    def __init__(self, *args, **kwargs):
-        self['hash_key'] = raw_sql("UNHEX(SHA1(CONCAT_WS(',', %s)))" % ', '.join(["IFNULL(%s,'NULL')" % escaped(c.name) for c in self.__compositekey__]))
+    applicable_from = ApplicableFrom()
 
     @classmethod
     def __subquery__(cls, value, timestamp):

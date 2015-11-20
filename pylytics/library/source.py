@@ -9,7 +9,7 @@ from utils import dump
 from warehouse import Warehouse
 
 
-__all__ = ['Source', 'DatabaseSource', 'Staging']
+__all__ = ['Source', 'DatabaseSource']
 log = logging.getLogger("pylytics")
 
 
@@ -123,71 +123,3 @@ class CallableSource(Source):
         kwargs = getattr(cls, "kwargs", {})
         for row in _callable(*args, **kwargs):
             yield row
-
-
-class Staging(Source, Table):
-    """ Staging is both a table and a data source.
-    """
-    __tablename__ = "staging"
-
-    # Keep details of records to be deleted.
-    __recycling = set()
-
-    id = PrimaryKey()
-    event_name = Column("event_name", unicode, size=80)
-    value_map = Column("value_map", unicode, size=2048)
-    created = CreatedTimestamp()
-
-    @classmethod
-    def select(cls, for_class, since=None):
-        extra = {"table": for_class.__tablename__}
-
-        log.debug("Fetching rows from staging table", extra=extra)
-
-        events = list(getattr(cls, "events"))
-        sql = """\
-        SELECT id, event_name, value_map FROM staging
-        WHERE event_name IN (%s)
-        ORDER BY created, id
-        """ % ",".join(map(dump, events))
-        log.debug(sql)
-
-        connection = Warehouse.get()
-        with closing(connection.cursor(raw=False)) as cursor:
-            cursor.execute(sql)
-            results = cursor.fetchall()
-
-        for id_, event_name, value_map in results:
-            try:
-                data = {"__event__": event_name}
-                data.update(json.loads(unicode(value_map)))
-                cls._apply_expansions(data)
-                inst = hydrated(for_class, data)
-            except Exception as error:
-                log.error("Unable to hydrate %s record (%s: %s) -- %s",
-                          for_class.__name__, error.__class__.__name__, error,
-                          value_map, extra=extra)
-            else:
-                yield inst
-            finally:
-                # We'll recycle the row regardless of whether or
-                # not we've been able to hydrate and yield it. If
-                # broken, it gets logged anyway.
-                cls.__recycling.add(id_)
-
-    @classmethod
-    def finish(cls, for_class):
-        if cls.__recycling:
-            sql = "DELETE FROM staging WHERE id in (%s)" % (
-                ",".join(map(str, cls.__recycling)))
-            connection = Warehouse.get()
-            try:
-                with closing(connection.cursor()) as cursor:
-                    cursor.execute(sql)
-            except:
-                log.error('Unable to clear staging.')
-            cls.__recycling.clear()
-
-    def __init__(self, event_name, value_map):
-        self.event_name = event_name
-        self.value_map = json.dumps(value_map, separators=",:")

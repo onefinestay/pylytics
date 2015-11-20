@@ -17,7 +17,7 @@ from test.dummy_project import Product, Sales, Store
 
 
 # The fact table generated is MAX_ITERATIONS ^ 2.
-MAX_ITERATIONS = 1001
+MAX_ITERATIONS = 101
 
 log = logging.getLogger("pylytics")
 

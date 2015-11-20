@@ -1,6 +1,5 @@
 from __future__ import unicode_literals
 from contextlib import closing
-import math
 import logging
 
 from column import *
@@ -8,7 +7,7 @@ from exceptions import classify_error
 from schedule import Schedule
 from selector import DimensionSelector
 from table import Table
-from utils import dump, escaped, raw_sql
+from utils import dump, escaped
 from warehouse import Warehouse
 
 
@@ -47,14 +46,11 @@ class Fact(Table):
     # These attributes aren't touched by the metaclass.
     __dimension_selector__ = DimensionSelector()
     __schedule__ = Schedule()
-    __historical_source__ = None
 
+    # Generic columns.
     id = PrimaryKey()
     hash_key = HashKey()
     created = CreatedTimestamp()
-
-    def __init__(self, *args, **kwargs):
-        self['hash_key'] = raw_sql("UNHEX(SHA1(CONCAT_WS(',', %s)))" % ', '.join(["IFNULL(%s,'NULL')" % escaped(c.name) for c in self.__compositekey__]))
 
     @classmethod
     def build(cls):
@@ -64,7 +60,8 @@ class Fact(Table):
 
     @classmethod
     def update(cls, since=None, historical=False):
-        if not (cls.__historical_source__ if historical else cls.__source__):
+        if not (cls.__historical_source__ if historical and
+                cls.__historical_source__ else cls.__source__):
             # Bail early before building dimensions.
             raise NotImplementedError("No data source defined")
 
@@ -75,7 +72,7 @@ class Fact(Table):
                 unique_dimensions.append(dimension_key.dimension)
 
         for dimension in unique_dimensions:
-            dimension.update(since=since)
+            dimension.update(since=since, historical=historical)
         return super(Fact, cls).update(since=since, historical=historical)
 
     # TODO Consider adding historical to dimensions.

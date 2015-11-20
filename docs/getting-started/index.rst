@@ -13,6 +13,7 @@ Getting Started
    running-scripts
    scheduling
    source-types
+   table-contraints
    mutable-dimensions
    visualisation-tools
    full-example

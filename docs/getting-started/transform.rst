@@ -21,14 +21,12 @@ The expansions are simple, testable functions. For example::
         """
         data['created_date'] = data['created_datetime'].date()
         del data['created_datetime']
-        return data
 
 
     def convert_str_to_int(data):
         """ The source returns integers as strings - convert them.
         """
         data['sales'] = int(data['sales'])
-        return data
 
 The ``data`` argument is a dictionary representing a single row.
 
