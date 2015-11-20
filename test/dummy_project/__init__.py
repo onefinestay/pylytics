@@ -6,7 +6,8 @@ and not in conftest.
 
 """
 
-from pylytics.library.column import Column, DimensionKey, Metric, NaturalKey
+from pylytics.library.column import (Column, DimensionKey, Metric, NaturalKey,
+                                     DegenerateDimension)
 from pylytics.library.dimension import Dimension
 from pylytics.library.fact import Fact
 from pylytics.library.source import CallableSource
@@ -57,3 +58,12 @@ class Stock(Fact):
 
     product = DimensionKey('product', Product)
     quantity = Metric('quantity', int)
+
+
+class StockWithCode(Fact):
+
+    __source__ = NotImplemented
+
+    product = DimensionKey('product', Product)
+    quantity = Metric('quantity', int)
+    stock_code = DegenerateDimension('stock_code', basestring)

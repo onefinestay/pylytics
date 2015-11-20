@@ -11,7 +11,8 @@ from pylytics.library.dimension import Dimension
 from pylytics.library.fact import Fact
 from pylytics.library.source import CallableSource
 from pylytics.library.warehouse import Warehouse
-from test.dummy_project import Product, Sales, Stock, Store, PRODUCTS
+from test.dummy_project import (Product, Sales, Stock, Store, PRODUCTS,
+                                StockWithCode)
 
 
 log = logging.getLogger("pylytics")
@@ -45,6 +46,13 @@ class TestFactTableCreation(object):
         assert Product.table_exists
         assert Store.table_exists
         assert Sales.table_exists
+
+
+class TestColumnTypes(object):
+
+    def test_degenerate_dimension(self, empty_warehouse):
+        Warehouse.use(empty_warehouse)
+        StockWithCode.build()
 
 
 class TestFactRowInsertion(object):
