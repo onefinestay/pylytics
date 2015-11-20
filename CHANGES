@@ -1,5 +1,17 @@
+Version 1.2.0
+-------------
+- Historical dimensions - a __historical_source__ can now be specified for
+  Dimension subclasses, which will be tried first when doing a historical update
+  of a Fact. If it's not available, it will fall back to __source__.
+- Cleaned up tests - removed some old cruft. Added tests for unique constraints
+  on tables.
+- DegenerateDimension - providing this new column type for storing dimension
+  values in the Fact table, rather than using a foreign key to a separate
+  Dimension table. Used sparingly, it's very useful.
+
+
 Version 1.1.0
---------------
+-------------
 - Using unicode for the main internals.
 
 
