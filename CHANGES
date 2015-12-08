@@ -1,3 +1,11 @@
+Version 1.2.1
+-------------
+- Cleaned up README - most of it was duplicated from the main docs.
+- Added --allow-external line to requirements.txt, so it can be installed
+  locally via pip without additional flags.
+- Removed unused crud from setup.py.
+
+
 Version 1.2.0
 -------------
 - Historical dimensions - a __historical_source__ can now be specified for
