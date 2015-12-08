@@ -1,5 +1,6 @@
+--allow-external mysql-connector-python
+mysql-connector-python>=2.0.4
 pytz
 iso8601
 raven
-mysql-connector-python>=2.0.4
 Jinja2==2.7.2
