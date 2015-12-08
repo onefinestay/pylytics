@@ -129,7 +129,7 @@ An example is a user submitted questionnaire, where a lot of the fields have bee
 DegenerateDimension
 *******************
 
-A `DegenerateDimension` stores the dimension value in the fact itself, rather than using a foreign key to a dimension table, as is it the case with `DimensionKey`.
+A `DegenerateDimension` stores the dimension value in the fact itself, rather than using a foreign key to a dimension table, as is the case with `DimensionKey`.
 
 Use `DegenerateDimension` when the dimension doesn't warrant its own table - for example, in a sales fact there might be an order_id. Having this in a separate table doesn't save any space, and results in an unneccessary join.
 
