@@ -1,5 +1,4 @@
---allow-external mysql-connector-python
-mysql-connector-python>=2.0.4
+mysql-connector>=2.1.3
 pytz
 iso8601
 raven
