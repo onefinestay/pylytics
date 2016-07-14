@@ -17,9 +17,9 @@ Pylytics has been tested with MySQL versions 5.5.37 and 5.6.5. The recommended v
 Installation
 ************
 
-Pylytics uses Oracle's MySQL adapter, which isn't hosted on PyPi:
+Using a recent version of pip (tested with version 8.1.2):
 
-    pip install --allow-external mysql-connector-python pylytics
+    pip install pylytics
 
 
 Documentation
