@@ -17,6 +17,8 @@ Pylytics has been tested with MySQL versions 5.5.37 and 5.6.5. The recommended v
 Installation
 ************
 
+Using a recent version of pip (tested with version 8.1.2):
+
     pip install pylytics
 
 
